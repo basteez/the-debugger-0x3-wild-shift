@@ -12,6 +12,7 @@ config_version=5
 
 config/name="GitHub Game Off 2026"
 run/main_scene="res://src/main/main.tscn"
+run/max_fps=60
 config/features=PackedStringArray("4.7", "GL Compatibility")
 
 [audio]
