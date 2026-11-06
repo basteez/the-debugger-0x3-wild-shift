@@ -4,7 +4,7 @@ baseline_commit: 5fcd66caec6e18a8aeb128b123ff3f20b0342be0
 
 # Story 1.1: Godot Project Skeleton with Pixel-Perfect 60 Hz Setup
 
-Status: review
+Status: done
 
 ## Story
 
@@ -80,6 +80,17 @@ Then pixels are crisp at 2× integer scale and the frame rate is 60 FPS.
   - [x] 6.5 Grep check: `grep -rn "print(" game/src` returns only `src/autoloads/log.gd`.
   - [x] 6.6 Check FPS: the editor's Monitors/FPS readout shows 60 with the test glyph on screen. The F10 perf overlay does not exist yet.
   - [x] 6.7 Record the Godot version, the export-template status and any setting-key differences in Completion Notes.
+
+### Review Findings
+
+Code review (gds-code-review, unattended, diff `origin/main...HEAD`, 2026-11-06). Blind/edge/auditor layers were folded into one adversarial pass by the reviewing agent. AC1-AC3 verified against `project.godot` and the sources; AC4 verified via the dev's recorded measurements.
+
+- [x] [Review][Patch] Render FPS uncapped (120 on a 120 Hz display) versus AC4 "frame rate is 60 FPS" and GNFR10 fixed 60 — added `application/run/max_fps=60` [game/project.godot:15]. Decision: AC4 reads as a hard 60 FPS, the cap is one line and safe (sim is tick-driven, never delta-driven); browsers still pace via rAF.
+- [x] [Review][Defer] `error()` prints and also calls `push_error` (double line in the editor) [game/src/autoloads/log.gd] — skipped, intentional per DC6; revisit if a popup or noise appears.
+- [x] [Review][Defer] No committed tests — skipped, GUT arrives in Story 1.2 (forbidden here); the throwaway 37-check script should be ported there.
+
+Dismissed as noise: 3 (default-valued keys may be dropped on editor re-save; autoload order Log-before-SimClock is safe at call time; `.gd.uid` files intentionally committed).
+Re-validated after the fix: `--headless --import` exit 0, `--headless --quit` exit 0 with only `[f=0][INFO][flow] boot`.
 
 ## Dev Notes
 
@@ -219,3 +230,4 @@ All checks ran against Godot `4.7.2.stable.official.ed1daf0bf` (macOS, Apple M5 
 ### Change Log
 
 - 2026-11-06: Implemented Story 1.1: Godot 4.7.2 project skeleton, folder tree, Const/Palette, typed autoload stubs with Log and SimClock, persistent main scene with test glyph. Status → review.
+- 2026-11-06: Code review: added `application/run/max_fps=60` (AC4). Status -> done.
