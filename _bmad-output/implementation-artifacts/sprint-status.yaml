@@ -90,7 +90,7 @@ story_location: "{project-root}/_bmad-output/implementation-artifacts"
 development_status:
   # Epic 1: Web Foundation — window Nov 6–7
   epic-1: in-progress
-  1-1-godot-project-skeleton-with-pixel-perfect-60-hz-setup: ready-for-dev
+  1-1-godot-project-skeleton-with-pixel-perfect-60-hz-setup: review
   1-2-test-framework-and-ci-pipeline: backlog
   1-3-web-export-and-itch-io-draft-deploy: backlog # includes I-6 mumble-speech web check
   1-4-title-screen-with-press-to-start-and-audio-unlock: backlog
