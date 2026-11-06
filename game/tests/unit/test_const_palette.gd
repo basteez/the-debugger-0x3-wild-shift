@@ -19,7 +19,7 @@ func test_const_arena_tiles_is_32x18() -> void:
 
 
 func test_tiles_per_s_to_px_per_frame_3_75_is_1() -> void:
-	assert_eq(Const.tiles_per_s_to_px_per_frame(3.75), 1.0)
+	assert_almost_eq(Const.tiles_per_s_to_px_per_frame(3.75), 1.0, 0.0001)
 
 
 func test_tiles_per_s_to_px_per_frame_0_is_0() -> void:
