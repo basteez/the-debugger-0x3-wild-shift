@@ -4,7 +4,7 @@ baseline_commit: 44b85d2
 
 # Story 1.2: Test Framework and CI Pipeline
 
-Status: review
+Status: done
 
 ## Story
 
@@ -99,7 +99,7 @@ Then the GUT run reports the failing test name and the guard script exits non-ze
 
 - In scope: GUT addon vendored and running, unit tests porting Story 1.1 checks, guard script, minimal Web preset, GitHub Actions workflow with GUT + guards + Web export.
 - Out of scope: itch.io deploy with `butler`, full Web preset verification, browser smoke tests, build-size record, audio/voice smoke tests (all Story 1.3); title screen (1.4); any gameplay code; `tests/integration/` and `tests/replays/` content (empty until Story 2.1); `data/**/*.tres` validation test (Story 2.2 owns `test_data_validation.gd`); `InputSource`, `Register` and other simulation code.
-- Do not touch `_bmad/`, `.claude/` (symlinks, gitignored). Do not commit anything under `_bmad-output/` from this story run; the dev-story run commits the code.
+- Do not touch `_bmad/`, `.claude/` (symlinks, gitignored). Commit `_bmad-output/` story files and `sprint-status.yaml` as in Story 1.1 (`docs(story)` commits); `_bmad/` and `.claude/` stay uncommitted.
 - Do not add `mumble_speech` or GoPeak to `game/addons/` (Story 1.3 and the AI tooling setup).
 
 ### Current repo state (verified 2026-11-06, HEAD 44b85d2)
@@ -287,3 +287,34 @@ All local runs on Godot `4.7.2.stable.official.ed1daf0bf` (macOS). CI on `ubuntu
 ### Change Log
 
 - 2026-11-06: Story 1.2 implemented. GUT 9.6.1 vendored; 34 unit tests port the Story 1.1 checks; static guard script; minimal Web preset; GitHub Actions CI (GUT + guards + Web export) green on GitHub; failure paths proven locally and on a throwaway CI branch. Status → review.
+
+### Review Findings
+
+Code review 2026-11-06 (Blind Hunter, Edge Case Hunter, Acceptance Auditor in parallel). 0 decision_needed, 14 patch, 12 defer, rest dismissed as noise or duplicates.
+
+- [x] [Review][Patch] Project-context GUT command lacked `-ginclude_subdirs` [_bmad-output/project-context.md:65]
+- [x] [Review][Patch] Dev Notes said not to commit `_bmad-output/`, contradicting the Story 1.1 convention [story file]
+- [x] [Review][Patch] CI ran twice per PR push (push + pull_request); push now only on main, PRs on any base branch (stacked PRs), cancel-in-progress not applied to main [.github/workflows/ci.yml]
+- [x] [Review][Patch] No `permissions` block; added `contents: read` [.github/workflows/ci.yml]
+- [x] [Review][Patch] GUT step passed with zero tests run; now requires `Tests >= 1` [.github/workflows/ci.yml]
+- [x] [Review][Patch] Checksum lookup used a regex grep; now exact awk match requiring exactly one line [.github/workflows/ci.yml]
+- [x] [Review][Patch] Godot cache was only saved when the whole job passed; split into restore + save with `if: always()` after a successful install [.github/workflows/ci.yml]
+- [x] [Review][Patch] Web export only checked index.html; now also index.pck and index.wasm [.github/workflows/ci.yml]
+- [x] [Review][Patch] Misleading error when GUT reports pending/risky tests; message now states strictness [.github/workflows/ci.yml]
+- [x] [Review][Patch] Print guard missed printerr, print_rich, prints, push_error, push_warning, `print (`; flagged `foo.print(`/comments [game/tools/check_guards.sh]
+- [x] [Review][Patch] Timer guard missed `create_timer` and `get_ticks_msec/usec`; comment-only lines now ignored [game/tools/check_guards.sh]
+- [x] [Review][Patch] Guard only worked from repo root; now cds to it [game/tools/check_guards.sh]
+- [x] [Review][Patch] Exact float compare in palette test; now `assert_almost_eq` [game/tests/unit/test_const_palette.gd]
+- [x] [Review][Patch] CI trigger confirmed to have no branch filter on `pull_request` (stacked PRs)
+- [x] [Review][Defer] Guard does not check `delta` in sim folders — deferred: the rule has legitimate presentation-adjacent uses; revisit when sim code exists (Epic 2)
+- [x] [Review][Defer] Guard silently skips missing SIM_DIRS — deferred: dirs are created by later stories; make it strict once all exist
+- [x] [Review][Defer] Log tests cover only `format_line`/`emits`, not wiring of `debug()`/`info()` — deferred: DC5, needs output capture
+- [x] [Review][Defer] Default-valued settings in test_project_settings cannot fail if deleted — deferred: low value
+- [x] [Review][Defer] VRAM keys explicit in export_presets.cfg — deferred: Story 1.3 owns export tuning
+- [x] [Review][Defer] Actions pinned by tag not SHA; checksums come from the same release — deferred: acceptable for a jam project; versions were proven by green runs
+- [x] [Review][Defer] Failure-marker greps scan whole logs (error-path tests that log such text would fail CI) — deferred: no such tests yet
+- [x] [Review][Defer] Export error regex still narrow beyond exit code and file checks — deferred: partially mitigated by pck/wasm asserts
+- [x] [Review][Defer] Cache key not tied to install script; no `.gutconfig.json`; no artifact upload of logs/build — deferred: nice-to-have
+- [x] [Review][Defer] Tests call `_physics_process` directly / `has_node` only — deferred: DC6, accepted
+- [x] [Review][Defer] `.gitkeep` dependence of test_folder_tree — deferred: by design
+- [x] [Review][Defer] GUT 9.6.1 vendored while 9.7.1 exists — deferred: upgrade only if needed

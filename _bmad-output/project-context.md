@@ -62,7 +62,7 @@ _This file contains critical rules and patterns that AI agents must follow when 
 
 ### Testing Rules
 
-- GUT, headless: `godot --headless --path game -s addons/gut/gut_cmdln.gd -gdir=res://tests -gexit`.
+- GUT, headless: `godot --headless --path game -s addons/gut/gut_cmdln.gd -gdir=res://tests -ginclude_subdirs -gexit`.
 - `tests/unit/test_<subject>.gd` for pure logic (register, combo table, `ActionResolver`, `DamageCalc`, input buffer, boss controller); `tests/integration/` for flow and retry; `tests/replays/` for recorded input replays.
 - Use the GDD's worked numbers as test cases (e.g. unpatched slash 15 → 8; Patched Echo of 15 → 16; Echo 10 → 7; `[D,A]` J→K = dash then slash; `[A,D]` = Dash Strike).
 - Simulation code must run without a scene tree or renderer: build systems from defs plus a `SimContext` in tests.
