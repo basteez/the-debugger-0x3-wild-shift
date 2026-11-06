@@ -4,7 +4,7 @@ baseline_commit: 44b85d2
 
 # Story 1.2: Test Framework and CI Pipeline
 
-Status: ready-for-dev
+Status: review
 
 ## Story
 
@@ -54,44 +54,44 @@ Then the GUT run reports the failing test name and the guard script exits non-ze
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Install and prove GUT (AC: 1)
-  - [ ] 1.1 Vendor GUT 9.6.1 into `game/addons/gut/` (download the 9.6.1 release from `github.com/bitwes/Gut`, copy its `addons/gut/` folder; keep its LICENSE file). Commit it as plain files, not a submodule (DC1).
-  - [ ] 1.2 Run `godot --headless --path game --import` (Godot 4.7.2 at `/Applications/Godot.app/Contents/MacOS/Godot` on the dev machine, as in Story 1.1). Confirm GUT's own scripts parse under `untyped_declaration = Error` (see Risk below).
-  - [ ] 1.3 Run the AC1 command with a trivial `tests/unit/test_smoke_gut.gd` first. If GUT does not parse or run on 4.7.2, stop and apply the gdUnit4 fallback (DC2); do not patch GUT's source to suppress warnings.
-  - [ ] 1.4 Confirm the exit-code behaviour and the failure output format with a temporary failing assertion (feeds AC4, AC7). Record the exact summary string GUT prints on failure, for the CI grep in Task 5.
-  - [ ] 1.5 Delete the smoke test once the real tests exist (Task 3).
-- [ ] Task 2: Vendor and hook the test layout (AC: 1)
-  - [ ] 2.1 `tests/unit/`, `tests/integration/`, `tests/replays/` already exist (`.gitkeep`). Real test files go in `tests/unit/` for this story; `tests/integration/` and `tests/replays/` stay empty (their `.gitkeep` remain).
-  - [ ] 2.2 Test files: `tests/unit/test_<subject>.gd`, `extends GutTest`, every variable and parameter typed (the project's `untyped_declaration = Error` applies to tests too).
-- [ ] Task 3: Port the Story 1.1 verification to GUT (AC: 2). One test file per group, each test named for the check it replaces:
-  - [ ] 3.1 `tests/unit/test_project_settings.gd`: read `ProjectSettings` values and assert: renderer `gl_compatibility`; viewport 640×360; window override 1280×720; stretch `viewport`, aspect `keep`, scale_mode `integer`; `rendering/textures/canvas_textures/default_texture_filter` == 0 (Nearest); `physics/common/physics_ticks_per_second` == 60; `audio/general/default_playback_type.web` == 1 (Sample); `debug/gdscript/warnings/untyped_declaration` == 2 (Error); `application/run/max_fps` == 60 (added in 1.1 review); `application/run/main_scene` == `res://src/main/main.tscn`; clear colour equals `Palette.BG` (`ProjectSettings.get_setting("rendering/environment/defaults/default_clear_color")`).
-  - [ ] 3.2 `tests/unit/test_const_palette.gd`: `Const.TILE_PX == 16`, `SIM_HZ == 60`, `BASE_RES == Vector2i(640, 360)`, `ARENA_TILES == Vector2i(32, 18)`; `tiles_per_s_to_px_per_frame(3.75) == 1.0` and `(0.0) == 0.0`; `Palette.INK == Color("#E8E8E8")`, `BG == Color("#101014")`, `WARN == Color("#FF4040")`.
-  - [ ] 3.3 `tests/unit/test_folder_tree.gd`: assert `res://` folders from AC2 of Story 1.1 exist (`src/core`, `src/autoloads`, `src/main`, `data/*`, `assets/fonts`, `assets/audio/{music,sfx}`, `assets/shaders`, `tests/{unit,integration,replays}`, `tools`, `addons`).
-  - [ ] 3.4 `tests/unit/test_autoloads.gd`: parse the raw `res://project.godot` `[autoload]` section in file order (DC4). Assert the eight names in order `Log, EventBus, SimClock, Game, Debug, AudioManager, VoiceService, SaveService` (`Log` first). Assert presence at runtime: each name is a child of the root node (`(Engine.get_main_loop() as SceneTree).root.has_node(name)`), which is how autoloads are mounted.
-  - [ ] 3.5 `tests/unit/test_game_state.gd`: `Game.flow_state == Game.FlowState.TITLE` on a fresh `Game.new()` (avoid asserting the live autoload's state if it has been changed by an earlier test).
-  - [ ] 3.6 `tests/unit/test_log.gd`: format check `[f=N][INFO][flow] boot` via the format helper (DC5); `WARN` and `ERROR` lines use the same shape; `debug` output is suppressed when `Debug.enabled` is false (assert via the helper, not via stdout).
-  - [ ] 3.7 `tests/unit/test_sim_clock.gd`: `SimClock.new()` (not added to the tree, DC6). Assert: `sim_frame == 0` initially; calling `_physics_process(0.0)` 60 times yields `sim_frame == 60`; with `paused = true`, 60 calls leave `sim_frame` unchanged; resuming increments again; `delta` values do not change the increment (call with `0.5` and `0.0`). Free the instance after each test.
-  - [ ] 3.8 Record the final assertion count and the mapping (check → test name) in Completion Notes. The throwaway 37-check script was in the scratchpad and is not in the repo; re-derive it from the Story 1.1 Debug Log References list. The count does not need to equal 37 (AC2 is about coverage).
-- [ ] Task 4: Minimal Web preset for CI (AC: 6). Create `game/export_presets.cfg` with one preset `Web`: `export_path="../build/web/index.html"`, Thread Support off, Extensions Support on (non-threaded dlink template), `exclude_filter="addons/gut/*, tests/*, tools/*"`. Leave VRAM compression, GoPeak and itch.io settings to 1.3 (DC9).
-- [ ] Task 5: Static guard script (AC: 5). Create `game/tools/check_guards.sh` (executable). It runs from the repo root and exits 1 with `file:line: message` output on any violation:
+- [x] Task 1: Install and prove GUT (AC: 1)
+  - [x] 1.1 Vendor GUT 9.6.1 into `game/addons/gut/` (download the 9.6.1 release from `github.com/bitwes/Gut`, copy its `addons/gut/` folder; keep its LICENSE file). Commit it as plain files, not a submodule (DC1).
+  - [x] 1.2 Run `godot --headless --path game --import` (Godot 4.7.2 at `/Applications/Godot.app/Contents/MacOS/Godot` on the dev machine, as in Story 1.1). Confirm GUT's own scripts parse under `untyped_declaration = Error` (see Risk below).
+  - [x] 1.3 Run the AC1 command with a trivial `tests/unit/test_smoke_gut.gd` first. If GUT does not parse or run on 4.7.2, stop and apply the gdUnit4 fallback (DC2); do not patch GUT's source to suppress warnings.
+  - [x] 1.4 Confirm the exit-code behaviour and the failure output format with a temporary failing assertion (feeds AC4, AC7). Record the exact summary string GUT prints on failure, for the CI grep in Task 5.
+  - [x] 1.5 Delete the smoke test once the real tests exist (Task 3).
+- [x] Task 2: Vendor and hook the test layout (AC: 1)
+  - [x] 2.1 `tests/unit/`, `tests/integration/`, `tests/replays/` already exist (`.gitkeep`). Real test files go in `tests/unit/` for this story; `tests/integration/` and `tests/replays/` stay empty (their `.gitkeep` remain).
+  - [x] 2.2 Test files: `tests/unit/test_<subject>.gd`, `extends GutTest`, every variable and parameter typed (the project's `untyped_declaration = Error` applies to tests too).
+- [x] Task 3: Port the Story 1.1 verification to GUT (AC: 2). One test file per group, each test named for the check it replaces:
+  - [x] 3.1 `tests/unit/test_project_settings.gd`: read `ProjectSettings` values and assert: renderer `gl_compatibility`; viewport 640×360; window override 1280×720; stretch `viewport`, aspect `keep`, scale_mode `integer`; `rendering/textures/canvas_textures/default_texture_filter` == 0 (Nearest); `physics/common/physics_ticks_per_second` == 60; `audio/general/default_playback_type.web` == 1 (Sample); `debug/gdscript/warnings/untyped_declaration` == 2 (Error); `application/run/max_fps` == 60 (added in 1.1 review); `application/run/main_scene` == `res://src/main/main.tscn`; clear colour equals `Palette.BG` (`ProjectSettings.get_setting("rendering/environment/defaults/default_clear_color")`).
+  - [x] 3.2 `tests/unit/test_const_palette.gd`: `Const.TILE_PX == 16`, `SIM_HZ == 60`, `BASE_RES == Vector2i(640, 360)`, `ARENA_TILES == Vector2i(32, 18)`; `tiles_per_s_to_px_per_frame(3.75) == 1.0` and `(0.0) == 0.0`; `Palette.INK == Color("#E8E8E8")`, `BG == Color("#101014")`, `WARN == Color("#FF4040")`.
+  - [x] 3.3 `tests/unit/test_folder_tree.gd`: assert `res://` folders from AC2 of Story 1.1 exist (`src/core`, `src/autoloads`, `src/main`, `data/*`, `assets/fonts`, `assets/audio/{music,sfx}`, `assets/shaders`, `tests/{unit,integration,replays}`, `tools`, `addons`).
+  - [x] 3.4 `tests/unit/test_autoloads.gd`: parse the raw `res://project.godot` `[autoload]` section in file order (DC4). Assert the eight names in order `Log, EventBus, SimClock, Game, Debug, AudioManager, VoiceService, SaveService` (`Log` first). Assert presence at runtime: each name is a child of the root node (`(Engine.get_main_loop() as SceneTree).root.has_node(name)`), which is how autoloads are mounted.
+  - [x] 3.5 `tests/unit/test_game_state.gd`: `Game.flow_state == Game.FlowState.TITLE` on a fresh `Game.new()` (avoid asserting the live autoload's state if it has been changed by an earlier test).
+  - [x] 3.6 `tests/unit/test_log.gd`: format check `[f=N][INFO][flow] boot` via the format helper (DC5); `WARN` and `ERROR` lines use the same shape; `debug` output is suppressed when `Debug.enabled` is false (assert via the helper, not via stdout).
+  - [x] 3.7 `tests/unit/test_sim_clock.gd`: `SimClock.new()` (not added to the tree, DC6). Assert: `sim_frame == 0` initially; calling `_physics_process(0.0)` 60 times yields `sim_frame == 60`; with `paused = true`, 60 calls leave `sim_frame` unchanged; resuming increments again; `delta` values do not change the increment (call with `0.5` and `0.0`). Free the instance after each test.
+  - [x] 3.8 Record the final assertion count and the mapping (check → test name) in Completion Notes. The throwaway 37-check script was in the scratchpad and is not in the repo; re-derive it from the Story 1.1 Debug Log References list. The count does not need to equal 37 (AC2 is about coverage).
+- [x] Task 4: Minimal Web preset for CI (AC: 6). Create `game/export_presets.cfg` with one preset `Web`: `export_path="../build/web/index.html"`, Thread Support off, Extensions Support on (non-threaded dlink template), `exclude_filter="addons/gut/*, tests/*, tools/*"`. Leave VRAM compression, GoPeak and itch.io settings to 1.3 (DC9).
+- [x] Task 5: Static guard script (AC: 5). Create `game/tools/check_guards.sh` (executable). It runs from the repo root and exits 1 with `file:line: message` output on any violation:
   - `grep -rnE --include=*.gd '\bTimer\.new\b|\bawait\b' game/src/{input,register,player,combat,bosses,skills,arena}` → violation.
   - `grep -rnE --include=*.gd '\bprint\(' game/src` excluding `game/src/autoloads/log.gd` → violation.
   - Extras (DC10): `create_tween` and `Engine\.time_scale` under the same sim folders.
   - Use `grep` with `|| true` pattern only for the exit logic; do not pipe through `head` (it hides the exit code).
   - Exclude comment-only matches if they appear; if a comment needs `await`, reword the comment, do not special-case the regex.
-- [ ] Task 6: GitHub Actions workflow `.github/workflows/ci.yml` (AC: 3, 4). Trigger `push` and `pull_request`. Single job on `ubuntu-latest`:
+- [x] Task 6: GitHub Actions workflow `.github/workflows/ci.yml` (AC: 3, 4). Trigger `push` and `pull_request`. Single job on `ubuntu-latest`:
   1. Checkout.
   2. Download Godot 4.7.2-stable Linux headless binary and the matching export templates `Godot_v4.7.2-stable_export_templates.tpz` from the official `godotengine/godot` 4.7.2-stable release; cache under `~/.local/share/godot` and `~/.local/share/godot/export_templates/4.7.2.stable` (DC8). Verify both file names exist on the release page before pinning.
   3. `godot --headless --path game --import` (class_name cache is gitignored, so this is required on a clean checkout).
   4. GUT: `godot --headless --path game -s addons/gut/gut_cmdln.gd -gdir=res://tests -ginclude_subdirs -gexit 2>&1 | tee gut.log`, then fail the step if the shell exit code is non-zero **or** `gut.log` contains a failure marker (DC7). The markers must be the exact GUT failure strings found in Task 1.4 plus `SCRIPT ERROR` and `Parse Error`.
   5. Guards: `bash game/tools/check_guards.sh`.
   6. Web export: `mkdir -p build/web && godot --headless --path game --export-release "Web" ../build/web/index.html`; fail on non-zero exit; also fail if `build/web/index.html` is missing.
-- [ ] Task 7: Verify and record (AC: 1–7)
-  - [ ] 7.1 Run the exact GUT command, the guard script and the Web export locally; all must pass on a clean working tree with `.godot/` removed first.
-  - [ ] 7.2 Run the AC4/AC7 failing probe: add one failing assertion, run GUT, confirm the failing test name and the failure marker appear and the step would fail. Revert.
-  - [ ] 7.3 Run the AC5 probe: add `Timer.new()` to a throwaway `game/src/register/_probe.gd`, run `check_guards.sh`, confirm non-zero exit and file:line output. Delete the probe file.
-  - [ ] 7.4 Confirm `git status` shows only the intended files: `game/addons/gut/`, `game/tests/unit/`, `game/tools/check_guards.sh`, `game/export_presets.cfg`, `.github/workflows/ci.yml`, and the `.gd.uid` files. No `.godot/`, no `build/`, no probe files.
-  - [ ] 7.5 Record in Completion Notes: Godot and GUT versions, the GUT failure marker strings, the exported `build/web` size (informational, Story 1.3 records the official number), and whether CI was run on GitHub (see Dev Notes: the CI proof on GitHub happens when the branch is pushed as a PR).
+- [x] Task 7: Verify and record (AC: 1–7)
+  - [x] 7.1 Run the exact GUT command, the guard script and the Web export locally; all must pass on a clean working tree with `.godot/` removed first.
+  - [x] 7.2 Run the AC4/AC7 failing probe: add one failing assertion, run GUT, confirm the failing test name and the failure marker appear and the step would fail. Revert.
+  - [x] 7.3 Run the AC5 probe: add `Timer.new()` to a throwaway `game/src/register/_probe.gd`, run `check_guards.sh`, confirm non-zero exit and file:line output. Delete the probe file.
+  - [x] 7.4 Confirm `git status` shows only the intended files: `game/addons/gut/`, `game/tests/unit/`, `game/tools/check_guards.sh`, `game/export_presets.cfg`, `.github/workflows/ci.yml`, and the `.gd.uid` files. No `.godot/`, no `build/`, no probe files.
+  - [x] 7.5 Record in Completion Notes: Godot and GUT versions, the GUT failure marker strings, the exported `build/web` size (informational, Story 1.3 records the official number), and whether CI was run on GitHub (see Dev Notes: the CI proof on GitHub happens when the branch is pushed as a PR).
 
 ## Dev Notes
 
@@ -217,15 +217,73 @@ Populated from `_bmad-output/project-context.md` (Testing Rules, Engine-Specific
 
 ### Agent Model Used
 
-{{to be filled by dev-story}}
+claude-opus-5-5 (gds-dev-story, unattended)
 
 ### Debug Log References
+
+All local runs on Godot `4.7.2.stable.official.ed1daf0bf` (macOS). CI on `ubuntu-latest` with the official Linux binary, same build hash.
+
+- GUT 9.6.1 source: `bitwes/Gut` tag `v9.6.1` (release marked Latest; 9.7.x exists but the story pins 9.6.1). `addons/gut/` copied unmodified (257 files incl. `LICENSE.md` and `.uid`); `diff -rq` against the tarball is empty.
+- CLI flags verified in the vendored source, not from memory: `addons/gut/cli/gut_cli.gd:114` `-gdir`, `:115` `-ginclude_subdirs`, `:129` `-gexit`, `:154` `-gh`. `gut_cmdln.gd` loads `cli/gut_cli.gd`. The AC1 command is valid as written.
+- `untyped_declaration = Error` vs GUT: Godot 4.7 no longer has `debug/gdscript/warnings/exclude_addons` (reads `<null>`). It is replaced by `debug/gdscript/warnings/directory_rules`, whose value at runtime was `{ "res://addons": 0, "res://addons/gut": 0, "res://addons/gut/not_a_real_file": 0 }` (0 = exclude; the first entry is the engine default, the other two are added in memory by GUT's `gut_loader.gd`/`warnings_manager.gd`). So warnings, including the untyped-declaration error, do not apply under `addons/`. `project.godot` was not rewritten. Our own `tests/` are NOT exempt: an untyped `var` in a test file is a parse error (probe B below).
+- Exit-code probe (Task 1.4): a failing assertion makes GUT exit **1**. A test file with a parse error makes GUT exit **0** and still print `---- All tests passed! ----` (the broken script is skipped with `[WARNING]: Ignoring script ... because it does not extend GutTest`). This confirms the forum report for the parse-error case and is why CI greps the log.
+- GUT failure output (exact strings): per-assert `[Failed]:  [1] expected to equal [2]:  <msg>` then `at line N`; summary `---- 1 failing tests ----`; success `---- All tests passed! ----`. Parse-error strings: `SCRIPT ERROR: Parse Error: ...`, `ERROR: Failed to load script "res://..." with error "Parse error".`, `Ignoring script ... because it does not extend GutTest`.
+- Suite: 7 scripts, 34 tests, 34 passing, 68 asserts, ~0.47 s.
+- Local clean run (Task 7.1): `rm -rf game/.godot build`, then the CI steps Import, Unit tests (GUT), Static guards, Web export executed from `ci.yml` itself (scratch runner that feeds each step's `run:` to `bash -e`, with `GODOT_BIN` pointed at the macOS binary): all exit 0.
+- Probe A (Task 7.2, failing assertion `test_probe_deliberate_failure`): step exit 1; log shows the test name, `[Failed]`, `---- 1 failing tests ----`; annotations for `[Failed]`, `failing tests`, missing all-passed line, exit code 1.
+- Probe B (parse error in a test file): GUT exit 0, `All tests passed!` printed, but the step exits 1 on `SCRIPT ERROR`, `Parse Error`, `Failed to load script`, `does not extend GutTest`.
+- Probe C (Task 7.3, `game/src/register/_probe.gd` with `Timer.new()`, `await`, `print(`): guard exit 1, output `game/src/register/_probe.gd:5: Timer.new or await in simulation code ...`, `:6:` (await), `:7: bare print( outside Log ...`, `check_guards: 3 violation(s)`. All probe files deleted; guard back to `check_guards: OK`.
+- Export templates: not installed locally at start. Downloaded `Godot_v4.7.2-stable_export_templates.tpz` (1.28 GB, SHA-512 matched `SHA512-SUMS.txt`) and installed only `version.txt` + `web_*.zip` into `~/Library/Application Support/Godot/export_templates/4.7.2.stable/`.
+- Web export (local): exit 0. `build/web/` = 46 MB (`index.side.wasm` 44 MB, `index.wasm` 1.5 MB, `index.js` 2.9 MB, `index.pck` 8.9 KB). `index.html` has `GODOT_THREADS_ENABLED = false`; the `.side.wasm` confirms the dlink (extensions) template. `index.pck` lists only `src/**` scripts and `main.tscn`: no `addons/gut`, `tests` or `tools`. Size is informational; Story 1.3 records the official number.
+- CI on GitHub (branch pushed, no PR opened):
+  - https://github.com/basteez/the-debugger-0x3-wild-shift/actions/runs/42293317315 green (cache miss: binary + templates downloaded, both `sha512sum -c` OK; 34/34 tests; guards OK; `build/web/index.html` exported; cache saved).
+  - https://github.com/basteez/the-debugger-0x3-wild-shift/actions/runs/42293461229 green after moving to `actions/checkout@v7` / `actions/cache@v6` (Node 20 deprecation annotation gone; cache hit, 14 s job).
+  - https://github.com/basteez/the-debugger-0x3-wild-shift/actions/runs/42293466777 **failed as intended**: throwaway branch `ci-probe/1-2` with a failing test and a `Timer.new` probe; the GUT step failed with `##[error]GUT log contains failure marker: [Failed]` and the test name `test_probe_deliberate_failure` in the log. Branch deleted locally and on origin afterwards.
 
 ### Completion Notes List
 
 - [design call] Story created unattended by gds-create-story. Design calls DC1–DC14 above; each is overrulable before dev-story.
+- GUT 9.6.1 runs on Godot 4.7.2 as is. **No gdUnit4 fallback**; `project-context.md` needs no fallback note.
+- Versions: Godot 4.7.2-stable (`ed1daf0bf`), GUT 9.6.1.
+- CI failure markers (DC7): `SCRIPT ERROR`, `Parse Error`, `Failed to load script`, `does not extend GutTest`, `[Failed]`, `failing tests`; plus the step fails if `---- All tests passed! ----` is missing or the exit code is non-zero.
+- Check → test mapping (Task 3.8). 34 tests, 68 asserts:
+  - Settings (`test_project_settings.gd`): renderer → `test_renderer_is_gl_compatibility`; viewport → `test_viewport_is_640x360`; window override → `test_window_override_is_1280x720`; stretch mode/aspect/scale → `test_stretch_is_viewport_keep_integer`; Nearest filter → `test_default_texture_filter_is_nearest`; physics 60 → `test_physics_ticks_per_second_is_60`; web Sample → `test_web_audio_playback_is_sample`; untyped = Error → `test_untyped_declaration_is_error`; max_fps → `test_max_fps_is_60`; main scene → `test_main_scene_is_main_tscn`; clear colour = BG → `test_clear_color_is_palette_bg`.
+  - Const/Palette (`test_const_palette.gd`): `test_const_tile_px_is_16`, `test_const_sim_hz_is_60`, `test_const_base_res_is_640x360`, `test_const_arena_tiles_is_32x18`, `test_tiles_per_s_to_px_per_frame_3_75_is_1`, `test_tiles_per_s_to_px_per_frame_0_is_0`, `test_palette_ink_is_e8e8e8`, `test_palette_bg_is_101014`, `test_palette_warn_is_ff4040`.
+  - Folder tree (`test_folder_tree.gd`): `test_required_folders_exist` (20 folders, one assert each).
+  - Autoloads (`test_autoloads.gd`): order from raw `project.godot` → `test_autoload_order_log_first_to_save_service`; presence under root → `test_autoloads_present_at_runtime`.
+  - Game (`test_game_state.gd`): `test_game_initial_flow_state_is_title` (fresh instance from the preloaded script, autofreed).
+  - Log (`test_log.gd`): `[f=N][INFO][flow] boot` → `test_log_info_format_boot_line`, `test_log_frame_number_in_prefix`; WARN/ERROR shape → `test_log_warn_and_error_same_shape`; debug suppression → `test_log_debug_suppressed_when_debug_disabled`, `test_log_non_debug_levels_always_emitted`.
+  - SimClock (`test_sim_clock.gd`): `test_sim_frame_starts_at_zero`, `test_sim_frame_plus_60_over_60_ticks`, `test_paused_freezes_sim_frame`, `test_resume_after_pause_increments_again`, `test_delta_does_not_change_increment`.
+- [design call] Autoload scripts have no `class_name`, so `SimClock.new()`/`Game.new()` would resolve to the autoload instance, not the script. Tests `preload()` the script into a const (`SimClockScript`, `GameScript`, `LogScript`) and instantiate/call that. No `class_name` was added to the autoloads, since a `class_name` equal to the autoload name conflicts with it.
+- [design call] DC5: added two pure static helpers to `log.gd`: `format_line(level, tag, msg, frame)` (DC5's suggestion) and `emits(level, debug_enabled)` so the "debug suppressed when `Debug.enabled` is false" check can be asserted without stdout capture. `_format` and `debug()` now call them; output is byte-identical. This is the only change to existing source.
+- [design call] CI fails on the log as well as the exit code, and additionally requires GUT's all-passed line. Reason: probe B proved GUT exits 0 and prints "All tests passed!" when a test file fails to parse, so the markers are the only signal in that case.
+- [design call] CI downloads the full templates `.tpz` once (cache miss only) but extracts and caches only `version.txt` + `web_*.zip` (~90 MB instead of 1.3 GB). Both downloads are verified against the release's `SHA512-SUMS.txt`. Cache key `godot-4.7.2-stable-linux-web-v1`.
+- [design call] CI also fails the import step on `SCRIPT ERROR`/`Parse Error`, and the export step on script errors or `ERROR: ...export...` lines in the log, besides a non-zero exit or missing `index.html`. CI logs go to `build/ci/` (gitignored with `build/`).
+- [design call] Moved to `actions/checkout@v7` and `actions/cache@v6` (latest majors) after the first run flagged the Node 20 deprecation. Added `concurrency` (cancel superseded runs per ref) and a 20-minute timeout.
+- [design call] The CI failure path was also proven on GitHub with a throwaway branch `ci-probe/1-2` (run 42293466777, failed as intended) that was then deleted, so no probe ever landed on the story branch. DC14's PR proof is still pending: no PR was opened in this run.
+- [design call] Web export preset written by hand (only the keys this story needs plus template/html defaults). Verified by the actual export: threads off (`GODOT_THREADS_ENABLED = false`), extensions on (`index.side.wasm`), excluded folders absent from `index.pck`. Godot did not rewrite `export_presets.cfg` during export. VRAM compression keys are left at Godot's defaults for Story 1.3 to decide.
+- [design call] The GUT editor plugin is not enabled in `project.godot` (`[editor_plugins]`). The CLI does not need it, and enabling it changes `project.godot`. Enable it from the editor when the GUT panel is wanted.
+- [design call] Installed only the Web export templates locally (not the full 1.3 GB set) into the standard user templates folder, to run the local export.
+- [design call] Story Dev Notes say not to commit `_bmad-output/` from this run, but the Story 1.1 pipeline committed the story/sprint updates as `docs(story)` and this run's instructions ask for logical commits. Followed the 1.1 precedent: the story file and `sprint-status.yaml` are committed in one `docs(story)` commit.
+- Follow-up suggestion (not done, outside the permitted edits): `project-context.md` Testing Rules still shows the GUT command without `-ginclude_subdirs`; it should match the CI command.
 
 ### File List
 
+- .github/workflows/ci.yml (new)
+- game/addons/gut/** (new, vendored GUT 9.6.1, 257 files, unmodified)
+- game/export_presets.cfg (new)
+- game/src/autoloads/log.gd (modified: `format_line`, `emits` helpers)
+- game/tests/unit/test_autoloads.gd (new) + .gd.uid
+- game/tests/unit/test_const_palette.gd (new) + .gd.uid
+- game/tests/unit/test_folder_tree.gd (new) + .gd.uid
+- game/tests/unit/test_game_state.gd (new) + .gd.uid
+- game/tests/unit/test_log.gd (new) + .gd.uid
+- game/tests/unit/test_project_settings.gd (new) + .gd.uid
+- game/tests/unit/test_sim_clock.gd (new) + .gd.uid
+- game/tools/check_guards.sh (new, executable)
 - _bmad-output/implementation-artifacts/1-2-test-framework-and-ci-pipeline.md
 - _bmad-output/implementation-artifacts/sprint-status.yaml
+
+### Change Log
+
+- 2026-11-06: Story 1.2 implemented. GUT 9.6.1 vendored; 34 unit tests port the Story 1.1 checks; static guard script; minimal Web preset; GitHub Actions CI (GUT + guards + Web export) green on GitHub; failure paths proven locally and on a throwaway CI branch. Status → review.
