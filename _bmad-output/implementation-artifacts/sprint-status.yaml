@@ -1,5 +1,5 @@
 # generated: 2026-11-06
-# last_updated: 2026-11-06
+# last_updated: 2026-11-07
 # project: github-gameoff-2026
 # project_key: NOKEY
 # tracking_system: file-system
@@ -81,7 +81,7 @@
 #     Depends on the release of basteez/mumble-speech#32; fallback = pre-render backend.
 
 generated: 2026-11-06
-last_updated: 2026-11-06
+last_updated: 2026-11-07
 project: github-gameoff-2026
 project_key: NOKEY
 tracking_system: file-system
@@ -92,7 +92,7 @@ development_status:
   epic-1: in-progress
   1-1-godot-project-skeleton-with-pixel-perfect-60-hz-setup: done
   1-2-test-framework-and-ci-pipeline: done
-  1-3-web-export-and-itch-io-draft-deploy: ready-for-dev # includes I-6 mumble-speech web check; itch page, secret and first deploy are HUMAN steps
+  1-3-web-export-and-itch-io-draft-deploy: review # includes I-6 mumble-speech web check; itch page, secret and first deploy are HUMAN steps
   1-4-title-screen-with-press-to-start-and-audio-unlock: backlog
   1-5-the-clearing-arena-and-ide-hud-frame: backlog
   1-6-placeholder-scene-flow-with-debug-jump-keys: backlog

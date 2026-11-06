@@ -4,7 +4,7 @@ baseline_commit: edf44bb
 
 # Story 1.3: Web Export and itch.io Draft Deploy
 
-Status: ready-for-dev
+Status: review
 
 ## Story
 
@@ -110,49 +110,49 @@ Given a release build from `main`, Tiziano runs the `deploy-itch-draft` job (Act
 
 ### [DEV] tasks
 
-- [ ] **Task 1: Web preset (AC: 1)**
-  - [ ] 1.1 Edit `game/export_presets.cfg`: keep `thread_support=false`, `extensions_support=true`, `vram_texture_compression/for_desktop=true`, `for_mobile=false`. Add the GoPeak runtime addon patterns to `exclude_filter` (see Dev Notes "GoPeak"): keep `addons/gut/*, tests/*, tools/*` and append the runtime addon folder names (verify them in the GoPeak README before pinning; patterns that match nothing are harmless).
-  - [ ] 1.2 Add `game/tests/unit/test_export_preset.gd` (`extends GutTest`, statically typed, no `Timer`/`await`): load `res://export_presets.cfg` with `ConfigFile`, assert the keys above and that `exclude_filter` contains `addons/gut`, `tests`, `tools`. Name tests `test_thread_support_off`, `test_extensions_support_on`, `test_vram_desktop_only`, `test_exclude_filter_has_gut_tests_tools`. Keep `.gd.uid` with the script.
-  - [ ] 1.3 Run the GUT suite (Dev Notes "Commands") and confirm the count goes from 34 to 38 (plus any tests added in Task 4).
+- [x] **Task 1: Web preset (AC: 1)**
+  - [x] 1.1 Edit `game/export_presets.cfg`: keep `thread_support=false`, `extensions_support=true`, `vram_texture_compression/for_desktop=true`, `for_mobile=false`. Add the GoPeak runtime addon patterns to `exclude_filter` (see Dev Notes "GoPeak"): keep `addons/gut/*, tests/*, tools/*` and append the runtime addon folder names (verify them in the GoPeak README before pinning; patterns that match nothing are harmless).
+  - [x] 1.2 Add `game/tests/unit/test_export_preset.gd` (`extends GutTest`, statically typed, no `Timer`/`await`): load `res://export_presets.cfg` with `ConfigFile`, assert the keys above and that `exclude_filter` contains `addons/gut`, `tests`, `tools`. Name tests `test_thread_support_off`, `test_extensions_support_on`, `test_vram_desktop_only`, `test_exclude_filter_has_gut_tests_tools`. Keep `.gd.uid` with the script.
+  - [x] 1.3 Run the GUT suite (Dev Notes "Commands") and confirm the count goes from 34 to 38 (plus any tests added in Task 4).
 
-- [ ] **Task 2: Release export and size record (AC: 2, 3)**
-  - [ ] 2.1 `mkdir -p build/web && /Applications/Godot.app/Contents/MacOS/Godot --headless --path game --export-release "Web" ../build/web/index.html` (exit 0, no `SCRIPT ERROR`).
-  - [ ] 2.2 Measure: list every file in `build/web` with bytes and total (command in Dev Notes). Record the table in Completion Notes under "Size record".
-  - [ ] 2.3 Confirm `GODOT_THREADS_ENABLED = false` in `build/web/index.html`; confirm `index.pck` contains no `addons/gut`, `tests`, `tools` (1.2 already checked; re-check after the preset change).
+- [x] **Task 2: Release export and size record (AC: 2, 3)**
+  - [x] 2.1 `mkdir -p build/web && /Applications/Godot.app/Contents/MacOS/Godot --headless --path game --export-release "Web" ../build/web/index.html` (exit 0, no `SCRIPT ERROR`).
+  - [x] 2.2 Measure: list every file in `build/web` with bytes and total (command in Dev Notes). Record the table in Completion Notes under "Size record".
+  - [x] 2.3 Confirm `GODOT_THREADS_ENABLED = false` in `build/web/index.html`; confirm `index.pck` contains no `addons/gut`, `tests`, `tools` (1.2 already checked; re-check after the preset change).
 
-- [ ] **Task 3: Size reduction path (AC: 2) — only if total > 30 000 000 bytes**
-  - [ ] 3.1 The 1.2 local measurement was ~46 MB (`index.side.wasm` 44 MB, `index.wasm` 1.5 MB, `index.js` 2.9 MB, `index.pck` 8.9 KB). Assume this is still over budget and confirm with Task 2.
-  - [ ] 3.2 Preset-level options do not shrink the engine binary. The next step is a stripped **custom export template** (architecture: "Stripped custom export template only if > 30 MB"): build Godot 4.7.2-stable web templates from source with the Godot SCons web build, `target=template_release`, `dlink_enabled=yes` (required for Extensions Support), and modules/features disabled that the game does not use (3D, advanced GUI, unused text/physics/navigation modules). Record each flag and the resulting size. Point the local export at it with `custom_template/release` in the preset only if it is built and verified; do not commit a template binary into the repo.
-  - [ ] 3.3 If the stripped build cannot be produced and verified in this run, stop: keep the default template, keep AC2 open, and write the waiver request for Tiziano in Completion Notes (see DC4).
+- [x] **Task 3: Size reduction path (AC: 2) — only if total > 30 000 000 bytes**
+  - [x] 3.1 The 1.2 local measurement was ~46 MB (`index.side.wasm` 44 MB, `index.wasm` 1.5 MB, `index.js` 2.9 MB, `index.pck` 8.9 KB). Assume this is still over budget and confirm with Task 2.
+  - [x] 3.2 Preset-level options do not shrink the engine binary. The next step is a stripped **custom export template** (architecture: "Stripped custom export template only if > 30 MB"): build Godot 4.7.2-stable web templates from source with the Godot SCons web build, `target=template_release`, `dlink_enabled=yes` (required for Extensions Support), and modules/features disabled that the game does not use (3D, advanced GUI, unused text/physics/navigation modules). Record each flag and the resulting size. Point the local export at it with `custom_template/release` in the preset only if it is built and verified; do not commit a template binary into the repo.
+  - [x] 3.3 If the stripped build cannot be produced and verified in this run, stop: keep the default template, keep AC2 open, and write the waiver request for Tiziano in Completion Notes (see DC4).
 
-- [ ] **Task 4: Local smoke script and GUT guard (AC: 7)**
-  - [ ] 4.1 Add `game/tools/smoke_web.sh` (bash, `set -euo pipefail`, run from repo root): (a) requires `build/web/index.html`; (b) starts `python3 -m http.server 8060 --directory build/web` in the background, waits for it, kills it on exit (`trap`); (c) `curl -fsI` each required file and check the HTTP status and `Content-Type` for `.wasm` (`application/wasm`) and `.pck`; (d) grep `index.html` for `GODOT_THREADS_ENABLED = false`; (e) print the byte total with `find build/web -type f -exec wc -c {} + | tail -1`; (f) if `command -v` finds Google Chrome (`/Applications/Google Chrome.app/Contents/MacOS/Google Chrome` on macOS), run it headless once against `http://localhost:8060/` with `--enable-logging=stderr --v=0 --virtual-time-budget=20000 --dump-dom` and fail on `CONSOLE(...) ... ERROR` or `wasm` load errors; otherwise print "browser check skipped: no browser found". Do not install anything.
-  - [ ] 4.2 Run `bash game/tools/smoke_web.sh` locally; record its output in Completion Notes.
-  - [ ] 4.3 No guard change is expected; the new smoke scene and tests must pass the existing guards (`bash game/tools/check_guards.sh`).
+- [x] **Task 4: Local smoke script and GUT guard (AC: 7)**
+  - [x] 4.1 Add `game/tools/smoke_web.sh` (bash, `set -euo pipefail`, run from repo root): (a) requires `build/web/index.html`; (b) starts `python3 -m http.server 8060 --directory build/web` in the background, waits for it, kills it on exit (`trap`); (c) `curl -fsI` each required file and check the HTTP status and `Content-Type` for `.wasm` (`application/wasm`) and `.pck`; (d) grep `index.html` for `GODOT_THREADS_ENABLED = false`; (e) print the byte total with `find build/web -type f -exec wc -c {} + | tail -1`; (f) if `command -v` finds Google Chrome (`/Applications/Google Chrome.app/Contents/MacOS/Google Chrome` on macOS), run it headless once against `http://localhost:8060/` with `--enable-logging=stderr --v=0 --virtual-time-budget=20000 --dump-dom` and fail on `CONSOLE(...) ... ERROR` or `wasm` load errors; otherwise print "browser check skipped: no browser found". Do not install anything.
+  - [x] 4.2 Run `bash game/tools/smoke_web.sh` locally; record its output in Completion Notes.
+  - [x] 4.3 No guard change is expected; the new smoke scene and tests must pass the existing guards (`bash game/tools/check_guards.sh`).
 
-- [ ] **Task 5: Audio panning smoke scene (AC: 8)**
-  - [ ] 5.1 Add `game/src/debug/smoke_audio/smoke_audio.tscn` and `smoke_audio.gd` (`extends Node2D`, typed). On the first click (`_unhandled_input` with `InputEventMouseButton` pressed, or any `InputEventKey`), create a generated tone `AudioStreamWAV` (16-bit mono, 440 Hz sine, 1.0 s, loop mode forward) and start an `AudioStreamPlayer2D` on the `SFX` bus (create the bus only if `AudioManager` does not already own it; do not change the bus layout).
-  - [ ] 5.2 Pan sequence: `position = Vector2(-300, 0)` for 2 s with label "L", then `Vector2(300, 0)` for 2 s with label "R", loop. Use `Timer`-free timing in presentation code only (`await get_tree().create_timer(2.0).timeout` is allowed here because the folder is presentation/debug, not simulation). Note: the guard script's `create_timer` check only covers sim folders.
-  - [ ] 5.3 Hook: `game/src/main/main.gd` `_ready()` reads the URL on web only: `if OS.has_feature("web") and str(JavaScriptBridge.eval("location.search")).contains("debug") and str(JavaScriptBridge.eval("location.search")).contains("smoke=audio")` then instance and show the smoke scene instead of the glyph. Non-web builds and URLs without both parameters are unchanged. Wrap the JavaScriptBridge call so a failure does nothing (no error shown).
-  - [ ] 5.4 Verify locally in the editor: the scene runs, the click starts playback, the label switches (dev can run it from the editor or via `godot --headless --path game --quit` for parse only; full audio is human).
+- [x] **Task 5: Audio panning smoke scene (AC: 8)**
+  - [x] 5.1 Add `game/src/debug/smoke_audio/smoke_audio.tscn` and `smoke_audio.gd` (`extends Node2D`, typed). On the first click (`_unhandled_input` with `InputEventMouseButton` pressed, or any `InputEventKey`), create a generated tone `AudioStreamWAV` (16-bit mono, 440 Hz sine, 1.0 s, loop mode forward) and start an `AudioStreamPlayer2D` on the `SFX` bus (create the bus only if `AudioManager` does not already own it; do not change the bus layout).
+  - [x] 5.2 Pan sequence: `position = Vector2(-300, 0)` for 2 s with label "L", then `Vector2(300, 0)` for 2 s with label "R", loop. Use `Timer`-free timing in presentation code only (`await get_tree().create_timer(2.0).timeout` is allowed here because the folder is presentation/debug, not simulation). Note: the guard script's `create_timer` check only covers sim folders.
+  - [x] 5.3 Hook: `game/src/main/main.gd` `_ready()` reads the URL on web only: `if OS.has_feature("web") and str(JavaScriptBridge.eval("location.search")).contains("debug") and str(JavaScriptBridge.eval("location.search")).contains("smoke=audio")` then instance and show the smoke scene instead of the glyph. Non-web builds and URLs without both parameters are unchanged. Wrap the JavaScriptBridge call so a failure does nothing (no error shown).
+  - [x] 5.4 Verify locally in the editor: the scene runs, the click starts playback, the label switches (dev can run it from the editor or via `godot --headless --path game --quit` for parse only; full audio is human).
 
-- [ ] **Task 6: mumble-speech I-6 check (AC: 9)**
-  - [ ] 6.1 `gh issue view 32 -R basteez/mumble-speech --json state,title,closedAt` and `gh release list -R basteez/mumble-speech --limit 5`.
-  - [ ] 6.2 For the newest release that has a Godot asset: `gh release download <tag> -R basteez/mumble-speech -p '*godot*.zip' -D "$SCRATCH"` where `$SCRATCH` is a new empty directory under the session scratchpad, then `unzip -l` (listing only, do not extract into `game/`). Check for web (`.wasm`/`web` directory) binaries.
-  - [ ] 6.3 Record the findings. Do not add `game/addons/mumble_speech/` in this story (Story 3.7 owns it; DC7).
+- [x] **Task 6: mumble-speech I-6 check (AC: 9)**
+  - [x] 6.1 `gh issue view 32 -R basteez/mumble-speech --json state,title,closedAt` and `gh release list -R basteez/mumble-speech --limit 5`.
+  - [x] 6.2 For the newest release that has a Godot asset: `gh release download <tag> -R basteez/mumble-speech -p '*godot*.zip' -D "$SCRATCH"` where `$SCRATCH` is a new empty directory under the session scratchpad, then `unzip -l` (listing only, do not extract into `game/`). Check for web (`.wasm`/`web` directory) binaries.
+  - [x] 6.3 Record the findings. Do not add `game/addons/mumble_speech/` in this story (Story 3.7 owns it; DC7).
 
-- [ ] **Task 7: Deploy job and README (AC: 4, 5, 6)**
-  - [ ] 7.1 In `.github/workflows/ci.yml`, in the `test-and-export` job, upload `build/web` as an artifact (`actions/upload-artifact`, `retention-days: 3`) as a step after the export, so it runs only after a successful export. Also add the size step from AC5 (prints bytes, `::warning::` over 30 000 000).
-  - [ ] 7.2 Add `deploy-itch-draft`: `needs: test-and-export`, `if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'`, `timeout-minutes: 10`, `permissions: contents: read`. Put `BUTLER_API_KEY` and `ITCH_TARGET` in a job-level `env:` (from `secrets.` and `vars.`) so the step-level `if` can test them; a first step emits `skip=true` when either is empty and prints a notice; later steps use `if: steps.gate.outputs.skip != 'true'`.
-  - [ ] 7.3 Install butler from the official itch.io distribution (`https://broth.itch.zone/butler/linux-amd64/LATEST/archive/default`, zip, unzip to `$HOME/.local/bin`). The URL is a Dev Notes item to verify at implementation time; record the exact URL and `butler version` output in Completion Notes. Never run butler locally.
-  - [ ] 7.4 Push: `butler push build/web "$ITCH_TARGET:html5" --userversion "${GITHUB_SHA}"` (confirm flags against `butler push --help` once installed in CI; record that the flag set was taken from the help text, not from memory).
-  - [ ] 7.5 Validate the workflow YAML parses (`python3 -c 'import yaml,sys; yaml.safe_load(open(".github/workflows/ci.yml"))'`) and, if `actionlint` is installed, run it. Do not run the workflow.
-  - [ ] 7.6 Add the README section (AC6). Do not touch the README header, status line or deadline text (see Open Questions for the deadline mismatch).
+- [x] **Task 7: Deploy job and README (AC: 4, 5, 6)**
+  - [x] 7.1 In `.github/workflows/ci.yml`, in the `test-and-export` job, upload `build/web` as an artifact (`actions/upload-artifact`, `retention-days: 3`) as a step after the export, so it runs only after a successful export. Also add the size step from AC5 (prints bytes, `::warning::` over 30 000 000).
+  - [x] 7.2 Add `deploy-itch-draft`: `needs: test-and-export`, `if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'`, `timeout-minutes: 10`, `permissions: contents: read`. Put `BUTLER_API_KEY` and `ITCH_TARGET` in a job-level `env:` (from `secrets.` and `vars.`) so the step-level `if` can test them; a first step emits `skip=true` when either is empty and prints a notice; later steps use `if: steps.gate.outputs.skip != 'true'`.
+  - [x] 7.3 Install butler from the official itch.io distribution (`https://broth.itch.zone/butler/linux-amd64/LATEST/archive/default`, zip, unzip to `$HOME/.local/bin`). The URL is a Dev Notes item to verify at implementation time; record the exact URL and `butler version` output in Completion Notes. Never run butler locally.
+  - [x] 7.4 Push: `butler push build/web "$ITCH_TARGET:html5" --userversion "${GITHUB_SHA}"` (confirm flags against `butler push --help` once installed in CI; record that the flag set was taken from the help text, not from memory).
+  - [x] 7.5 Validate the workflow YAML parses (`python3 -c 'import yaml,sys; yaml.safe_load(open(".github/workflows/ci.yml"))'`) and, if `actionlint` is installed, run it. Do not run the workflow.
+  - [x] 7.6 Add the README section (AC6). Do not touch the README header, status line or deadline text (see Open Questions for the deadline mismatch).
 
-- [ ] **Task 8: Verify and record (all ACs)**
-  - [ ] 8.1 Run the full local chain: GUT suite, `bash game/tools/check_guards.sh`, release export, size measurement, `bash game/tools/smoke_web.sh`. All must exit 0 (size: over budget is expected to be reported, not failed by the script).
-  - [ ] 8.2 Record every command's exit code and key output in Dev Agent Record → Debug Log References.
-  - [ ] 8.3 Confirm nothing was pushed, no `gh workflow run`, no butler invocation, and `_bmad` and `.claude` were not staged (`git status`).
+- [x] **Task 8: Verify and record (all ACs)**
+  - [x] 8.1 Run the full local chain: GUT suite, `bash game/tools/check_guards.sh`, release export, size measurement, `bash game/tools/smoke_web.sh`. All must exit 0 (size: over budget is expected to be reported, not failed by the script).
+  - [x] 8.2 Record every command's exit code and key output in Dev Agent Record → Debug Log References.
+  - [x] 8.3 Confirm nothing was pushed, no `gh workflow run`, no butler invocation, and `_bmad` and `.claude` were not staged (`git status`).
 
 ### [HUMAN] tasks (Tiziano; the dev only leaves the checklist)
 
@@ -310,19 +310,118 @@ Populated from `_bmad-output/project-context.md` (Platform & Build Rules, Testin
 
 ### Agent Model Used
 
-_To be filled by dev-story._
+Claude Opus 5.5 (claude-opus-5-5), gds-dev-story, unattended run 2026-11-06/07.
 
 ### Debug Log References
 
-_To be filled by dev-story (command outputs and exit codes, Tasks 1.3, 2.1, 4.2, 8.1)._
+All commands run from the worktree root on macOS, Godot 4.7.2.stable.official.ed1daf0bf.
+
+| Step | Command | Exit | Key output |
+|---|---|---|---|
+| 1.2 red | GUT with the old preset (GoPeak test added first) | n/a | 40 tests, 39 passing: `test_exclude_filter_has_gopeak_runtime` failed as expected |
+| 1.3 | GUT suite after the preset change | 0 | 40/40 passing |
+| 5 red | GUT with `test_smoke_audio.gd` before the scene existed | n/a | `Parse Error: Preload file "res://src/debug/smoke_audio/smoke_audio.gd" does not exist` |
+| 8.1 | `godot --headless --path game --import` | 0 | 0 `SCRIPT ERROR`/`Parse Error` lines |
+| 8.1 | GUT (`-gdir=res://tests -ginclude_subdirs -gexit`) | 0 | Tests 46, Passing 46, Asserts 110, `---- All tests passed! ----` |
+| 8.1 | `bash game/tools/check_guards.sh` | 0 | `check_guards: OK` |
+| 2.1 / 8.1 | `--export-release "Web" ../build/web/index.html` | 0 | no `ERROR` lines; `index.pck` contains no `addons/gut`, `res://tests/`, `res://tools/` strings |
+| 2.3 | `grep GODOT_THREADS_ENABLED build/web/index.html` | 0 | `GODOT_THREADS_ENABLED = false`; no `serviceWorker` in `GODOT_CONFIG` (PWA off) |
+| 4.2 / 8.1 | `bash game/tools/smoke_web.sh` | 0 | 5 files 200 with the right types; threads off; no COOP/COEP; size 48 515 307 (warning, not failure); headless Chrome over CDP: `[f=0][INFO][flow] boot`, loader overlay removed, `smoke_web: PASS` |
+| 5.4 | `SMOKE_QUERY='?debug&smoke=audio' SMOKE_CLICK=1 SMOKE_EXPECT='pan R' bash game/tools/smoke_web.sh` | 0 | `audio smoke scene opened`, click, `audio pan smoke started on bus Master`, `pan L` (f=3), `pan R` (f=124), `pan L` (f=245) |
+| 5.4 | `SMOKE_QUERY='?smoke=audio' bash game/tools/smoke_web.sh` (no `debug`) | 0 | boot only, smoke scene not opened |
+| 4 neg. | smoke on a copy without `index.side.wasm` | 1 | `FAIL: index.side.wasm: HTTP request failed` |
+| 4 neg. | smoke on a copy with a corrupt `index.pck` | 1 | `console.error: ERROR: Cannot open resource pack 'index.pck'` ... `FAIL 7 console error(s)` (in 7 s) |
+| 3.2 | `bash game/tools/build_web_template.sh <scratch>` (emsdk 4.0.11, SCons, Godot 4.7.2-stable source) | 0 | full build `Time elapsed: 00:01:31` on 15 cores; zip `godot.web.template_release.wasm32.nothreads.dlink.zip` 7 980 436 bytes |
+| 3.2 | release export with `custom_template/release` set temporarily to that zip (not committed) | 0 | 28 398 468 bytes; smoke PASS (boot, and the audio pan sequence) |
+| 7.5 | YAML parse (`uv run --with pyyaml`) | 0 | jobs `test-and-export`, `deploy-itch-draft`; triggers push(main), pull_request, workflow_dispatch |
+| 7.5 | `shellcheck -S warning` over the 11 extracted `run:` blocks, and over `game/tools/*.sh` | 0 | clean. `actionlint` is not installed (running it via `go run` was blocked by the sandbox), so it was not run |
+| 8.3 | `git status`, `gh run list` | 0 | `_bmad`/`.claude` not staged; no butler run, no `gh workflow run`, no secrets or variables written. The branch was pushed (coordinator allowed it). CI did not run because `ci.yml` triggers only on push to `main` and on `pull_request`, and no PR was opened |
 
 ### Completion Notes List
 
 - Story created unattended by gds-create-story (2026-11-06). Design calls DC1–DC11 above; each is overrulable before dev-story.
-- [DEV] Size record: _to be filled by dev-story (table: file, bytes; total; vs 30 000 000 budget)._
-- [DEV] I-6 result: _to be filled by dev-story (Task 6)._
-- [HUMAN] itch.io draft URL, butler run, browser matrix, audio results, itch-displayed size: _pending Tiziano (H1–H4)._
+- Implemented unattended by gds-dev-story. All [DEV] tasks are done. The [HUMAN] tasks H1–H4 are open and pending for Tiziano. That does not block `review`.
+
+**[DEV] Size record (AC2, Task 2.2): default 4.7.2 dlink nothreads template, release export**
+
+| File | Bytes | gzip -9 | brotli q11 |
+|---|---:|---:|---:|
+| `index.side.wasm` | 44 078 870 | 10 474 800 | 7 075 783 |
+| `index.js` | 2 859 484 | 357 258 | 253 226 |
+| `index.wasm` | 1 508 095 | 580 705 | 475 121 |
+| `index.png` | 21 443 | 19 338 | 19 367 |
+| `index.pck` | 14 052 | 9 178 | 8 706 |
+| `index.apple-touch-icon.png` | 11 944 | 11 994 | 11 949 |
+| `index.audio.worklet.js` | 7 298 | 2 217 | 1 821 |
+| `index.icon.png` | 5 700 | 5 738 | 5 705 |
+| `index.html` | 5 448 | 2 205 | 1 702 |
+| `index.audio.position.worklet.js` | 2 973 | 1 193 | 895 |
+| **Total** | **48 515 307** | **11 464 626** | **7 854 275** |
+
+The total is over budget by 18 515 307 bytes. Even without Extensions Support, the stock `web_nothreads_release` template is 39 816 638 bytes, so it is over budget too.
+
+**[DEV] Size record: stripped template (Task 3), same project**
+
+| File | Bytes | gzip -9 | brotli q11 |
+|---|---:|---:|---:|
+| `index.side.wasm` | 25 414 813 | 7 113 761 | 4 977 294 |
+| `index.wasm` | 1 600 314 | 595 552 | 484 412 |
+| `index.js` | 1 314 483 | 216 784 | 170 343 |
+| other 7 files | 68 858 | — | — |
+| **Total** | **28 398 468** | **7 977 960** | **5 682 195** |
+
+The stripped build is under budget, with 1 601 532 bytes of headroom. It boots in headless Chrome and passes the audio pan smoke test.
+
+- **Q1: transfer vs disk.** NFR4 limits the size on disk. epics.md NFR4, gdd.md (Build size) and game-architecture.md (Load) all say "web build ≤ 30 MB **uncompressed**". The architecture also notes "build size on itch.io (no on-the-fly compression)". So the budget is the uncompressed upload, and the architecture assumes players download about that much from itch.io. The gzip and brotli columns are only the best case if the CDN compresses. Tiziano can check the real transfer in DevTools (Network, "transferred") during H4.
+- **Task 3 flags** (recipe in `game/tools/build_web_template.sh`): `platform=web target=template_release threads=no dlink_enabled=yes optimize=size_extra debug_symbols=no use_closure_compiler=yes`, emscripten 4.0.11 (the version in Godot's `web_builds.yml` at 4.7.2-stable; the official template reports 4.0.20). The `custom.py` sets `disable_3d=yes`, `module_text_server_adv_enabled=no` and `module_text_server_fb_enabled=yes` (Latin-only text), and turns off these modules: astcenc, basis_universal, bcdec, betsy, bmp, camera, csg, cvtt, dds, enet, etcpak, fbx, glslang, gltf, godot_physics_3d, gridmap, hdr, interactive_music, jolt_physics, jsonrpc, ktx, lightmapper_rd, mbedtls, meshoptimizer, mobile_vr, mp3, msdfgen, multiplayer, navigation_2d, navigation_3d, noise, objectdb_profiler, openxr, raycast, svg, tga, theora, tinyexr, upnp, vhacd, webrtc, websocket, webxr, xatlas_unwrap, zip, mono. These stay on: gdscript, godot_physics_2d, freetype, ogg, vorbis, webp, jpg, regex, text_server_fb. Re-enable navigation_2d, msdfgen or text_server_adv if later stories need them.
+- **AC2 is still open for the deployed build.** The stripped template is built and verified locally, but CI still exports with the stock template. The `deploy-itch-draft` job uploads the CI artifact, so a deploy today pushes 48.5 MB. Following the story (no local path or binary committed), `custom_template/release` stays empty, and CI keeps warning without failing (DC4).
+  **Waiver / decision request for Tiziano:** (a) accept a temporary waiver so the first draft deploys (H3) can use the 48.5 MB stock build, **and** (b) choose how CI gets the stripped template in a follow-up: build it in CI with a cache keyed on the recipe (about 1.5 min locally on 15 cores; slower on a 4-core runner, cached afterwards), or attach the zip to a GitHub release and download it with a pinned checksum. Once that lands, turn the CI size warning into a failure (DC4).
+- **AC3:** `GODOT_THREADS_ENABLED = false`; `GODOT_CONFIG` has no `serviceWorker` (PWA off), so the `ensureCrossOriginIsolationHeaders` branch never runs. No SharedArrayBuffer and no COOP/COEP needed. The headless Chrome boot with a plain `http.server` (no COOP/COEP headers) confirms it.
+- **AC8 gate:** `main.gd` opens the smoke scene only when `OS.has_feature("web")` and `wants_audio_smoke(location.search)` are both true. The query must have a `debug` key **and** `smoke=audio`. GUT covers the parser (including `?smoke=audio`, `?nodebug&smoke=audio`, `?debugger&...`, `smoke=audiox`). The release web build was checked with and without `debug`. Off web the read returns `""`, so the glyph path is unchanged. A non-String bridge result also gives `""`. The scene lives in `src/debug/`, so the sim-folder guards pass.
+- **AC9 / I-6: not yet, moved to Story 3.7.** basteez/mumble-speech#32 is OPEN. Latest release: v0.2.0 (2026-11-05). `mumble-speech-godot-0.2.0.zip` (listed with `unzip -l`, not extracted into `game/`) holds only `bin/libmumble_godot.so`, `.dylib`, `.dll` and `mumble_speech.gdextension`. It has no `.wasm` and no web binaries. The addon was not added.
+- **AC4 / Task 7.3–7.4:** butler is pinned to 15.32.0 from `https://broth.itch.zone/butler/linux-amd64/15.32.0/archive/default` (LATEST was 15.32.0 on 2026-11-06). broth does not publish a checksum, so the dev downloaded the archive once (it was never run) and pinned `sha256 2335971394ef6596f95ded0833e85ee28755e13761716ef4c91d6b11f69162f5` in the job. The output of `butler version` can only come from the first CI deploy (H3); the job prints `butler version` and `butler push --help` before the push. **Honest note:** the hard rule bans running butler locally, so the push flags (`butler push <dir> <user>/<game>:<channel> --userversion <v>`, `BUTLER_API_KEY` from the environment) come from the itch.io butler docs (`itch.io/docs/butler/pushing.html`, `login.html`), not from the help text. The help text appears in the first deploy log, so Tiziano can check it there.
+- **Q2 (flag for Tiziano, nothing changed):** `README.md` says the deadline is "2026-12-01 13:37 PST". `epics.md` and the sprint-status header say 2026-11-29 12:00 PST. Neither file was edited, and the new README section does not touch the status line. Please confirm which date is right.
+- **Test count:** 34 → 46. That is 6 preset tests (the 4 named ones, plus `test_preset_is_web` and `test_exclude_filter_has_gopeak_runtime`) and 6 smoke/gate tests in `test_smoke_audio.gd`.
+
+**Design calls made in this dev run**
+
+- [design call] — coordinator: Q3. The deploy stays manual (`workflow_dispatch` on `main`) (DC2). `workflow_dispatch` was added to the workflow triggers so the job can run at all.
+- [design call] — coordinator: Q4. `ITCH_TARGET` stays a repository variable that Tiziano fills in. The dev did not guess a slug; README and the job use `<itch-user>/<game-slug>`.
+- [design call] — coordinator: Q2. README and epics were not changed; the mismatch is flagged above.
+- [design call] — coordinator: Q1. Sizes were measured (raw, gzip, brotli). The budget is uncompressed size per GDD/architecture. A stripped template was realistic (toolchain installable in the session scratchpad, 1.5 min build) and was built and verified. CI keeps warn-not-fail, and the waiver request above covers the gap until CI uses the template.
+- [design call] — dev: the GoPeak exclusions are `addons/godot_mcp_runtime/*`, `addons/godot_mcp_editor/*` and `addons/auto_reload/*`. The folder names come from GoPeak's `install-addon.sh` (the README points to it). All three are editor or AI tooling, so none belongs in a player build.
+- [design call] — dev: the headless browser check uses the Chrome DevTools Protocol from plain Node 22+ (built-in WebSocket, no packages), not `--dump-dom`/`--virtual-time-budget`. A test showed `--dump-dom` returns before the 44 MB side module compiles, so the page never booted (false failures). The script skips the browser check with a message when Chrome or Node 22+ is missing. Optional env vars: `SMOKE_WEB_DIR`, `SMOKE_PORT`, `SMOKE_QUERY`, `SMOKE_CLICK`, `SMOKE_EXPECT`, `SMOKE_TIMEOUT_S`, `CHROME_BIN`. Every CDP call has a 5 s cap, so a page left stuck after an engine abort cannot hang the script.
+- [design call] — dev: the smoke tone plays on the `SFX` bus if one exists, otherwise on `Master`. There is no `SFX` bus yet and `AudioManager` is a stub. Creating a bus at runtime would change the bus layout, which the task forbids.
+- [design call] — dev: the gate is a pure static `Main.wants_audio_smoke(search)` that parses keys exactly, not `String.contains`. With `contains`, `?debugger` or `?nodebug` would open a debug path. The smoke scene loads with `load()` only when the gate is open.
+- [design call] — dev: butler is pinned to a version and checksum instead of `LATEST`, so the deploy does not change silently and a tampered download fails.
+- [design call] — dev: the stripped-template recipe is committed as `game/tools/build_web_template.sh` (excluded from export), not wired into CI. CI wiring needs Tiziano's choice (see the waiver request).
+- [design call] — dev: `game/src/debug/.gitkeep` was removed now that the folder has files.
+
+**[HUMAN] pending for Tiziano (H1–H4, not done):**
+- H1: create the itch.io draft page (HTML, played in browser, 1280×720 viewport, fullscreen button on, SharedArrayBuffer off, Draft/Restricted).
+- H2: add the `BUTLER_API_KEY` secret and the `ITCH_TARGET` variable (`<user>/<slug>`) in the repo settings.
+- H3: after merge to `main`, Actions → CI → Run workflow on `main` (or `butler push` by hand). Record the `butler version` and `butler push --help` output from the log. Decide the size waiver first (see above).
+- H4: Chrome, Firefox and Safari smoke tests: glyph boots with no console errors; `?debug&smoke=audio` (click, then L/R audible, or "fails" and the hum falls back to `playback_type = Stream`); mumble-speech "moved to 3.7"; size shown on itch.io and transfer size in DevTools; embed viewport and fullscreen behaviour.
 
 ### File List
 
-_To be filled by dev-story._
+- `.github/workflows/ci.yml` (modified: `workflow_dispatch` trigger, size step, artifact upload, `deploy-itch-draft` job)
+- `README.md` (modified: "Deploying a draft build (itch.io)" section)
+- `game/export_presets.cfg` (modified: GoPeak exclude patterns)
+- `game/src/main/main.gd` (modified: smoke gate)
+- `game/src/debug/.gitkeep` (deleted)
+- `game/src/debug/smoke_audio/smoke_audio.gd` (new)
+- `game/src/debug/smoke_audio/smoke_audio.gd.uid` (new)
+- `game/src/debug/smoke_audio/smoke_audio.tscn` (new)
+- `game/tests/unit/test_export_preset.gd` (new)
+- `game/tests/unit/test_export_preset.gd.uid` (new)
+- `game/tests/unit/test_smoke_audio.gd` (new)
+- `game/tests/unit/test_smoke_audio.gd.uid` (new)
+- `game/tools/smoke_web.sh` (new, 755)
+- `game/tools/build_web_template.sh` (new, 755)
+- `_bmad-output/implementation-artifacts/1-3-web-export-and-itch-io-draft-deploy.md` (this file)
+- `_bmad-output/implementation-artifacts/sprint-status.yaml` (1-3 → review)
+
+### Change Log
+
+- 2026-11-07: Dev implementation of all [DEV] tasks. Status → review. AC2 is met locally with the stripped template; a waiver or CI-wiring decision is pending. [HUMAN] H1–H4 are pending.
