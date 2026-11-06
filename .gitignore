@@ -1,0 +1,18 @@
+# macOS
+.DS_Store
+
+# Godot 4
+.godot/
+*.translation
+export.cfg
+export_credentials.cfg
+*.tmp
+
+# Build output
+build/
+dist/
+*.zip
+
+# BMad installation and Claude Code tooling (local only; artifacts in _bmad-output/ are tracked)
+_bmad/
+.claude/

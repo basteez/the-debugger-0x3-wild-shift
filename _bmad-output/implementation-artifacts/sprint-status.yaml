@@ -1,0 +1,171 @@
+# generated: 2026-11-06
+# last_updated: 2026-11-06
+# project: github-gameoff-2026
+# project_key: NOKEY
+# tracking_system: file-system
+# story_location: {project-root}/_bmad-output/implementation-artifacts
+
+# STATUS DEFINITIONS:
+# ==================
+# Epic Status:
+#   - backlog: Epic not yet started
+#   - in-progress: Epic actively being worked on
+#   - done: All stories in epic completed
+#
+# Epic Status Transitions:
+#   - backlog → in-progress: Automatically when first story is created (via create-story)
+#   - in-progress → done: Manually when all stories reach 'done' status
+#
+# Story Status:
+#   - backlog: Story only exists in epic file
+#   - ready-for-dev: Story file created in stories folder
+#   - in-progress: Developer actively working on implementation
+#   - review: Ready for code review (via Dev's code-review workflow)
+#   - done: Story completed
+#
+# Retrospective Status:
+#   - optional: Can be completed but not required
+#   - done: Retrospective has been completed
+#
+# WORKFLOW NOTES:
+# ===============
+# - Epic transitions to 'in-progress' automatically when first story is created
+# - Stories can be worked in parallel if team capacity allows
+# - Developer typically creates next story after previous one is 'done' to incorporate learnings
+# - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
+#
+# PLANNING MODE (lightweight):
+# ============================
+# - Code is 100% AI-written; Tiziano is director and playtester. No estimates,
+#   story points, velocity or capacity tracking.
+# - Sources (validated by readiness check 2026-11-06, verdict READY):
+#     epics.md (authoritative, 7 epics / 53 stories), implementation-readiness-report-2026-11-06.md
+#     (Resolution Log), GDD v1.1, game-architecture.md, project-context.md.
+# - Story 3.6 was split: 3.6 Duck Bubble, 3.7 Duck Voice; Harvest = 3.8, MVP playtest = 3.9.
+# - [design call] Large stories 2.1, 2.6, 3.1 are NOT split (readiness "still open" item).
+#   gds-create-story may scope them into ordered task groups instead; splitting would
+#   renumber stories referenced across the GDD, architecture and epics.
+#
+# SCHEDULE (epics strictly sequential, non-overlapping windows, NFR16):
+#   E1 Nov 6–7 | E2 Nov 8–10 | E3 Nov 11–14 (MVP gate Nov 14) | E4 Nov 15–17
+#   E5 Nov 18–21 | E6 Nov 22–25 | E7 Nov 26–29
+#   SUBMISSION DEADLINE: 2026-11-29 12:00 PST.
+#
+# DEFINITION OF DONE (every epic, from epics.md → Epic List, NFR16):
+#   all its stories meet their ACs; GUT and CI green; a release web build deployed
+#   with `butler` to the itch.io draft page; smoke-tested in Chrome and Firefox
+#   (title → the epic's new content) with build size recorded in the story notes.
+#   An epic may move to 'done' only when this DoD is met.
+#
+# CUT ORDER (apply if an epic overruns its window by > 1 day):
+#   Step 1 — drop Should scope first: 7.4 (assist toggle), 7.5 (gamepad),
+#            7.6 (title-screen practice target), and the stretch summary in 6.8
+#            (clear-time / hits-taken).
+#   Step 2 — GDD cut ladder, via FeatureFlags (data/config/feature_flags.tres, AD-12):
+#     #1 reserved_write → skip 6.6 Reserved Write
+#     #2 watch          → skip 5.4 Watch skill (stronger Null Pointer tells fallback)
+#     #3 breakpoint     → skip 4.3 Breakpoint (SIGSEGV recovery 150 frames fallback)
+#     #4 segfault       → skip Segfault boss 6.3–6.6; Ending plays after Null Pointer (6.8)
+#   Mark a cut story's status as 'done' only if its flag-off fallback AC is implemented;
+#   record the cut in a comment next to the story.
+#
+# HUMAN CHECKPOINTS (Tiziano):
+#   - Nov 14: MVP playtest with >= 3 playtesters (story 3.9).
+#             Fallback if Boss 1 is not ready: ship phases 1–2 only.
+#   - By Nov 27: playtesters available for the full-run playtest (story 7.8).
+#   - Music (7.1): Tiziano composes in BeepBox; may start in parallel during E5–E6
+#     (Nov 18–25). The integration story 7.1 stays in E7.
+#
+# NON-MVP-BLOCKING:
+#   - 3.7 Duck Voice (mumble-speech): may slip past the Nov 14 gate (D-046).
+#     Depends on the release of basteez/mumble-speech#32; fallback = pre-render backend.
+
+generated: 2026-11-06
+last_updated: 2026-11-06
+project: github-gameoff-2026
+project_key: NOKEY
+tracking_system: file-system
+story_location: "{project-root}/_bmad-output/implementation-artifacts"
+
+development_status:
+  # Epic 1: Web Foundation — window Nov 6–7
+  epic-1: backlog
+  1-1-godot-project-skeleton-with-pixel-perfect-60-hz-setup: backlog
+  1-2-test-framework-and-ci-pipeline: backlog
+  1-3-web-export-and-itch-io-draft-deploy: backlog # includes I-6 mumble-speech web check
+  1-4-title-screen-with-press-to-start-and-audio-unlock: backlog
+  1-5-the-clearing-arena-and-ide-hud-frame: backlog
+  1-6-placeholder-scene-flow-with-debug-jump-keys: backlog
+  1-7-pause-screen-and-auto-pause-on-focus-loss: backlog
+  epic-1-retrospective: optional
+
+  # Epic 2: Player Core & Register — window Nov 8–10
+  epic-2: backlog
+  2-1-deterministic-sim-clock-input-buffer-and-replays: backlog # large; not split (design call)
+  2-2-player-movement-and-facing: backlog
+  2-3-register-ring-shift-and-hud-panel: backlog
+  2-4-shift-juice: backlog
+  2-5-action-state-machine-with-attack-and-dash: backlog
+  2-6-ordered-combo-engine-and-dash-strike: backlog # large; not split (design call)
+  2-7-combat-resolver-damage-calc-and-practice-target: backlog
+  2-8-hit-feedback-hit-stop-particles-and-log-lines: backlog
+  2-9-player-damage-death-and-instant-retry: backlog
+  epic-2-retrospective: optional
+
+  # Epic 3: Infinite Loop (MVP) — window Nov 11–14; MVP GATE Nov 14 (>= 3 playtesters)
+  # Fallback: Boss 1 ships phases 1–2 only.
+  epic-3: backlog
+  3-1-reusable-boss-framework: backlog # large; not split (design call)
+  3-2-weak-window-patched-and-damage-states: backlog
+  3-3-infinite-loop-body-and-loop-condition: backlog
+  3-4-head-rush-and-constrict: backlog
+  3-5-nested-loop-semicolon-spit-and-phase-3: backlog # phase 3 droppable under MVP fallback
+  3-6-duck-bubble-and-tutorial-beats: backlog
+  3-7-duck-voice-mumble-speech: backlog # NOT MVP-blocking; may slip past Nov 14; needs basteez/mumble-speech#32
+  3-8-boss-defeat-and-harvest: backlog
+  3-9-mvp-playtest-and-tuning-pass: backlog # HUMAN CHECKPOINT Nov 14
+  epic-3-retrospective: optional
+
+  # Epic 4: LOOP Combos & Breakpoint — window Nov 15–17
+  epic-4: backlog
+  4-1-loop-bit-echo: backlog
+  4-2-echo-dash-combo: backlog
+  4-3-breakpoint-skill: backlog # cut ladder #3 (FeatureFlags.breakpoint)
+  4-4-duck-hint-template: backlog
+  epic-4-retrospective: optional
+
+  # Epic 5: Null Pointer & Watch — window Nov 18–21 (music composition may start in parallel)
+  epic-5: backlog
+  5-1-null-pointer-body-and-locating-cues: backlog
+  5-2-pointer-grab-and-null-rain: backlog
+  5-3-dangling-pointers-and-nullpointerexception: backlog
+  5-4-watch-skill: backlog # cut ladder #2 (FeatureFlags.watch)
+  5-5-null-bit-null-dodge-and-clean-catch: backlog
+  5-6-null-pointer-tutorials-defeat-and-null-harvest: backlog # holds the segfault=false fallback (cut #4)
+  epic-5-retrospective: optional
+
+  # Epic 6: Segfault, Intro & Ending — window Nov 22–25
+  epic-6: backlog
+  6-1-ghost-echo-combo: backlog
+  6-2-dereference-combo: backlog
+  6-3-segfault-body-and-access-violation: backlog # cut ladder #4 (FeatureFlags.segfault)
+  6-4-corrupted-tiles-corrupt-memory-and-core-dump: backlog # cut ladder #4
+  6-5-sigsegv-register-corruption: backlog # cut ladder #4
+  6-6-reserved-write-cut-ladder-1: backlog # cut ladder #1 (FeatureFlags.reserved_write) — first boss cut
+  6-7-intro-sequence: backlog
+  6-8-ending-sequence: backlog # stretch summary (clear time / hits) = first-to-drop
+  6-9-game-text-audit: backlog
+  epic-6-retrospective: optional
+
+  # Epic 7: Audio, Polish & Submission — window Nov 26–29; SUBMIT by Nov 29 12:00 PST
+  epic-7: backlog
+  7-1-music-and-crossfades: backlog # HUMAN: Tiziano composes BeepBox tracks (can start E5–E6)
+  7-2-final-sfx-pass: backlog
+  7-3-save-and-resume: backlog
+  7-4-debug-build-assist-toggle-should: backlog # Should — first to drop
+  7-5-gamepad-support-should: backlog # Should — first to drop
+  7-6-practice-target-from-the-title-screen-should: backlog # Should — first to drop
+  7-7-fullscreen-browser-matrix-and-performance: backlog
+  7-8-full-run-playtest-and-final-tuning: backlog # HUMAN CHECKPOINT: playtesters by Nov 27
+  7-9-itch-io-page-readme-and-submission: backlog
+  epic-7-retrospective: optional
