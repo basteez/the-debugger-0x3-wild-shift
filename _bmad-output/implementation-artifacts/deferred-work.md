@@ -99,3 +99,10 @@ Story 1.3 AC9 / I-6 ("mumble-speech web check, moved to 3.7") is UNBLOCKED. Tizi
 - Esc in browser fullscreen is eaten by the browser (second Esc needed).
 - window.blur also fires for iframe/devtools/alert focus moves (spurious pause, acceptable).
 - Doc nits: mute label direction wording in completion notes; DC9 text lacks the WM_WINDOW_FOCUS_OUT addition.
+
+## Deferred from: code review of story-2-1 (2026-11-07)
+
+- InputBuffer grows while the world is frozen (hit-stop/Breakpoint keep sim_frame fixed, so nothing expires); bounded by key presses, fine until a long Breakpoint with key mashing. Revisit with 4.3.
+- A recording started before FIGHT entry (or mid-fight) does not hold the RNG state reached; exact replay needs F11 right at fight start (already a known limitation in the story notes). Revisit with 2.2+.
+- LiveInput `is_action_just_pressed` at display rates above 60 Hz is unverified headlessly (human check H3, fallback: `_unhandled_input` queue).
+- Recording `seed` is stored as a JSON number: exact up to 2^53, ample for `get_ticks_usec`.

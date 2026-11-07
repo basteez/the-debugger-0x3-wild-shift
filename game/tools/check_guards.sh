@@ -34,6 +34,11 @@ if [ ${#sim_paths[@]} -gt 0 ]; then
 		< <(grep -rnE --include='*.gd' '\bcreate_tween\b' "${sim_paths[@]}" || true)
 	report "Engine.time_scale in simulation code (use SimClock)" \
 		< <(grep -rnE --include='*.gd' '\bEngine\.time_scale\b' "${sim_paths[@]}" || true)
+	report "global RNG in simulation code (use SimContext.rng)" \
+		< <(grep -rnE --include='*.gd' '(^|[^.[:alnum:]_])(randi|randf|randi_range|randf_range|randfn|randomize)[[:space:]]*\(' "${sim_paths[@]}" | grep -vE '^[^:]+:[0-9]+:[[:space:]]*#' || true)
+	# LiveInput is the one sim file allowed to read the Input singleton (Story 2.1, excluded by name).
+	report "Input singleton in simulation code (read input through InputSource)" \
+		< <(grep -rnE --include='*.gd' '(^|[^.[:alnum:]_])Input\.' "${sim_paths[@]}" | grep -v '^game/src/input/live_input\.gd:' | grep -vE '^[^:]+:[0-9]+:[[:space:]]*#' || true)
 fi
 
 report "direct output call outside Log (use Log.info/debug/warn/error)" \

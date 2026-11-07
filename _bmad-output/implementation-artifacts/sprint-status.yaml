@@ -100,8 +100,8 @@ development_status:
   epic-1-retrospective: optional
 
   # Epic 2: Player Core & Register — window Nov 8–10
-  epic-2: backlog
-  2-1-deterministic-sim-clock-input-buffer-and-replays: backlog # large; not split (design call)
+  epic-2: in-progress
+  2-1-deterministic-sim-clock-input-buffer-and-replays: done # large; not split (design call D-S21-1)
   2-2-player-movement-and-facing: backlog
   2-3-register-ring-shift-and-hud-panel: backlog
   2-4-shift-juice: backlog
