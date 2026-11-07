@@ -4,7 +4,7 @@ baseline_commit: edf44bb
 
 # Story 1.3: Web Export and itch.io Draft Deploy
 
-Status: review
+Status: done
 
 ## Story
 
@@ -431,7 +431,7 @@ The stripped build is under budget, with 1 601 532 bytes of headroom. It boots i
 
 Code review 2026-11-07 (Blind Hunter, Edge Case Hunter, Acceptance Auditor; unattended). Diff `origin/story/1-2-test-framework-ci...HEAD`.
 
-- [x] [Review][Patch][design call, coordinator] AC2 unmet for deployed builds: CI exported with the 48.5 MB stock template [.github/workflows/ci.yml]. Fixed: CI builds the stripped template with `game/tools/build_web_template.sh` (emsdk 4.0.11), caches it (key: Godot release + hash of the script), installs it over `web_dlink_nothreads_release.zip`, exports with it, and the size step now fails over 30 000 000 bytes. Local result 28 398 564 bytes. Cold-build time and fallback outcome: see PR body / Completion Notes.
+- [x] [Review][Patch][design call, coordinator] AC2 unmet for deployed builds: CI exported with the 48.5 MB stock template [.github/workflows/ci.yml]. Fixed: CI builds the stripped template with `game/tools/build_web_template.sh` (emsdk 4.0.11), caches it (key: Godot release + hash of the script), installs it over `web_dlink_nothreads_release.zip`, exports with it, and the size step now fails over 30 000 000 bytes. Local result 28 398 564 bytes. Outcome: the CI build path was kept (no fallback, no waiver). Cold template build 11 min 37 s (CI run 42339513710, whole job 12 min); warm runs restore from cache.
 - [x] [Review][Patch] Smoke server could test a foreign server on a busy port (false green) [game/tools/smoke_web.sh]. Fixed: `kill -0` checked before `curl`.
 - [x] [Review][Patch] `upload-artifact` duplicate name on "re-run all jobs" [ci.yml]. Fixed: `overwrite: true`.
 - [x] [Review][Patch] `BUTLER_API_KEY` exposed to every deploy step [ci.yml]. Fixed: scoped to gate and push steps.
