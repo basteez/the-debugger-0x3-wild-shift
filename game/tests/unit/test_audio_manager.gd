@@ -65,3 +65,30 @@ func test_blip_is_short_16bit_mono() -> void:
 	assert_false(blip.stereo)
 	assert_eq(blip.loop_mode, AudioStreamWAV.LOOP_DISABLED)
 	assert_almost_eq(float(blip.data.size()) / 2.0 / float(blip.mix_rate), 0.15, 0.01)
+
+
+# Story 1.7 AC3: session mute on the Master bus.
+var _master_was_muted: bool = false
+
+
+func before_each() -> void:
+	_master_was_muted = AudioServer.is_bus_mute(AudioServer.get_bus_index(&"Master"))
+
+
+func after_each() -> void:
+	AudioServer.set_bus_mute(AudioServer.get_bus_index(&"Master"), _master_was_muted)
+
+
+func test_master_mute_toggles_the_master_bus() -> void:
+	var am: Node = add_child_autofree(AudioManagerScript.new())
+	var master: int = AudioServer.get_bus_index(&"Master")
+	am.set_master_muted(true)
+	assert_true(AudioServer.is_bus_mute(master))
+	assert_true(am.is_master_muted())
+	am.set_master_muted(true)
+	assert_true(am.is_master_muted(), "muting twice keeps it muted")
+	am.set_master_muted(false)
+	assert_false(AudioServer.is_bus_mute(master))
+	assert_false(am.is_master_muted())
+	for bus: StringName in [&"Music", &"SFX", &"Voice"]:
+		assert_false(AudioServer.is_bus_mute(AudioServer.get_bus_index(bus)), "%s untouched" % bus)
