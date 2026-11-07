@@ -39,7 +39,8 @@ static func wants_audio_smoke(search: String) -> bool:
 	for pair: String in search.trim_prefix("?").split("&", false):
 		var key: String = pair.get_slice("=", 0)
 		if key == "debug":
-			has_debug = true
+			var val: String = pair.get_slice("=", 1) if pair.contains("=") else ""
+			has_debug = val != "0" and val != "false"
 		elif key == "smoke" and pair.get_slice_count("=") == 2 and pair.get_slice("=", 1) == "audio":
 			has_smoke_audio = true
 	return has_debug and has_smoke_audio

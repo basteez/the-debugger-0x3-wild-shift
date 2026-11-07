@@ -51,3 +51,14 @@ func test_exclude_filter_has_gut_tests_tools() -> void:
 
 func test_exclude_filter_has_gopeak_runtime() -> void:
 	assert_has(_excludes(), "addons/godot_mcp_runtime/*", "GoPeak runtime addon must stay out of the export")
+
+
+func test_exclude_filter_has_gopeak_editor_and_auto_reload() -> void:
+	for pattern: String in ["addons/godot_mcp_editor/*", "addons/auto_reload/*"]:
+		assert_has(_excludes(), pattern, "exclude_filter must contain %s" % pattern)
+
+
+func test_no_committed_custom_template_path() -> void:
+	# A machine-specific stripped-template path must never be committed (CI installs it as the stock file name).
+	assert_eq(_cfg.get_value(OPTIONS, "custom_template/release", ""), "")
+	assert_eq(_cfg.get_value(OPTIONS, "custom_template/debug", ""), "")

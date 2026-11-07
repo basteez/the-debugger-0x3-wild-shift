@@ -75,8 +75,9 @@ func _start() -> void:
 
 func _run_pan_loop() -> void:
 	while is_inside_tree():
-		await get_tree().create_timer(STEP_SECONDS).timeout
-		if not is_inside_tree():
+		var tree := get_tree()
+		await tree.create_timer(STEP_SECONDS).timeout
+		if not is_instance_valid(self) or not is_inside_tree():
 			return
 		_step += 1
 		_apply_step()

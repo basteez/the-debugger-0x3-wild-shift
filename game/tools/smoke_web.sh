@@ -15,7 +15,7 @@ WEB_DIR="${SMOKE_WEB_DIR:-build/web}"
 PORT="${SMOKE_PORT:-8060}"
 URL="http://localhost:${PORT}/"
 PAGE_URL="${URL}${SMOKE_QUERY:-}"
-BUDGET_BYTES=30000000
+BUDGET_BYTES="${WEB_SIZE_BUDGET_BYTES:-30000000}"
 REQUIRED=(index.html index.js index.wasm index.side.wasm index.pck)
 
 fail() {
@@ -51,8 +51,8 @@ PY
 server_pid=$!
 
 for _ in $(seq 1 50); do
-	curl -fsI "$URL" > /dev/null 2>&1 && break
 	kill -0 "$server_pid" 2> /dev/null || fail "HTTP server did not start (port $PORT busy?): $(cat "$tmp/server.log")"
+	curl -fsI "$URL" > /dev/null 2>&1 && break
 	sleep 0.1
 done
 curl -fsI "$URL" > /dev/null 2>&1 || fail "HTTP server not reachable on $URL"
@@ -70,8 +70,8 @@ expected_type() {
 for f in "${REQUIRED[@]}"; do
 	headers="$(curl -fsI "$URL$f")" || fail "$f: HTTP request failed"
 	status="$(printf '%s\n' "$headers" | head -1 | tr -d '\r')"
-	ctype="$(printf '%s\n' "$headers" | grep -i '^content-type:' | head -1 | cut -d: -f2- | tr -d '\r ' )"
-	echo "$status" | grep -q ' 200' || fail "$f: expected 200, got '$status'"
+	ctype="$(printf '%s\n' "$headers" | grep -i '^content-type:' | head -1 | cut -d: -f2- | tr -d '\r ' || true)"
+	echo "$status" | grep -Eq '^HTTP/[0-9.]+ 200' || fail "$f: expected 200, got '$status'"
 	want="$(expected_type "$f")"
 	echo "$ctype" | grep -qi "$want" || fail "$f: content type '$ctype' does not match '$want'"
 	echo "smoke_web: OK $f ($status, $ctype)"
@@ -84,10 +84,10 @@ grep -qF '"serviceWorker":"' "$WEB_DIR/index.html" && fail "index.html registers
 grep -qiE 'Cross-Origin-(Opener|Embedder)-Policy' "$WEB_DIR/index.html" && fail "index.html mentions COOP/COEP headers"
 echo "smoke_web: OK no service worker and no COOP/COEP requirement"
 
-total="$(find "$WEB_DIR" -type f -exec wc -c {} + | tail -1 | awk '{print $1}')"
+total="$(find "$WEB_DIR" -type f -exec wc -c {} + | awk '$2 != "total" {s += $1} END {print s + 0}')"
 echo "smoke_web: build size $total bytes (budget $BUDGET_BYTES)"
 if [ "$total" -gt "$BUDGET_BYTES" ]; then
-	echo "smoke_web: WARNING: over the NFR4 budget by $((total - BUDGET_BYTES)) bytes (reported, not failed; DC4)"
+	fail "over the NFR4 budget by $((total - BUDGET_BYTES)) bytes (export with the stripped template, see build_web_template.sh)"
 fi
 
 chrome=""

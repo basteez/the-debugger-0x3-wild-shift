@@ -152,7 +152,7 @@ Given a release build from `main`, Tiziano runs the `deploy-itch-draft` job (Act
 - [x] **Task 8: Verify and record (all ACs)**
   - [x] 8.1 Run the full local chain: GUT suite, `bash game/tools/check_guards.sh`, release export, size measurement, `bash game/tools/smoke_web.sh`. All must exit 0 (size: over budget is expected to be reported, not failed by the script).
   - [x] 8.2 Record every command's exit code and key output in Dev Agent Record → Debug Log References.
-  - [x] 8.3 Confirm nothing was pushed, no `gh workflow run`, no butler invocation, and `_bmad` and `.claude` were not staged (`git status`).
+  - [x] 8.3 Confirm no `gh workflow run`, no butler run, no secrets (the branch push was allowed by the coordinator, so "nothing pushed" does not hold), no `gh workflow run`, no butler invocation, and `_bmad` and `.claude` were not staged (`git status`).
 
 ### [HUMAN] tasks (Tiziano; the dev only leaves the checklist)
 
@@ -424,4 +424,31 @@ The stripped build is under budget, with 1 601 532 bytes of headroom. It boots i
 
 ### Change Log
 
-- 2026-11-07: Dev implementation of all [DEV] tasks. Status → review. AC2 is met locally with the stripped template; a waiver or CI-wiring decision is pending. [HUMAN] H1–H4 are pending.
+- 2026-11-07: Dev implementation of all [DEV] tasks. Status → review. AC2 was met locally only, with the uncommitted stripped template; CI still exported with the 48.5 MB stock template (see Review Findings for the fix). [HUMAN] H1–H4 are pending.
+
+
+### Review Findings
+
+Code review 2026-11-07 (Blind Hunter, Edge Case Hunter, Acceptance Auditor; unattended). Diff `origin/story/1-2-test-framework-ci...HEAD`.
+
+- [x] [Review][Patch][design call, coordinator] AC2 unmet for deployed builds: CI exported with the 48.5 MB stock template [.github/workflows/ci.yml]. Fixed: CI builds the stripped template with `game/tools/build_web_template.sh` (emsdk 4.0.11), caches it (key: Godot release + hash of the script), installs it over `web_dlink_nothreads_release.zip`, exports with it, and the size step now fails over 30 000 000 bytes. Local result 28 398 564 bytes. Cold-build time and fallback outcome: see PR body / Completion Notes.
+- [x] [Review][Patch] Smoke server could test a foreign server on a busy port (false green) [game/tools/smoke_web.sh]. Fixed: `kill -0` checked before `curl`.
+- [x] [Review][Patch] `upload-artifact` duplicate name on "re-run all jobs" [ci.yml]. Fixed: `overwrite: true`.
+- [x] [Review][Patch] `BUTLER_API_KEY` exposed to every deploy step [ci.yml]. Fixed: scoped to gate and push steps.
+- [x] [Review][Patch] `ITCH_TARGET` unvalidated / whitespace passes the gate [ci.yml]. Fixed: trimmed and regex-checked.
+- [x] [Review][Patch] Size total via `tail -1` fragile; empty dir crashes [ci.yml, smoke_web.sh]. Fixed: awk sum, empty check; smoke budget reads `WEB_SIZE_BUDGET_BYTES` and now fails over budget.
+- [x] [Review][Patch] `?debug=0`/`?debug=false` opened the debug scene [game/src/main/main.gd]. Fixed, tests added.
+- [x] [Review][Patch] Exclude patterns for godot_mcp_editor/auto_reload and empty `custom_template/*` untested [test_export_preset.gd]. Fixed.
+- [x] [Review][Patch] Silent exits: content-type grep under pipefail, python detection, `set -u` around emsdk_env, relative WORK_DIR, unpinned emsdk/scons [smoke_web.sh, build_web_template.sh]. Fixed (emsdk tag 4.0.11, scons <5).
+- [x] [Review][Patch] Pan loop could resume after free [smoke_audio.gd]. Fixed (`is_instance_valid`).
+- [x] [Review][Patch] Dispatch run could be replaced by a push run in the same concurrency group [ci.yml]. Fixed (group per event kind).
+- [x] [Review][Patch] README manual deploy lacked `mkdir -p build/web` and used a short SHA unlike CI [README.md]. Fixed.
+- [x] [Review][Patch] Story text overstated Task 8.3 and AC2 status. Fixed.
+- [x] [Review][Defer] Stripped template disables svg, noise, mbedtls, websocket, zip, text_server_adv — may break later stories — deferred: re-enable in the script when a story needs it; CI size gate shows the cost.
+- [x] [Review][Defer] Audio smoke URL gate cannot be reached from the itch.io iframe (`window.location.search` is the iframe URL) — deferred: H4 must open the html-classic iframe URL with `?debug&smoke=audio` or test locally.
+- [x] [Review][Defer] Headless Chrome launch robustness (root/`--no-sandbox`, partial DevToolsActivePort) — deferred: script is local-only.
+- [x] [Review][Defer] butler unzip location, butler flags and version unverified until first real deploy — deferred: H3 verifies in the first deploy log.
+- [x] [Review][Defer] Actions pinned by tag, not SHA — deferred, same as Story 1.2.
+- [x] [Review][Defer] smoke_web.sh browser step needs Node 22+ and skips otherwise; Task 4.1(f) used CDP instead of `--dump-dom` (recorded reason) — deferred.
+
+[HUMAN] tasks H1–H4 remain pending for Tiziano; they do not block review completion.

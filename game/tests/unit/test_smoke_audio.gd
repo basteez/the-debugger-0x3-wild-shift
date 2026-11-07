@@ -15,6 +15,8 @@ func test_gate_closed_without_debug() -> void:
 	assert_false(MainScript.wants_audio_smoke("?smoke=audio"))
 	assert_false(MainScript.wants_audio_smoke("?nodebug&smoke=audio"))
 	assert_false(MainScript.wants_audio_smoke("?debugger&smoke=audio"))
+	assert_false(MainScript.wants_audio_smoke("?debug=0&smoke=audio"))
+	assert_false(MainScript.wants_audio_smoke("?debug=false&smoke=audio"))
 
 
 func test_gate_closed_without_smoke_audio() -> void:

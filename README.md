@@ -54,8 +54,9 @@ Draft builds go to the itch.io page with [butler](https://itch.io/docs/butler/) 
 If either is missing, the job is skipped with a notice. To deploy by hand from a local release export (`butler login` first, or `BUTLER_API_KEY` in the environment):
 
 ```bash
+mkdir -p build/web
 godot --headless --path game --export-release "Web" ../build/web/index.html
-butler push build/web <itch-user>/<game-slug>:html5 --userversion "$(git rev-parse --short HEAD)"
+butler push build/web <itch-user>/<game-slug>:html5 --userversion "$(git rev-parse HEAD)"
 ```
 
 Check a local export before uploading with `bash game/tools/smoke_web.sh` (serves `build/web` and loads it in headless Chrome when available).
