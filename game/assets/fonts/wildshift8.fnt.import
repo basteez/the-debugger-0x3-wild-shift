@@ -1,0 +1,17 @@
+[remap]
+
+importer="font_data_bmfont"
+type="FontFile"
+uid="uid://b6h87lpm86wi8"
+path="res://.godot/imported/wildshift8.fnt-ad1bd971df2e95e5d3db15165a759337.fontdata"
+
+[deps]
+
+source_file="res://assets/fonts/wildshift8.fnt"
+dest_files=["res://.godot/imported/wildshift8.fnt-ad1bd971df2e95e5d3db15165a759337.fontdata"]
+
+[params]
+
+fallbacks=[]
+compress=true
+scaling_mode=1
