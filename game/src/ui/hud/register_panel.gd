@@ -7,6 +7,8 @@ extends Node2D
 ## Story 2.4 (D-S24-3): the cells are drawn by a child `Content` node shifted by `slide_px`, and this
 ## node is its clip mask (CLIP_CHILDREN_ONLY: the opaque interior rect is not drawn, it only keeps
 ## the slid cells inside the REGISTER box, off the border and the col-12 gap).
+## Story 2.6 (FR7, D-S26-10, D-S26-14): the active window and each preview show their combo name
+## (word-wrapped on two rows of 10 cells) where a combo exists, and only the bit glyphs where none.
 
 ## One run of text to draw: top-left HUD cell, text (one glyph per cell) and style.
 class Cell:
@@ -28,15 +30,20 @@ const INK := &"ink"
 const GREYED := &"greyed"
 const FADED := &"faded"
 const INVERTED := &"inverted"
-## Layout (D-S23-8), HUD cells inside the REGISTER box interior (cols 1-10, rows 3-20).
+## Layout (D-S23-8, re-spaced in 2.6 by D-S26-14), HUD cells inside the REGISTER box interior
+## (cols 1-10, rows 3-20). Each combo name takes NAME_ROWS rows under its glyph row.
 const LEFT_COL := 1
 const HEX_ROW := 3
-const BYTE_ROW := 8
-const LABEL_ROW := 9
-const PREVIEW_LEFT_ROW := 11
+const BYTE_ROW := 5
+const LABEL_ROW := 6
+const PREVIEW_LEFT_ROW := 8
+const PREVIEW_LEFT_NAME_ROW := 9
 const WINDOW_ROW := 12
 const JK_ROW := 13
-const PREVIEW_RIGHT_ROW := 14
+const WINDOW_NAME_ROW := 14
+const PREVIEW_RIGHT_ROW := 17
+const PREVIEW_RIGHT_NAME_ROW := 18
+const NAME_ROWS := 2
 ## The J and K glyph columns, shared by both previews, the window and `J→K`.
 const J_COL := 4
 const K_COL := 6
@@ -88,7 +95,7 @@ func _draw() -> void:
 func _draw_content() -> void:
 	if register == null:
 		return
-	for c: Cell in plan(register.ring):
+	for c: Cell in plan(register.ring, Register.MAX_BITS, Defs.COMBOS):
 		var rect := Rect2(GlyphFont.cell_to_px(c.cell, SCALE), Vector2(c.text.length(), 1) * GlyphFont.CELL)
 		if c.style == INVERTED:
 			content.draw_rect(rect, Palette.INK)
@@ -100,8 +107,11 @@ func _draw_content() -> void:
 
 
 ## Every cell of the panel for a ring of owned bits (window first), in draw order. Pure: no node,
-## no Register instance; `ring` is never modified. `owned_cap` is the low-nibble width.
-static func plan(ring: PackedInt32Array, owned_cap: int = Register.MAX_BITS) -> Array[Cell]:
+## no Register instance; `ring` is never modified. `owned_cap` is the low-nibble width; `combos` is
+## the combo table (null = Defs.COMBOS).
+static func plan(ring: PackedInt32Array, owned_cap: int = Register.MAX_BITS, combos: ComboTable = null) -> Array[Cell]:
+	if combos == null:
+		combos = Defs.COMBOS
 	var out: Array[Cell] = []
 	var byte_value: int = (1 << ring.size()) - 1
 	out.append(Cell.new(Vector2i(LEFT_COL, HEX_ROW), "0x%02X" % byte_value, INK))
@@ -117,14 +127,47 @@ static func plan(ring: PackedInt32Array, owned_cap: int = Register.MAX_BITS) -> 
 	out.append(Cell.new(Vector2i(LEFT_COL, LABEL_ROW), RESERVED_LABEL, GREYED))
 	if ring.size() < Register.MIN_BITS:
 		return out
-	out.append(Cell.new(Vector2i(LEFT_COL, PREVIEW_LEFT_ROW),
-			"<< " + _pair_text(Register.window_of(Register.rotated(ring, Register.LEFT))), FADED))
-	var window: String = " ".repeat(J_COL - LEFT_COL) + _pair_text(Register.window_of(ring))
+	var left: Vector2i = Register.window_of(Register.rotated(ring, Register.LEFT))
+	out.append(Cell.new(Vector2i(LEFT_COL, PREVIEW_LEFT_ROW), "<< " + _pair_text(left), FADED))
+	_append_name(out, combos.get_combo(left.x, left.y), PREVIEW_LEFT_NAME_ROW, FADED)
+	var active: Vector2i = Register.window_of(ring)
+	var window: String = " ".repeat(J_COL - LEFT_COL) + _pair_text(active)
 	out.append(Cell.new(Vector2i(LEFT_COL, WINDOW_ROW), window + " ".repeat(WINDOW_COLS - window.length()), INVERTED))
 	out.append(Cell.new(Vector2i(J_COL, JK_ROW), JK_LABEL, INK))
-	out.append(Cell.new(Vector2i(LEFT_COL, PREVIEW_RIGHT_ROW),
-			">> " + _pair_text(Register.window_of(Register.rotated(ring, Register.RIGHT))), FADED))
+	_append_name(out, combos.get_combo(active.x, active.y), WINDOW_NAME_ROW, INK)
+	var right: Vector2i = Register.window_of(Register.rotated(ring, Register.RIGHT))
+	out.append(Cell.new(Vector2i(LEFT_COL, PREVIEW_RIGHT_ROW), ">> " + _pair_text(right), FADED))
+	_append_name(out, combos.get_combo(right.x, right.y), PREVIEW_RIGHT_NAME_ROW, FADED)
 	return out
+
+
+## A combo's name on up to NAME_ROWS rows from `row`; nothing for no combo (FR7, D-S26-10).
+static func _append_name(out: Array[Cell], combo: ComboDef, row: int, style: StringName) -> void:
+	if combo == null:
+		return
+	var lines: PackedStringArray = wrap_name(combo.display_name)
+	for i: int in lines.size():
+		out.append(Cell.new(Vector2i(LEFT_COL, row + i), lines[i], style))
+
+
+## Word-wraps a combo name into at most NAME_ROWS lines of WINDOW_COLS cells (D-S26-14): "Dash
+## Strike" (11) becomes "Dash" / "Strike". A single word longer than a row is cut to fit. Pure.
+static func wrap_name(combo_name: String) -> PackedStringArray:
+	var lines := PackedStringArray()
+	var line: String = ""
+	for word: String in combo_name.split(" ", false):
+		if line.is_empty():
+			line = word
+		elif line.length() + 1 + word.length() <= WINDOW_COLS:
+			line += " " + word
+		else:
+			lines.append(line.left(WINDOW_COLS))
+			line = word
+	if not line.is_empty():
+		lines.append(line.left(WINDOW_COLS))
+	if lines.size() > NAME_ROWS:
+		lines.resize(NAME_ROWS)
+	return lines
 
 
 ## "D A": the J glyph at J_COL, the K glyph at K_COL when the run starts J_COL - LEFT_COL earlier.

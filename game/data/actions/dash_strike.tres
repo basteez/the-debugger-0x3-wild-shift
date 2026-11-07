@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="ActionDef" format=3]
+
+[ext_resource type="Script" path="res://src/player/action_def.gd" id="1_adef"]
+[ext_resource type="Script" path="res://src/combat/shapes/hit_capsule.gd" id="2_cap"]
+
+[sub_resource type="Resource" id="Resource_cap"]
+script = ExtResource("2_cap")
+length_tiles = 5.0
+radius_tiles = 0.75
+
+[resource]
+script = ExtResource("1_adef")
+id = &"dash_strike"
+startup_frames = 0
+active_frames = 12
+recovery_frames = 8
+invuln_from = 1
+invuln_to = 10
+hit_shape = SubResource("Resource_cap")
+base_damage = 20
+cooldown_frames = 0
+move_tiles = 5.0
+cancel_into = PackedInt32Array()

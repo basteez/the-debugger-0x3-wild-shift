@@ -292,17 +292,20 @@ func test_shift_between_hits_cancels_the_chain() -> void:
 	assert_eq(_fsm.chain_serial, _reg.shift_serial, "a new chain starts at the current serial")
 
 
+## Link closed (a K action never opens it): J's DASH cancels a K slash's RECOVERY (2.5 rule).
 func test_cancel_slash_recovery_into_dash() -> void:
-	_ring([A, D])
-	_press(J)
-	_run_to(12)
+	_ring([D, A])
 	_press(K)
+	_run_to(12)
+	assert_false(_fsm.link.is_open(), "a K action never opens the link")
+	_press(J)
 	_tick() # tick 12
 	assert_eq(_fsm.action, Defs.DASH)
 	assert_eq(_fsm.action_frame, 1)
 	assert_eq(_fsm.cooldowns.remaining(D), 24)
 	assert_true(_fsm.invulnerable())
 	assert_eq(_fsm.chain_serial, -1, "the dash ends the chain")
+	assert_null(_fsm.combo)
 
 
 func test_cancel_refused_in_startup() -> void:
@@ -359,3 +362,255 @@ func test_set_active_false_clears_action_and_invulnerability() -> void:
 	assert_null(_fsm.action)
 	assert_eq(_fsm.state, S.IDLE_MOVE)
 
+
+
+# --- Story 2.6: combo link, Dash Strike, link_second (AC2-AC7) ---
+# Slash J at tick 0: frame f executes on tick f - 1; frame 7 (first ACTIVE) on tick 6, frame 10
+# (last ACTIVE, k = 0) on tick 9, so the link is open for presses resolved on ticks 7-27.
+
+
+func test_link_opens_on_slash_frame_7_and_closes_at_k_19() -> void:
+	_ring([A, D])
+	_press(J)
+	_run_to(6)
+	assert_false(_fsm.link.is_open(), "STARTUP: no link yet")
+	_tick() # tick 6, frame 7
+	assert_true(_fsm.link.is_open())
+	assert_eq(_fsm.link.pair, Vector2i(A, D))
+	assert_false(_fsm.link.counting, "the count waits for the last ACTIVE frame")
+	_run_to(10) # tick 9, frame 10
+	assert_true(_fsm.link.counting)
+	assert_eq(_fsm.link.frames_left, 18, "k = 0")
+	_run_to(28) # tick 27 resolved with k = 18
+	assert_true(_fsm.link.is_open())
+	assert_eq(_fsm.link.frames_left, 0)
+	_tick() # tick 28: k = 19
+	assert_false(_fsm.link.is_open())
+
+
+func test_slash_link_accepts_k_at_18_and_refuses_at_19() -> void:
+	_ring([A, D])
+	_press(J)
+	_run_to(27)
+	_press(K)
+	_tick() # tick 27, k = 18
+	assert_eq(_fsm.action, Defs.DASH_STRIKE)
+	assert_eq(_fsm.combo, Defs.COMBOS.get_combo(A, D))
+	before_each()
+	_ring([A, D])
+	_press(J)
+	_run_to(28)
+	_press(K)
+	_tick() # tick 28, k = 19
+	assert_eq(_fsm.action, Defs.DASH, "link closed: K's solo action")
+	assert_null(_fsm.combo)
+
+
+func test_dash_link_accepts_k_at_18_and_refuses_at_19() -> void:
+	# Dash: frames 1-10 ACTIVE on ticks 0-9, so k = 18 is tick 27 as for the slash.
+	_ring([D, A])
+	_press(J)
+	_tick()
+	assert_true(_fsm.link.is_open(), "S = 0: the link opens on the press tick")
+	_run_to(27)
+	_press(K)
+	_tick()
+	assert_eq(_fsm.action, Defs.SLASH_1)
+	assert_true(_fsm.link_second)
+	before_each()
+	_ring([D, A])
+	_press(J)
+	_run_to(28)
+	_press(K)
+	_tick()
+	assert_eq(_fsm.action, Defs.SLASH_1)
+	assert_false(_fsm.link_second, "link closed: plain solo slash")
+
+
+func test_k_during_slash_startup_becomes_dash_strike_at_first_cancel_tick() -> void:
+	_ring([A, D])
+	_press(J)
+	_run_to(3)
+	_press(K) # STARTUP: stays in the buffer (live to tick 11)
+	_run_to(7)
+	assert_false(_fsm.link.held)
+	_tick() # tick 7: the link is open, the press is held
+	assert_true(_fsm.link.held)
+	assert_eq(_fsm.link.held_frame, 3, "keeps its push frame")
+	_run_to(11)
+	assert_eq(_fsm.action, Defs.SLASH_1)
+	assert_eq(_fsm.action_frame, 11, "the first RECOVERY frame executes")
+	_tick() # tick 11: RECOVERY cancel into the combo
+	assert_eq(_fsm.action, Defs.DASH_STRIKE)
+	assert_eq(_fsm.action_frame, 1)
+	assert_eq(_fsm.cooldowns.remaining(D), 24, "the replaced DASH cooldown applies (D-S26-3)")
+	assert_false(_fsm.link.is_open(), "the follow-up closes the link (D-S26-13)")
+	assert_false(_fsm.link.held)
+	assert_true(_fsm.invulnerable())
+
+
+func test_dash_strike_moves_five_tiles_and_is_invulnerable_on_1_to_10() -> void:
+	_ring([A, D])
+	_press(J)
+	_run_to(12)
+	var start: Vector2 = _player.position_px
+	_press(K)
+	_tick() # tick 12: Dash Strike frame 1 (moves on its first ACTIVE frame)
+	assert_eq(_fsm.action, Defs.DASH_STRIKE)
+	for i: int in 11:
+		assert_eq(_fsm.invulnerable(), _fsm.action_frame <= 10, "frame %d" % _fsm.action_frame)
+		_tick()
+	assert_eq(_fsm.action_frame, 12, "last ACTIVE frame")
+	assert_almost_eq(_player.position_px.distance_to(start), Const.TILE_PX * 5.0, 0.01, "5 tiles in 12 frames")
+	for i: int in 8:
+		_tick()
+		assert_false(_fsm.invulnerable())
+	assert_eq(_fsm.action_frame, 20, "20 frames in all")
+	_tick()
+	assert_null(_fsm.action)
+
+
+func test_no_combo_window_holds_k_until_the_dash_ends() -> void:
+	_ring([D, A])
+	_press(J)
+	_tick() # tick 0: dash, link open
+	_run_to(3)
+	_press(K)
+	_tick() # tick 3: held (dash cannot cancel into ATTACK)
+	assert_true(_fsm.link.held)
+	_run_to(16)
+	assert_eq(_fsm.action, Defs.DASH)
+	assert_eq(_fsm.action_frame, 16)
+	_tick() # tick 16: the dash has ended
+	assert_eq(_fsm.action, Defs.SLASH_1)
+	assert_eq(_fsm.action_frame, 1)
+	assert_true(_fsm.link_second)
+	assert_null(_fsm.combo)
+	assert_eq(_fsm.action_slot, 1)
+
+
+func test_same_frame_j_and_k_on_a_no_combo_window() -> void:
+	_ring([D, A])
+	_press(J)
+	_press(K)
+	_tick() # tick 0: J first
+	assert_eq(_fsm.action, Defs.DASH)
+	assert_false(_fsm.link.held, "K is evaluated on the next tick")
+	_tick() # tick 1: against the newly opened link
+	assert_true(_fsm.link.held)
+	_run_to(17)
+	assert_eq(_fsm.action, Defs.SLASH_1)
+	assert_true(_fsm.link_second)
+
+
+func test_same_frame_j_and_k_on_dash_strike_window() -> void:
+	_ring([A, D])
+	_press(J)
+	_press(K)
+	_tick()
+	assert_eq(_fsm.action, Defs.SLASH_1)
+	_run_to(12)
+	assert_eq(_fsm.action, Defs.DASH_STRIKE, "held from tick 7, started on tick 11")
+	assert_eq(_fsm.action_frame, 1)
+
+
+func test_shift_between_j_and_k_discards_the_held_press() -> void:
+	_ring([A, D])
+	_press(J)
+	_run_to(7)
+	_press(K)
+	_tick() # tick 7: held
+	assert_true(_fsm.link.held)
+	_press(&"shift_left")
+	_tick() # tick 8: [D, A], link closed, held press discarded
+	assert_eq(_reg.active_window(), Vector2i(D, A))
+	assert_false(_fsm.link.is_open())
+	assert_false(_fsm.link.held)
+	_run_to(22)
+	assert_eq(_fsm.action, Defs.SLASH_1, "nothing executed from the discarded press")
+	assert_eq(_fsm.action_frame, 22)
+
+
+func test_shift_back_to_the_same_window_still_gives_the_solo_action() -> void:
+	_ring([A, D])
+	_press(J)
+	_run_to(8)
+	_reg.shift(Register.LEFT)
+	_reg.shift(Register.LEFT) # [A, D] again, but the serial changed
+	_run_to(12)
+	assert_false(_fsm.link.is_open())
+	_press(K)
+	_tick() # tick 12: plain RECOVERY cancel into DASH (NP-1 #1)
+	assert_eq(_fsm.action, Defs.DASH)
+	assert_null(_fsm.combo)
+
+
+func test_cooldown_block_drops_the_press_after_8_frames() -> void:
+	_ring([A, D])
+	_press(J)
+	_tick()
+	_fsm.cooldowns.start(D, 16) # ready on tick 16
+	_run_to(7)
+	_press(K) # live 7-15, DASH cooling down throughout
+	_run_to(16)
+	assert_false(_fsm.link.held, "a blocked press is never held")
+	assert_eq(_fsm.action, Defs.SLASH_1)
+	assert_eq(_fsm.cooldowns.remaining(D), 1, "ready on tick 16, after the press expired")
+	_run_to(23)
+	assert_null(_fsm.action, "the press expired: no partial execution, no late combo")
+
+
+func test_chain_hit_reopens_the_link() -> void:
+	_ring([A, D])
+	_press(J)
+	_run_to(7)
+	_press(J)
+	_run_to(16) # hit 2 starts on tick 15
+	assert_eq(_fsm.action, Defs.SLASH_2)
+	assert_true(_fsm.link.counting, "hit 1's count still runs")
+	_run_to(22) # tick 21: hit 2 frame 7
+	assert_true(_fsm.link.is_open())
+	assert_false(_fsm.link.counting, "reopened on hit 2's first ACTIVE frame")
+	assert_eq(_fsm.link.frames_left, 18)
+
+
+func test_reset_for_fight_and_set_active_false_clear_the_link() -> void:
+	_ring([A, D])
+	_press(J)
+	_run_to(7)
+	_press(K)
+	_tick()
+	assert_true(_fsm.link.held)
+	_fsm.reset_for_fight()
+	assert_false(_fsm.link.is_open())
+	assert_false(_fsm.link.held)
+	_fsm.set_active(true)
+	_press(J)
+	_run_to(_t + 8)
+	assert_true(_fsm.link.is_open())
+	_fsm.set_active(false)
+	assert_false(_fsm.link.is_open())
+	assert_null(_fsm.combo)
+	assert_false(_fsm.link_second)
+
+
+## Review: a shift during J's STARTUP must not open the link on the new window.
+func test_shift_during_j_startup_does_not_open_the_link() -> void:
+	_ring([A, D])
+	_press(J)
+	_run_to(3)
+	_reg.shift(Register.LEFT)
+	_run_to(9)
+	assert_eq(_fsm.action, Defs.SLASH_1)
+	assert_false(_fsm.link.is_open())
+
+
+## Review: ending J before its last ACTIVE frame never leaves an uncounted link behind.
+func test_finish_during_active_starts_the_link_count() -> void:
+	_ring([A, D])
+	_press(J)
+	_run_to(7)
+	assert_true(_fsm.link.is_open())
+	assert_false(_fsm.link.counting)
+	_fsm._finish()
+	assert_true(_fsm.link.counting)

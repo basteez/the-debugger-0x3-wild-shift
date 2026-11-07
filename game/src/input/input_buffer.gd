@@ -19,13 +19,19 @@ func push(action: StringName, frame: int) -> void:
 
 ## Consumes the oldest live press of `action` at `frame`. True if one was found.
 func consume(action: StringName, frame: int) -> bool:
+	return consume_pushed_frame(action, frame) >= 0
+
+
+## Like consume(), but returns the frame the consumed press was pushed on, or -1 when none is live
+## (Story 2.6: a press held by the combo link keeps its push frame, D-S26-5). Additive API.
+func consume_pushed_frame(action: StringName, frame: int) -> int:
 	for i: int in _actions.size():
 		if _consumed[i] or _actions[i] != action:
 			continue
 		if _is_live(_frames[i], frame):
 			_consumed[i] = true
-			return true
-	return false
+			return _frames[i]
+	return -1
 
 
 ## Consumes the oldest live press whose action is in `actions` at `frame` (D-S23-3), so presses of

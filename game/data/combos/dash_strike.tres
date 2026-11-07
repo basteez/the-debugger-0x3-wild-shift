@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="ComboDef" format=3]
+
+[ext_resource type="Script" path="res://src/register/combo_def.gd" id="1_cdef"]
+[ext_resource type="Resource" path="res://data/actions/dash_strike.tres" id="2_action"]
+
+[resource]
+script = ExtResource("1_cdef")
+first = 1
+second = 2
+action = ExtResource("2_action")
+display_name = "Dash Strike"

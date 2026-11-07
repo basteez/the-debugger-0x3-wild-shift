@@ -148,3 +148,15 @@ Story 1.3 AC9 / I-6 ("mumble-speech web check, moved to 3.7") is UNBLOCKED. Tizi
 - `ActionDef.validate` does not check that `cancel_into` bits have a solo action, or `hit_shape`/`base_damage` consistency; `HitShape` subclasses have no validation.
 - Cleanup: dead `chain_slot`, `_chain` hard-codes ATTACK and `CHAIN_WINDOW_FRAMES` is not data, `resolve` takes 9 positional args, ActionRequest/ActionResolver reference each other.
 - Missing: "cooldown block" debug log, Arena FSM integration test, pause/hit-stop and shift-during-dash FSM tests, `FrameOverlay._draw` tests.
+
+## Deferred from: code review of story-2-6-ordered-combo-engine-and-dash-strike (2026-11-07)
+
+- [design call] An unheld buffered K press survives a shift and can run as the new window's solo action; consume it on shift close if H1 feels wrong.
+- [design call] The link can close for one tick between chain hits (hit 2 frame 7 vs hit 1 count k=19) and reopen, losing a held K; extend the count on chain start if seen.
+- F9 overlay `left N` reads 18 before the count starts (J ACTIVE); pass `counting` and show `-`.
+- `LinkOp.DROP` branch is unreachable in play (cooldown on the target cannot start mid-link); `LinkState.held_key`/`held_slot` are never read. Remove or test when another action touches the target cooldown.
+- `ComboDef.validate`: check `second` has a solo def, `action.cooldown_frames == 0`, no word longer than 10 chars ("Dereference" is cut to "Dereferenc" on the panel; fix in Story 6.2), and J startup + 1 <= 8 (buffered K stays live until the link opens).
+- `ComboTable` index is lazy and never invalidated; the pair key packs `first*256+second` (use `Vector2i`).
+- `resolve` has 11 positional args and `format_lines` 10 (two adjacent bools); introduce a context object. `combos == null` silently falls back to `Defs.COMBOS`.
+- FSM boundary tests call `before_each()` mid-test and fold two scenarios in one; split them. DROP/hit-stop/pause-with-held-press have no FSM test.
+

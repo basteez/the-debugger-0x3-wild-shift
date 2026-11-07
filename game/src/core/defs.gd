@@ -1,6 +1,6 @@
 class_name Defs
 extends RefCounted
-## Global catalogue of the bit and action defs, preloaded once (architecture, Story 2.5).
+## Global catalogue of the bit, action and combo defs, preloaded once (architecture, Story 2.5).
 ## Read-only at runtime.
 
 const BIT_ATTACK: BitDef = preload("res://data/bits/bit_attack.tres")
@@ -9,6 +9,9 @@ const SLASH_1: ActionDef = preload("res://data/actions/slash_1.tres")
 const SLASH_2: ActionDef = preload("res://data/actions/slash_2.tres")
 const SLASH_3: ActionDef = preload("res://data/actions/slash_3.tres")
 const DASH: ActionDef = preload("res://data/actions/dash.tres")
+const DASH_STRIKE: ActionDef = preload("res://data/actions/dash_strike.tres")
+## Ordered combo lookup (Story 2.6, AD-02): COMBOS.get_combo(first, second).
+const COMBOS: ComboTable = preload("res://data/combos/combo_table.tres")
 
 
 ## The def of a bit id; null for a bit with no def yet (LOOP and NULL_BIT in Story 2.5, D-S25-8).
