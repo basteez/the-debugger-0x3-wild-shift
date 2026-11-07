@@ -25,6 +25,8 @@ var pause_layer: CanvasLayer
 var pause_screen: PauseScreen
 ## The screen instanced for the current flow state; null in DEAD (2.9) or after it freed itself.
 var current_screen: Node
+## Shift juice (Story 2.4): slides the register panel, inverts the `@`, plays the click.
+var juice_director: JuiceDirector
 
 
 func _ready() -> void:
@@ -79,6 +81,12 @@ func _build_layers() -> void:
 	screens = Node2D.new()
 	screens.name = &"Screens"
 	add_child(screens)
+	# Presentation listener (Story 2.4): under Main, after the layers, so LAYER_ORDER is unchanged.
+	juice_director = JuiceDirector.new()
+	juice_director.name = &"JuiceDirector"
+	juice_director.register_panel = hud.register_panel
+	juice_director.player_view = player_view
+	add_child(juice_director)
 
 
 func _on_flow_state_changed(_from: int, to: int) -> void:
@@ -97,6 +105,8 @@ func apply_flow_state(state: int, boss_index: int) -> void:
 	current_screen = _make_screen(state, boss_index)
 	if current_screen != null:
 		screens.add_child(current_screen)
+	# No slide or inversion carries across screens (D-S24-9).
+	juice_director.reset()
 	var in_fight: bool = state == GameFlow.FlowState.FIGHT
 	arena.visible = in_fight
 	hud.visible = in_fight

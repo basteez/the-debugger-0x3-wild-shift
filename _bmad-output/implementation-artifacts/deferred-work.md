@@ -127,3 +127,14 @@ Story 1.3 AC9 / I-6 ("mumble-speech web check, moved to 3.7") is UNBLOCKED. Tizi
 - `Arena.register` binds `SimClock.buffer` at field init; breaks if SimClock ever replaces its buffer.
 - `test_panel_never_writes_the_register` regex misses aliased writes (smoke guard only).
 - Register `ring` is a public var (single-writer rule is convention); make read-only if misuse appears.
+
+## Deferred from: code review of story-2-4-shift-juice (2026-11-07)
+
+- Physics-frame presentation clock: a render hitch of 4+ physics ticks can skip slide frame 0 or make the inversion invisible; count `_process` frames or clamp start if seen on web.
+- `clip_children` under gl_compatibility on web is unverified (H1); fallback is drawing BG strips over the border and col-12 gap.
+- [design call] Rapid alternate shifts restart the slide with a snap to +-8 px (D-S24-7); blend from the current offset if it feels bad.
+- Click is dropped while audio is locked (debug jump keys skip the title press); call `AudioManager.unlock()` from debug keys if QA needs the sound.
+- Click and inversion ignore the `register_shifted` source and `SimClock.paused`; gate on `&"player"` when boss shifts arrive (Epic 3).
+- `AudioManager.play_sfx` uses one shared player, so overlapping SFX cut each other; pool in Story 7.2.
+- Hit-stop test uses a synthetic frame counter and the AC5 source guard covers only two files; real hit-stop check is H4 (Story 2.8).
+

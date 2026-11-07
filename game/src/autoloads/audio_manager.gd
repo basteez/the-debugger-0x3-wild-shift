@@ -16,6 +16,8 @@ var locked_warn_count: int = 0
 var _unlocked: bool = false
 var _warned_locked: bool = false
 var _sfx_player: AudioStreamPlayer = null
+## The one player for gameplay SFX (Story 2.4 shift clicks); a new play cuts the previous one.
+var _shift_player: AudioStreamPlayer = null
 
 
 func unlock() -> void:
@@ -56,6 +58,23 @@ func play_test_sfx() -> void:
 		_sfx_player.stream = make_blip()
 		add_child(_sfx_player)
 	_sfx_player.play()
+
+
+## Plays `stream` on the SFX bus (Story 2.4 shift click, D-S24-8). Ignored before unlock. One
+## lazily created player: a rapid second call restarts it (pooling is Story 7.2).
+func play_sfx(stream: AudioStream) -> void:
+	if not _unlocked:
+		_warn_locked_once()
+		return
+	if stream == null:
+		return
+	if _shift_player == null:
+		_shift_player = AudioStreamPlayer.new()
+		_shift_player.name = &"ShiftSfx"
+		_shift_player.bus = SFX_BUS
+		add_child(_shift_player)
+	_shift_player.stream = stream
+	_shift_player.play()
 
 
 ## 16-bit mono sine blip, no loop, short linear fade-out to avoid a click.
