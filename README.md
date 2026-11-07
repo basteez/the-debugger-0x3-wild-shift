@@ -42,6 +42,25 @@ The Godot project lives in `game/` (created in the first implementation story). 
 | `game/` | Godot project (source, data, assets, tests) |
 | `_bmad-output/` | Design docs produced with the [BMad Method](https://github.com/bmad-code-org/BMAD-METHOD): game brief, GDD, architecture, epics, sprint status |
 
+## Deploying a draft build (itch.io)
+
+Draft builds go to the itch.io page with [butler](https://itch.io/docs/butler/) on the `html5` channel. The deploy is **manual**: in GitHub, Actions → CI → Run workflow on `main` (`workflow_dispatch`). Pushes and pull requests never deploy. The `deploy-itch-draft` job uploads the Web build from the same run and needs two repository settings:
+
+| Setting | Kind | Value |
+|---|---|---|
+| `BUTLER_API_KEY` | Actions secret | an itch.io API key (itch.io account settings → API keys) |
+| `ITCH_TARGET` | Actions variable | `<itch-user>/<game-slug>` |
+
+If either is missing, the job is skipped with a notice. To deploy by hand from a local release export (`butler login` first, or `BUTLER_API_KEY` in the environment):
+
+```bash
+mkdir -p build/web
+godot --headless --path game --export-release "Web" ../build/web/index.html
+butler push build/web <itch-user>/<game-slug>:html5 --userversion "$(git rev-parse HEAD)"
+```
+
+Check a local export before uploading with `bash game/tools/smoke_web.sh` (serves `build/web` and loads it in headless Chrome when available).
+
 ## Contributing
 
 `main` is protected: all changes go through pull requests.

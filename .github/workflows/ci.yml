@@ -5,23 +5,26 @@ on:
     branches: [main]
   pull_request:
     # no branch filter: stacked PRs (base != main) must run CI too
+  workflow_dispatch:
+    # manual run; on main it also deploys the draft build to itch.io (deploy-itch-draft)
 
 permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.ref }}-${{ github.event_name == 'workflow_dispatch' && 'dispatch' || 'auto' }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 env:
   GODOT_VERSION: 4.7.2
   GODOT_RELEASE: 4.7.2-stable
   GODOT_BIN: /home/runner/.local/share/godot/bin/godot
+  WEB_SIZE_BUDGET_BYTES: 30000000 # NFR4, decimal bytes (Story 1.3 DC4)
 
 jobs:
   test-and-export:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 60 # cold stripped-template build; warm runs take minutes
     steps:
       - uses: actions/checkout@v7
 
@@ -113,6 +116,39 @@ jobs:
       - name: Static guards
         run: bash game/tools/check_guards.sh
 
+      - name: Cache stripped Web export template
+        id: tpl-cache
+        uses: actions/cache/restore@v6
+        with:
+          path: ~/.cache/web-template
+          key: web-template-${{ env.GODOT_RELEASE }}-${{ hashFiles('game/tools/build_web_template.sh') }}
+
+      - name: Build stripped Web export template (cache miss only)
+        id: tpl-build
+        if: steps.tpl-cache.outputs.cache-hit != 'true'
+        run: |
+          set -euo pipefail
+          start=$(date +%s)
+          bash game/tools/build_web_template.sh "$RUNNER_TEMP/tplbuild"
+          mkdir -p ~/.cache/web-template
+          cp "$RUNNER_TEMP/tplbuild/godot/bin/godot.web.template_release.wasm32.nothreads.dlink.zip" ~/.cache/web-template/web_dlink_nothreads_release.zip
+          echo "Template build took $(( $(date +%s) - start )) s"
+          echo "### Stripped template cold build: $(( $(date +%s) - start )) s" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Save stripped template cache
+        if: steps.tpl-cache.outputs.cache-hit != 'true' && steps.tpl-build.outcome == 'success'
+        uses: actions/cache/save@v6
+        with:
+          path: ~/.cache/web-template
+          key: web-template-${{ env.GODOT_RELEASE }}-${{ hashFiles('game/tools/build_web_template.sh') }}
+
+      - name: Install stripped template over the stock Web release template
+        run: |
+          set -euo pipefail
+          test -s ~/.cache/web-template/web_dlink_nothreads_release.zip
+          cp ~/.cache/web-template/web_dlink_nothreads_release.zip ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable/web_dlink_nothreads_release.zip
+          ls -la ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable/web_dlink_nothreads_release.zip
+
       - name: Web export
         run: |
           set -o pipefail
@@ -126,4 +162,96 @@ jobs:
             exit 1
           fi
           ls -la build/web
-          du -sh build/web
+
+      - name: Web build size (NFR4, fails over budget)
+        run: |
+          set -euo pipefail
+          find build/web -type f -exec wc -c {} + | sort -n
+          total="$(find build/web -type f -exec wc -c {} + | awk '$2 != "total" {s += $1} END {print s + 0}')"
+          echo "Web build total: ${total} bytes (budget ${WEB_SIZE_BUDGET_BYTES})"
+          echo "### Web build size: ${total} bytes (budget ${WEB_SIZE_BUDGET_BYTES})" >> "$GITHUB_STEP_SUMMARY"
+          if [ "$total" -le 0 ]; then
+            echo "::error::Web build is empty"
+            exit 1
+          fi
+          if [ "$total" -gt "$WEB_SIZE_BUDGET_BYTES" ]; then
+            echo "::error title=Web build over NFR4 budget::${total} bytes > ${WEB_SIZE_BUDGET_BYTES} bytes"
+            exit 1
+          fi
+
+      - name: Upload Web build
+        uses: actions/upload-artifact@v7
+        with:
+          name: web-build
+          path: build/web
+          if-no-files-found: error
+          retention-days: 3
+          overwrite: true
+
+  deploy-itch-draft:
+    # Manual only: Actions -> CI -> Run workflow on main. Never on push or pull_request (Story 1.3 DC2).
+    needs: test-and-export
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    env:
+      # The secret is scoped to the gate and push steps only; secrets.* cannot be used in a job-level if: (DC10).
+      ITCH_TARGET: ${{ vars.ITCH_TARGET }}
+      BUTLER_VERSION: 15.32.0
+      BUTLER_SHA256: 2335971394ef6596f95ded0833e85ee28755e13761716ef4c91d6b11f69162f5
+    steps:
+      - name: Gate on BUTLER_API_KEY and ITCH_TARGET
+        id: gate
+        env:
+          BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
+        run: |
+          set -euo pipefail
+          ITCH_TARGET="$(printf '%s' "${ITCH_TARGET}" | tr -d '[:space:]')"
+          if [ -n "${ITCH_TARGET}" ] && ! printf '%s' "${ITCH_TARGET}" | grep -Eq '^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$'; then
+            echo "::error::ITCH_TARGET must be <user>/<game>, got a malformed value"
+            exit 1
+          fi
+          if [ -z "${BUTLER_API_KEY}" ] || [ -z "${ITCH_TARGET}" ]; then
+            echo "::notice title=itch.io deploy skipped::Set the BUTLER_API_KEY secret and the ITCH_TARGET variable (<user>/<game>) to deploy."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Download Web build
+        if: steps.gate.outputs.skip != 'true'
+        uses: actions/download-artifact@v8
+        with:
+          name: web-build
+          path: build/web
+
+      - name: Install butler ${{ env.BUTLER_VERSION }}
+        if: steps.gate.outputs.skip != 'true'
+        run: |
+          set -euo pipefail
+          tmp="$(mktemp -d)"
+          curl -fsSL -o "$tmp/butler.zip" "https://broth.itch.zone/butler/linux-amd64/${BUTLER_VERSION}/archive/default"
+          echo "${BUTLER_SHA256}  $tmp/butler.zip" | sha256sum -c -
+          mkdir -p "$HOME/.local/bin"
+          unzip -q -o "$tmp/butler.zip" -d "$HOME/.local/bin"
+          chmod +x "$HOME/.local/bin/butler"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          rm -rf "$tmp"
+
+      - name: butler version and push flags
+        if: steps.gate.outputs.skip != 'true'
+        run: |
+          butler version
+          butler push --help
+
+      - name: Push to itch.io (${{ vars.ITCH_TARGET }}:html5)
+        if: steps.gate.outputs.skip != 'true'
+        env:
+          BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
+        # butler reads BUTLER_API_KEY from the environment; the key is never on a command line.
+        run: |
+          set -euo pipefail
+          test -f build/web/index.html
+          butler push build/web "${ITCH_TARGET}:html5" --userversion "${GITHUB_SHA}"
