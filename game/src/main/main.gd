@@ -6,17 +6,23 @@ extends Node2D
 const SMOKE_AUDIO_SCENE := "res://src/debug/smoke_audio/smoke_audio.tscn"
 const TitleScreenScript := preload("res://src/ui/screens/title/title_screen.gd")
 const PlaceholderScreenScript := preload("res://src/ui/screens/placeholder/placeholder_screen.gd")
+const PauseScreenScript := preload("res://src/ui/screens/pause/pause_screen.gd")
 const DebugKeysScript := preload("res://src/debug/debug_keys.gd")
 const GameFlow := preload("res://src/autoloads/game.gd")
 const HudScene := preload("res://src/ui/hud/hud.tscn")
-## Render layer order (AD-07): Arena -> Entities -> Particles -> HUD -> ScreenFX.
-const LAYER_ORDER: Array[StringName] = [&"Arena", &"Entities", &"Particles", &"Hud", &"ScreenFX"]
+## Render layer order (AD-07): Arena -> Entities -> Particles -> HUD -> Pause -> ScreenFX.
+const LAYER_ORDER: Array[StringName] = [&"Arena", &"Entities", &"Particles", &"Hud", &"Pause", &"ScreenFX"]
 const HUD_LAYER := 10
+## Pause overlay layer (Story 1.7 DC6): above the HUD, below ScreenFX. Empty unless paused.
+const PAUSE_LAYER := 15
 const SCREEN_FX_LAYER := 20
 
 var arena: Arena
 var hud: Hud
 var screens: Node2D
+var pause_layer: CanvasLayer
+## The pause overlay while SimClock is paused; null otherwise.
+var pause_screen: PauseScreen
 ## The screen instanced for the current flow state; null in DEAD (2.9) or after it freed itself.
 var current_screen: Node
 
@@ -37,6 +43,7 @@ func _ready() -> void:
 			return
 		Log.warn(&"flow", "audio smoke scene missing, opening title")
 	EventBus.flow_state_changed.connect(_on_flow_state_changed)
+	EventBus.pause_toggled.connect(apply_pause)
 	apply_flow_state(Game.flow_state, Game.run.boss_index)
 
 
@@ -55,6 +62,10 @@ func _build_layers() -> void:
 	hud.layer = HUD_LAYER
 	hud.visible = false
 	add_child(hud)
+	pause_layer = CanvasLayer.new()
+	pause_layer.name = &"Pause"
+	pause_layer.layer = PAUSE_LAYER
+	add_child(pause_layer)
 	var fx := CanvasLayer.new()
 	fx.name = &"ScreenFX"
 	fx.layer = SCREEN_FX_LAYER
@@ -82,6 +93,21 @@ func apply_flow_state(state: int, boss_index: int) -> void:
 	var in_fight: bool = state == GameFlow.FlowState.FIGHT
 	arena.visible = in_fight
 	hud.visible = in_fight
+
+
+## Shows the pause overlay while paused and frees it on resume (Story 1.7 AC2, DC6). Game owns
+## the state; Main only follows EventBus.pause_toggled.
+func apply_pause(paused: bool) -> void:
+	if paused:
+		if not is_instance_valid(pause_screen) or pause_screen.is_queued_for_deletion():
+			pause_screen = PauseScreenScript.new()
+			pause_screen.name = &"PauseScreen"
+			pause_layer.add_child(pause_screen)
+		return
+	if is_instance_valid(pause_screen):
+		pause_screen.set_process_input(false)
+		pause_screen.queue_free()
+	pause_screen = null
 
 
 func _make_screen(state: int, boss_index: int) -> Node:
