@@ -4,7 +4,7 @@ baseline_commit: 560c8b4
 
 # Story 1.4: Title Screen with Press-to-Start and Audio Unlock
 
-Status: review
+Status: done
 
 ## Story
 
@@ -235,7 +235,28 @@ Claude Opus 5.5 (claude-opus-5-5), gds-dev-story, unattended.
 - _bmad-output/implementation-artifacts/sprint-status.yaml (modified)
 - _bmad-output/implementation-artifacts/1-4-title-screen-with-press-to-start-and-audio-unlock.md (modified)
 
+### Review Findings
+
+Code review (2026-11-07): Blind Hunter, Edge Case Hunter, Acceptance Auditor. 0 decision_needed, 5 patch, 8 defer, rest dismissed as noise or documented behavior.
+
+- [x] [Review][Patch] Bare modifier keys (Shift/Ctrl/Alt/Meta/CapsLock) and Escape started the run; not a browser activation gesture [title_screen.gd:classify]
+- [x] [Review][Patch] Mouse wheel and right/middle clicks started the run; only the left button counts now [title_screen.gd:classify]
+- [x] [Review][Patch] Same-frame second input replayed START and the blip; added `_started` and flow_state==TITLE guard [title_screen.gd:handle_input]
+- [x] [Review][Patch] Leftover blank line at end of main.gd [main.gd]
+- [x] [Review][Patch] Missing smoke scene fell through silently; now logs a warning [main.gd:_ready]
+- [x] [Review][Defer] AudioManager.unlock() only sets a flag, no AudioContext verification or re-lock after focus loss [audio_manager.gd] — deferred: Godot web handles the autoplay unlock itself; verify in H1 real-browser check
+- [x] [Review][Defer] ScreenTouch not handled, relies on emulated mouse [title_screen.gd] — deferred: touch is out of scope for the desktop-web target
+- [x] [Review][Defer] label_rects canvas vs viewport coordinates when options become visible [title_screen.gd:option_of] — deferred: unreachable until 7.x populates rects
+- [x] [Review][Defer] Modified option keys (Shift+N) resolve to START with exact_match [title_screen.gd] — deferred: harmless while options are hidden; decide in 7.x
+- [x] [Review][Defer] first_input_frame not reset on re-entering TITLE; start_run_from_title has no return value [game.gd] — deferred: no path back to TITLE exists yet
+- [x] [Review][Defer] Tests assert bus_count == 4 exactly and AudioManager._unlocked test cleanup is order-fragile [test_audio_manager.gd, test_title_input.gd] — deferred: low risk, revisit when buses are added
+- [x] [Review][Defer] Single SFX player is restarted by rapid play_test_sfx; do not copy into pooled SFX (7.2) [audio_manager.gd]
+- [x] [Review][Defer] default_bus_layout.tres omits an explicit Master bus; flow_state_changed uses int rather than the enum [default_bus_layout.tres, event_bus.gd] — deferred: works as is
+
+Post-review validation: GUT 73/73, guards OK, web export with stripped template + smoke_web.sh PASS.
+
 ## Change Log
 
 - 2026-11-07: Story created by gds-create-story (unattended). Status → ready-for-dev. Design calls DC1–DC12 recorded above.
 - 2026-11-07: Implemented by gds-dev-story (unattended): bus layout, AudioManager unlock gate, Game TITLE -> INTRO, title screen, InputMap option actions, 23 new GUT tests; web build 28,406,474 bytes. Status → review.
+- 2026-11-07: code review, 5 patches applied, status done.

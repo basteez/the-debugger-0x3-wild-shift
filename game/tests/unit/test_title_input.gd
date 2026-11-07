@@ -98,3 +98,15 @@ func test_available_option_input_keeps_title_and_unlocks_audio() -> void:
 	assert_true(AudioManager.is_unlocked())
 	if not was_unlocked:
 		AudioManager.set("_unlocked", false)
+
+
+func test_modifier_and_escape_keys_are_ignored() -> void:
+	for code: Key in [KEY_SHIFT, KEY_CTRL, KEY_ALT, KEY_META, KEY_CAPSLOCK, KEY_ESCAPE]:
+		assert_eq(TitleScreenScript.classify(_key(code)), TitleScreenScript.Action.IGNORE, "key %d" % code)
+
+
+func test_non_left_mouse_buttons_are_ignored() -> void:
+	for button: MouseButton in [MOUSE_BUTTON_RIGHT, MOUSE_BUTTON_MIDDLE, MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN]:
+		var ev := _click()
+		ev.button_index = button
+		assert_eq(TitleScreenScript.classify(ev), TitleScreenScript.Action.IGNORE, "button %d" % button)

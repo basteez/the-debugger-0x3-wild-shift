@@ -15,6 +15,7 @@ func _ready() -> void:
 			add_child(scene.instantiate())
 			Log.info(&"flow", "audio smoke scene opened")
 			return
+		Log.warn(&"flow", "audio smoke scene missing, opening title")
 	add_child(TitleScreenScript.new())
 
 
@@ -38,4 +39,3 @@ static func _web_location_search() -> String:
 		return ""
 	var value: Variant = JavaScriptBridge.eval("window.location.search", true)
 	return value if value is String else ""
-

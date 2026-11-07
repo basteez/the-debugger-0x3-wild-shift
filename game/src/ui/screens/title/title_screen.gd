@@ -28,6 +28,10 @@ var available: Dictionary[StringName, bool] = {
 }
 ## Clickable label rects of visible options, in canvas space. Empty while all are hidden.
 var label_rects: Dictionary[StringName, Rect2] = {}
+var _started := false
+
+## Keys that are not a user gesture for the browser (no AudioContext activation): never start the run.
+const NON_START_KEYS: Array[Key] = [KEY_SHIFT, KEY_CTRL, KEY_ALT, KEY_META, KEY_CAPSLOCK, KEY_ESCAPE]
 
 
 ## Pure classifier: IGNORE, START or OPTION for one input event.
@@ -36,10 +40,12 @@ static func classify(event: InputEvent, rects: Dictionary[StringName, Rect2] = {
 	if key != null:
 		if not key.pressed or key.echo:
 			return Action.IGNORE
+		if key.keycode in NON_START_KEYS:
+			return Action.IGNORE
 		return Action.OPTION if option_of(key) != &"" else Action.START
 	var mouse := event as InputEventMouseButton
 	if mouse != null:
-		if not mouse.pressed:
+		if not mouse.pressed or mouse.button_index != MOUSE_BUTTON_LEFT:
 			return Action.IGNORE
 		return Action.OPTION if option_of(mouse, rects) != &"" else Action.START
 	return Action.IGNORE
@@ -77,8 +83,11 @@ func handle_input(event: InputEvent) -> Action:
 	var action: Action = resolve(event)
 	if action == Action.IGNORE:
 		return action
+	if _started or Game.flow_state != Game.FlowState.TITLE:
+		return Action.IGNORE
 	AudioManager.unlock()
 	if action == Action.START:
+		_started = true
 		Game.start_run_from_title(SimClock.sim_frame)
 		AudioManager.play_test_sfx()
 		queue_free()
