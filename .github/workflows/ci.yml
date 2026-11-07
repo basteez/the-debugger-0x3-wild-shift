@@ -1,0 +1,129 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    # no branch filter: stacked PRs (base != main) must run CI too
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+env:
+  GODOT_VERSION: 4.7.2
+  GODOT_RELEASE: 4.7.2-stable
+  GODOT_BIN: /home/runner/.local/share/godot/bin/godot
+
+jobs:
+  test-and-export:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Cache Godot binary and Web export templates
+        id: godot-cache
+        uses: actions/cache/restore@v6
+        with:
+          path: |
+            ~/.local/share/godot/bin
+            ~/.local/share/godot/export_templates/${{ env.GODOT_VERSION }}.stable
+          key: godot-${{ env.GODOT_RELEASE }}-linux-web-v1
+
+      - name: Install Godot ${{ env.GODOT_RELEASE }} and Web templates
+        id: install
+        if: steps.godot-cache.outputs.cache-hit != 'true'
+        run: |
+          set -euo pipefail
+          base="https://github.com/godotengine/godot/releases/download/${GODOT_RELEASE}"
+          tmp="$(mktemp -d)"
+          curl -fsSL -o "$tmp/SHA512-SUMS.txt" "$base/SHA512-SUMS.txt"
+          for f in "Godot_v${GODOT_RELEASE}_linux.x86_64.zip" "Godot_v${GODOT_RELEASE}_export_templates.tpz"; do
+            curl -fsSL -o "$tmp/$f" "$base/$f"
+            (cd "$tmp" && awk -v f="$f" '$2 == f || $2 == "*" f' SHA512-SUMS.txt | tee sum.line | grep -c . | grep -qx 1 && sha512sum -c sum.line)
+          done
+          mkdir -p ~/.local/share/godot/bin
+          unzip -q -o "$tmp/Godot_v${GODOT_RELEASE}_linux.x86_64.zip" -d "$tmp/bin"
+          mv "$tmp/bin/Godot_v${GODOT_RELEASE}_linux.x86_64" "$GODOT_BIN"
+          chmod +x "$GODOT_BIN"
+          tpl=~/.local/share/godot/export_templates/${GODOT_VERSION}.stable
+          mkdir -p "$tpl"
+          # Only the Web templates are needed; the full .tpz is ~1.3 GB.
+          unzip -q -o -j "$tmp/Godot_v${GODOT_RELEASE}_export_templates.tpz" 'templates/version.txt' 'templates/web_*' -d "$tpl"
+          rm -rf "$tmp"
+
+      - name: Save Godot cache (also when later steps fail)
+        if: always() && steps.godot-cache.outputs.cache-hit != 'true' && steps.install.outcome == 'success'
+        uses: actions/cache/save@v6
+        with:
+          path: |
+            ~/.local/share/godot/bin
+            ~/.local/share/godot/export_templates/${{ env.GODOT_VERSION }}.stable
+          key: godot-${{ env.GODOT_RELEASE }}-linux-web-v1
+
+      - name: Godot version
+        run: |
+          "$GODOT_BIN" --headless --version
+          ls ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable
+
+      - name: Import project (build class_name cache)
+        run: |
+          set -o pipefail
+          mkdir -p build/ci
+          "$GODOT_BIN" --headless --path game --import 2>&1 | tee build/ci/import.log
+          if grep -E 'SCRIPT ERROR|Parse Error' build/ci/import.log; then
+            echo "::error::Script errors during import"
+            exit 1
+          fi
+
+      - name: Unit tests (GUT)
+        run: |
+          set -o pipefail
+          mkdir -p build/ci
+          status=0
+          "$GODOT_BIN" --headless --path game -s addons/gut/gut_cmdln.gd -gdir=res://tests -ginclude_subdirs -gexit 2>&1 | tee build/ci/gut.log || status=$?
+          # Godot headless can exit 0 after a script fails to load, so the log is checked too.
+          sed -E 's/\x1b\[[0-9;]*m//g' build/ci/gut.log > build/ci/gut.plain.log
+          failed=0
+          for marker in 'SCRIPT ERROR' 'Parse Error' 'Failed to load script' 'does not extend GutTest' '[Failed]' 'failing tests'; do
+            if grep -nF -- "$marker" build/ci/gut.plain.log; then
+              echo "::error::GUT log contains failure marker: $marker"
+              failed=1
+            fi
+          done
+          tests="$(sed -nE 's/^Tests +([0-9]+)$/\1/p' build/ci/gut.plain.log | tail -1)"
+          if [ -z "$tests" ] || [ "$tests" -lt 1 ]; then
+            echo "::error::GUT ran no tests (Tests=${tests:-missing})"
+            failed=1
+          fi
+          if ! grep -qF -- '---- All tests passed! ----' build/ci/gut.plain.log; then
+            echo "::error::GUT did not report 'All tests passed!' (failing, pending or risky tests also fail CI)"
+            failed=1
+          fi
+          if [ "$status" -ne 0 ]; then
+            echo "::error::GUT exited with code $status"
+            failed=1
+          fi
+          exit "$failed"
+
+      - name: Static guards
+        run: bash game/tools/check_guards.sh
+
+      - name: Web export
+        run: |
+          set -o pipefail
+          mkdir -p build/web build/ci
+          "$GODOT_BIN" --headless --path game --export-release "Web" ../build/web/index.html 2>&1 | tee build/ci/export.log
+          for f in index.html index.pck index.wasm; do
+            test -f "build/web/$f" || { echo "::error::build/web/$f missing"; exit 1; }
+          done
+          if grep -E 'SCRIPT ERROR|Parse Error|ERROR: .*[Ee]xport' build/ci/export.log; then
+            echo "::error::Errors in Web export log"
+            exit 1
+          fi
+          ls -la build/web
+          du -sh build/web

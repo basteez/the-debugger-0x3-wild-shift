@@ -17,10 +17,20 @@ func info(tag: StringName, msg: String) -> void:
 
 
 func debug(tag: StringName, msg: String) -> void:
-	if not Debug.enabled:
+	if not emits(&"DEBUG", Debug.enabled):
 		return
 	print(_format(&"DEBUG", tag, msg))
 
 
+## Pure line formatter, tested directly (no stdout capture).
+static func format_line(level: StringName, tag: StringName, msg: String, frame: int) -> String:
+	return "[f=%d][%s][%s] %s" % [frame, level, tag, msg]
+
+
+## Whether a line of this level is written. DEBUG lines need debug mode on.
+static func emits(level: StringName, debug_enabled: bool) -> bool:
+	return level != &"DEBUG" or debug_enabled
+
+
 func _format(level: StringName, tag: StringName, msg: String) -> String:
-	return "[f=%d][%s][%s] %s" % [SimClock.sim_frame, level, tag, msg]
+	return format_line(level, tag, msg, SimClock.sim_frame)
