@@ -4,7 +4,7 @@ baseline_commit: 560c8b4
 
 # Story 1.4: Title Screen with Press-to-Start and Audio Unlock
 
-Status: ready-for-dev
+Status: review
 
 ## Story
 
@@ -50,52 +50,52 @@ And any play request before unlock is ignored, with exactly one `Log.warn` for t
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Bus layout and AudioManager (AC: 4, 2)
-  - [ ] 1.1 Create `game/default_bus_layout.tres` (res:// root, the path Godot uses for the default bus layout) with `Master` (send none), `Music`, `SFX`, `Voice` (each send `Master`), no effects. Verify the file loads headless: `AudioServer.get_bus_index(&"SFX") >= 0` after a `--headless --quit` boot. Use the editor's own save format if a hand-written `.tres` is rejected (see DC3).
-  - [ ] 1.2 Implement `game/src/autoloads/audio_manager.gd` (stub from 1.1, `extends Node`):
+- [x] Task 1: Bus layout and AudioManager (AC: 4, 2)
+  - [x] 1.1 Create `game/default_bus_layout.tres` (res:// root, the path Godot uses for the default bus layout) with `Master` (send none), `Music`, `SFX`, `Voice` (each send `Master`), no effects. Verify the file loads headless: `AudioServer.get_bus_index(&"SFX") >= 0` after a `--headless --quit` boot. Use the editor's own save format if a hand-written `.tres` is rejected (see DC3).
+  - [x] 1.2 Implement `game/src/autoloads/audio_manager.gd` (stub from 1.1, `extends Node`):
     - `var _unlocked: bool = false` and `var _warned_locked: bool = false`.
     - `func unlock() -> void`: idempotent. Sets `_unlocked = true`, logs `Log.info(&"audio", "unlocked")` once.
     - `func is_unlocked() -> bool`.
     - `func play_test_sfx() -> void`: if not unlocked, call `_warn_locked_once()` and return. Otherwise play a generated blip on the `SFX` bus (see DC4).
     - `func _warn_locked_once() -> void`: `Log.warn(&"audio", "play ignored before unlock")` only when `_warned_locked` is false, then set it true.
     - Creates no `AudioStreamPlayer` at boot and never calls `play()` before unlock. No `AudioServer` bus creation at runtime (the layout is the file).
-  - [ ] 1.3 Keep the smoke scene (1.3) working: its tone falls back to `Master` only when `SFX` is missing, so it should now land on `SFX`. Do not change the smoke scene file.
-- [ ] Task 2: EventBus and Game flow (AC: 2, 3)
-  - [ ] 2.1 `src/autoloads/event_bus.gd`: add `signal flow_state_changed(from: int, to: int)` (architecture signal list; typed, past-tense naming already matches). No other signal.
-  - [ ] 2.2 `src/autoloads/game.gd`: keep `enum FlowState` and `flow_state`. Add:
+  - [x] 1.3 Keep the smoke scene (1.3) working: its tone falls back to `Master` only when `SFX` is missing, so it should now land on `SFX`. Do not change the smoke scene file.
+- [x] Task 2: EventBus and Game flow (AC: 2, 3)
+  - [x] 2.1 `src/autoloads/event_bus.gd`: add `signal flow_state_changed(from: int, to: int)` (architecture signal list; typed, past-tense naming already matches). No other signal.
+  - [x] 2.2 `src/autoloads/game.gd`: keep `enum FlowState` and `flow_state`. Add:
     - `var first_input_frame: int = -1`.
     - `func start_run_from_title(frame: int) -> void`: only valid when `flow_state == TITLE` (else `Log.warn` and return). Sets `first_input_frame = frame`, logs `Log.info(&"flow", "title -> intro at f=%d" % frame)`, then calls `_set_flow_state(FlowState.INTRO)`.
     - `func can_skip_intro(frame: int) -> bool`: returns `first_input_frame >= 0 and frame > first_input_frame`. Story 1.6 must use it for the Intro skip.
     - `func _set_flow_state(to: FlowState) -> void` (private): stores `flow_state`, emits `EventBus.flow_state_changed.emit(from, to)`. Only `Game` writes `flow_state`.
-  - [ ] 2.3 Game does not change `SimClock`, does not use `Engine.time_scale`, and adds no `Timer` or `await`.
-- [ ] Task 3: Title screen (AC: 1, 2, 3)
-  - [ ] 3.1 Create `game/src/ui/screens/title/title_screen.gd` (`class_name TitleScreen`, `extends Node2D`). No `.tscn` is required (drawn in code, like the 1.1 glyph). Presentation only: no `await`, no `Timer`, no sim state writes.
-  - [ ] 3.2 Pure input classifier, unit-testable without a scene: `static func classify(event: InputEvent) -> int` returning `TitleScreen.Action.IGNORE`, `START`, or `OPTION` (plus the option id when `OPTION`, e.g. a `StringName` `&"new_run" | &"practice" | &"debug_build" | &"fullscreen"`). Rules:
+  - [x] 2.3 Game does not change `SimClock`, does not use `Engine.time_scale`, and adds no `Timer` or `await`.
+- [x] Task 3: Title screen (AC: 1, 2, 3)
+  - [x] 3.1 Create `game/src/ui/screens/title/title_screen.gd` (`class_name TitleScreen`, `extends Node2D`). No `.tscn` is required (drawn in code, like the 1.1 glyph). Presentation only: no `await`, no `Timer`, no sim state writes.
+  - [x] 3.2 Pure input classifier, unit-testable without a scene: `static func classify(event: InputEvent) -> int` returning `TitleScreen.Action.IGNORE`, `START`, or `OPTION` (plus the option id when `OPTION`, e.g. a `StringName` `&"new_run" | &"practice" | &"debug_build" | &"fullscreen"`). Rules:
     - `InputEventKey` with `pressed` and not `echo`: `N`/`P`/`B`/`F` → `OPTION`; any other key → `START`.
     - `InputEventMouseButton` with `pressed`: a click on an option label → `OPTION`; any other click → `START`.
     - Everything else (releases, echoes, mouse motion) → `IGNORE`.
-  - [ ] 3.3 `_unhandled_input(event)`: run `classify`. On `IGNORE` return. Otherwise call `AudioManager.unlock()` first (every input unlocks audio, including option keys). Then:
+  - [x] 3.3 `_unhandled_input(event)`: run `classify`. On `IGNORE` return. Otherwise call `AudioManager.unlock()` first (every input unlocks audio, including option keys). Then:
     - `START`: `Game.start_run_from_title(SimClock.sim_frame)`, `AudioManager.play_test_sfx()`, then free this screen (`queue_free()`).
     - `OPTION`: if the option is available (the `available` table, see DC2), act on it (no option is available in 1.4). If not available, treat it exactly as `START`.
     - Mark input as handled with `get_viewport().set_input_as_handled()`.
-  - [ ] 3.4 Drawing, in `_draw()` only, with `ThemeDB.fallback_font` (DC1): the title `The Debugger 0x03: Wild Shift` centred on the 640×360 base, and `press any key` below it, both in `Palette.INK` on the `BG` clear colour. Use `queue_redraw()` if the text changes. No blink (DC9). Option labels `[N] new run`, `[P] practice`, `[B] debug build`, `[F] fullscreen` are NOT drawn in 1.4 because all four are unavailable (DC2).
-  - [ ] 3.5 The title's `classify` uses option key constants defined once in `title_screen.gd` (no magic keycodes spread around). Input mapping: see DC7.
-- [ ] Task 4: Main wiring (AC: 1)
-  - [ ] 4.1 `src/main/main.gd` `_ready()`: keep the Story 1.3 smoke gate unchanged (`wants_audio_smoke`, `?debug&smoke=audio`). When the gate is closed, instance `TitleScreen` as a child (`load` or `preload` of its script, AD-13) instead of drawing the test glyph. Keep the `Log.info(&"flow", "boot")` line.
-  - [ ] 4.2 Remove the 1.1 test glyph from the default path (DC11) only if no test depends on it; otherwise leave the function but hide it while the title is shown.
-  - [ ] 4.3 Nothing in `main.gd` may branch on `?debug` for the title (DC6).
-- [ ] Task 5: Tests (AC: 1–4)
-  - [ ] 5.1 `tests/unit/test_title_input.gd`: `classify` table: `N`,`P`,`B`,`F` pressed → `OPTION`; `N` echo → `IGNORE`; `N` release → `IGNORE`; `Enter`, `Space`, `A` pressed → `START`; left click on the screen → `START`; mouse motion → `IGNORE`.
-  - [ ] 5.2 `tests/unit/test_audio_manager.gd`: after boot, `AudioServer` has `Master`, `Music`, `SFX`, `Voice`; each non-Master bus sends to `Master`; no effect count > 0 on any bus; `play_test_sfx()` before `unlock()` does not change the count of playing `AudioStreamPlayer`s and produces exactly one warn (capture via the Log warn counter, see Testing Requirements); after `unlock()` (idempotent on a second call) `play_test_sfx()` starts one player on `SFX`.
-  - [ ] 5.3 `tests/unit/test_game_state.gd` (extend the 1.1 file): `start_run_from_title(120)` moves TITLE → INTRO, `first_input_frame == 120`, `can_skip_intro(120) == false`, `can_skip_intro(121) == true`; a second `start_run_from_title` from INTRO is rejected and does not change `first_input_frame`; `flow_state_changed` fires once with `(0, 1)` (TITLE=0, INTRO=1).
-  - [ ] 5.4 Re-run the existing suite and the guards; no test from 1.1–1.3 may be weakened.
-- [ ] Task 6: Verify (AC: 1–4)
-  - [ ] 6.1 `godot --headless --path game --quit` exits 0; boot log only (no errors, no `Locked` warnings at boot).
-  - [ ] 6.2 `godot --headless --path game -s addons/gut/gut_cmdln.gd -gdir=res://tests -ginclude_subdirs -gexit` passes with the new tests.
-  - [ ] 6.3 `bash game/tools/check_guards.sh` passes (the title and audio code live outside the sim folders).
-  - [ ] 6.4 Windowed scripted run (scratchpad script, not committed, as in 1.1): title visible with no `AudioStreamPlayer` playing; a synthetic key press (`N` is hidden so `N` starts the run) moves `Game.flow_state` to INTRO with `first_input_frame` equal to the `SimClock.sim_frame` at press time; log line `title -> intro at f=N` appears.
-  - [ ] 6.5 Release web export built locally with the stripped template recipe (`game/tools/build_web_template.sh` already in repo): export succeeds, size recorded in Dev Agent Record (expect about 28.4 MB, unchanged in kind; DC12). The `?debug&smoke=audio` path still opens the 1.3 smoke scene with `smoke_web.sh`.
-  - [ ] 6.6 Record Godot version, GUT result, guard result, size in Completion Notes.
+  - [x] 3.4 Drawing, in `_draw()` only, with `ThemeDB.fallback_font` (DC1): the title `The Debugger 0x03: Wild Shift` centred on the 640×360 base, and `press any key` below it, both in `Palette.INK` on the `BG` clear colour. Use `queue_redraw()` if the text changes. No blink (DC9). Option labels `[N] new run`, `[P] practice`, `[B] debug build`, `[F] fullscreen` are NOT drawn in 1.4 because all four are unavailable (DC2).
+  - [x] 3.5 The title's `classify` uses option key constants defined once in `title_screen.gd` (no magic keycodes spread around). Input mapping: see DC7.
+- [x] Task 4: Main wiring (AC: 1)
+  - [x] 4.1 `src/main/main.gd` `_ready()`: keep the Story 1.3 smoke gate unchanged (`wants_audio_smoke`, `?debug&smoke=audio`). When the gate is closed, instance `TitleScreen` as a child (`load` or `preload` of its script, AD-13) instead of drawing the test glyph. Keep the `Log.info(&"flow", "boot")` line.
+  - [x] 4.2 Remove the 1.1 test glyph from the default path (DC11) only if no test depends on it; otherwise leave the function but hide it while the title is shown.
+  - [x] 4.3 Nothing in `main.gd` may branch on `?debug` for the title (DC6).
+- [x] Task 5: Tests (AC: 1–4)
+  - [x] 5.1 `tests/unit/test_title_input.gd`: `classify` table: `N`,`P`,`B`,`F` pressed → `OPTION`; `N` echo → `IGNORE`; `N` release → `IGNORE`; `Enter`, `Space`, `A` pressed → `START`; left click on the screen → `START`; mouse motion → `IGNORE`.
+  - [x] 5.2 `tests/unit/test_audio_manager.gd`: after boot, `AudioServer` has `Master`, `Music`, `SFX`, `Voice`; each non-Master bus sends to `Master`; no effect count > 0 on any bus; `play_test_sfx()` before `unlock()` does not change the count of playing `AudioStreamPlayer`s and produces exactly one warn (capture via the Log warn counter, see Testing Requirements); after `unlock()` (idempotent on a second call) `play_test_sfx()` starts one player on `SFX`.
+  - [x] 5.3 `tests/unit/test_game_state.gd` (extend the 1.1 file): `start_run_from_title(120)` moves TITLE → INTRO, `first_input_frame == 120`, `can_skip_intro(120) == false`, `can_skip_intro(121) == true`; a second `start_run_from_title` from INTRO is rejected and does not change `first_input_frame`; `flow_state_changed` fires once with `(0, 1)` (TITLE=0, INTRO=1).
+  - [x] 5.4 Re-run the existing suite and the guards; no test from 1.1–1.3 may be weakened.
+- [x] Task 6: Verify (AC: 1–4)
+  - [x] 6.1 `godot --headless --path game --quit` exits 0; boot log only (no errors, no `Locked` warnings at boot).
+  - [x] 6.2 `godot --headless --path game -s addons/gut/gut_cmdln.gd -gdir=res://tests -ginclude_subdirs -gexit` passes with the new tests.
+  - [x] 6.3 `bash game/tools/check_guards.sh` passes (the title and audio code live outside the sim folders).
+  - [x] 6.4 Windowed scripted run (scratchpad script, not committed, as in 1.1): title visible with no `AudioStreamPlayer` playing; a synthetic key press (`N` is hidden so `N` starts the run) moves `Game.flow_state` to INTRO with `first_input_frame` equal to the `SimClock.sim_frame` at press time; log line `title -> intro at f=N` appears.
+  - [x] 6.5 Release web export built locally with the stripped template recipe (`game/tools/build_web_template.sh` already in repo): export succeeds, size recorded in Dev Agent Record (expect about 28.4 MB, unchanged in kind; DC12). The `?debug&smoke=audio` path still opens the 1.3 smoke scene with `smoke_web.sh`.
+  - [x] 6.6 Record Godot version, GUT result, guard result, size in Completion Notes.
 
 ### [HUMAN] steps (Tiziano, not the dev agent)
 
@@ -185,14 +185,57 @@ Populated from `_bmad-output/project-context.md`:
 
 ### Agent Model Used
 
-_Not yet; filled by dev-story._
+Claude Opus 5.5 (claude-opus-5-5), gds-dev-story, unattended.
 
 ### Debug Log References
 
+- Red phase: new tests failed to parse (missing `make_blip`, `title_screen.gd`, `start_run_from_title`) before implementation; green after.
+- The first two stripped-template builds failed on `git clone` of the Godot source (network reset, `fetch-pack: invalid index-pack output`). Workaround: the 4.7.2-stable source tarball was unpacked into `WORK_DIR/godot` (the script skips the clone when the folder exists); the build then ran unchanged in 1 min 59 s. Script not changed.
+
 ### Completion Notes List
 
+- Godot 4.7.2.stable.official (ed1daf0bf), macOS. Template built with emscripten 4.0.11.
+- **Bus layout (Task 1.1):** hand-written `default_bus_layout.tres` loads as is, no editor re-save needed. Headless and windowed boot both show 4 buses (Music=1, SFX=2, Voice=3), each sending to Master, no effects (GUT `test_audio_manager`).
+- **AudioManager:** `unlock()` idempotent, `play_test_sfx()` ignored before unlock with one `Log.warn` per session (`locked_warn_count` exposed for the test), no player at boot, one reused `AudioStreamPlayer` on `SFX` created at the first unlocked play.
+- **Game:** `start_run_from_title`, `can_skip_intro`, `_set_flow_state`; `EventBus.flow_state_changed(from, to)`. No SimClock, time_scale, Timer or await changes.
+- **TitleScreen:** pure static `classify(event, rects)` + `option_of(event, rects)`; instance `resolve()` applies the `available` table; `handle_input()` unlocks audio first, then on START calls `Game.start_run_from_title(SimClock.sim_frame)`, plays the blip and frees itself.
+- **Main:** opens `TitleScreen` (preloaded) when the 1.3 smoke gate is closed; the 1.1 test glyph is removed (no test used it). Smoke gate unchanged.
+- **GUT:** 71/71 passing (was 58; +13 title input, +7 audio manager, +3 game state), CI failure markers absent. **Guards:** `check_guards: OK`. **Headless boot:** exit 0, only `[flow] boot`, no warnings.
+- **Windowed scripted run (6.4, scratch autoload, not committed):** title present, 0 playing players, locked; synthetic `N` press at f=30 -> `[audio] unlocked`, `[flow] title -> intro at f=30`, `flow_state=INTRO`, `first_input_frame=30`, 1 player playing, title freed. Screenshot checked: title and prompt centred and legible at 640x360.
+- **Web export (6.5):** release export with the locally built stripped template (preset path set temporarily, not committed): **28,406,474 bytes** (budget 30,000,000; side.wasm 25,414,775). `smoke_web.sh` PASS (plain boot); `SMOKE_CLICK=1 SMOKE_EXPECT="title -> intro"` PASS (`[audio] unlocked`, `title -> intro at f=2`); `?debug&smoke=audio` PASS, tone now on bus `SFX` (Task 1.3).
+- **Audio unlock in headless Chrome** (scratch CDP probe, `--autoplay-policy=document-user-activation-required`, hooks on `AudioContext` and `AudioBufferSourceNode.start`): before input the context is `suspended` and 0 buffer sources exist; after one click (and, in a second run, one `N` key press) the context is `running` and exactly one 0.15 s buffer source was started. Audibility per browser stays with H1.
+- [design call] DC1 fallback font (`ThemeDB.fallback_font`), title 32 px, prompt 16 px, integer baselines.
+- [design call] DC2 all four options hidden; the AC3 branch is covered by GUT flipping `available[&"practice"]` on a test instance (stays in TITLE, audio unlocked).
+- [design call] DC3 bus layout as a file; the hand-written format was accepted.
+- [design call] DC4 blip: 880 Hz, 0.15 s, 16-bit mono 22050 Hz, linear fade-out to avoid a click, no loop.
+- [design call] DC5 `first_input_frame` + `can_skip_intro`; after the transition Main shows an empty BG screen until 1.6.
+- [design call] DC6 no debug-gated behaviour added.
+- [design call] DC7 four InputMap actions hand-written in `project.godot [input]` using `physical_keycode` (N/P/B/F); `option_of` checks `event.is_action(action, true)`.
+- [design call] DC8 unlock on every counted input, before any other handling; the blip plays inside the input handler.
+- [design call] DC9 static prompt, no blink. DC10 log lines as specified. DC11 glyph removed. DC12 no template change.
+- [design call] (dev) `classify` returns the `Action` enum; the option id comes from a separate pure `option_of()` rather than a tuple return, so both stay simple to test.
+- [design call] (dev) the test-only `Game`/`AudioManager` autoload state touched by `test_available_option_input_keeps_title_and_unlocks_audio` is restored by the test (`_unlocked` reset if it was false).
+- HUMAN steps H1–H3 remain open for Tiziano (browser audibility per browser, hidden-option behaviour, NFR3 throttled load).
+
 ### File List
+
+- game/default_bus_layout.tres (new)
+- game/src/autoloads/audio_manager.gd (modified)
+- game/src/autoloads/event_bus.gd (modified)
+- game/src/autoloads/game.gd (modified)
+- game/src/ui/screens/title/title_screen.gd (new)
+- game/src/ui/screens/title/title_screen.gd.uid (new)
+- game/src/main/main.gd (modified)
+- game/project.godot (modified, `[input]` section)
+- game/tests/unit/test_title_input.gd (new)
+- game/tests/unit/test_title_input.gd.uid (new)
+- game/tests/unit/test_audio_manager.gd (new)
+- game/tests/unit/test_audio_manager.gd.uid (new)
+- game/tests/unit/test_game_state.gd (modified)
+- _bmad-output/implementation-artifacts/sprint-status.yaml (modified)
+- _bmad-output/implementation-artifacts/1-4-title-screen-with-press-to-start-and-audio-unlock.md (modified)
 
 ## Change Log
 
 - 2026-11-07: Story created by gds-create-story (unattended). Status → ready-for-dev. Design calls DC1–DC12 recorded above.
+- 2026-11-07: Implemented by gds-dev-story (unattended): bus layout, AudioManager unlock gate, Game TITLE -> INTRO, title screen, InputMap option actions, 23 new GUT tests; web build 28,406,474 bytes. Status → review.
