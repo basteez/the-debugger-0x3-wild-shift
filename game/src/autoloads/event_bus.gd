@@ -3,3 +3,5 @@ extends Node
 
 @warning_ignore("unused_signal")
 signal flow_state_changed(from: int, to: int)
+@warning_ignore("unused_signal")
+signal pause_toggled(paused: bool)
