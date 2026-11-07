@@ -1,5 +1,14 @@
 extends GutTest
-## Story 1.5 AC2/DC7: the F9 grid overlay action, default visibility and the debug gate.
+## Story 1.5 AC2/DC7: the grid overlay action, default visibility and the debug gate. Story 2.5
+## (D-S25-11) moved the grid from F9 to Shift+F9; plain F9 is the frame overlay.
+
+
+func _f9(shift: bool) -> InputEventKey:
+	var ev := InputEventKey.new()
+	ev.physical_keycode = KEY_F9
+	ev.shift_pressed = shift
+	ev.pressed = true
+	return ev
 
 
 func test_debug_grid_action_bound_to_f9() -> void:
@@ -7,9 +16,14 @@ func test_debug_grid_action_bound_to_f9() -> void:
 	var found: bool = false
 	for ev: InputEvent in InputMap.action_get_events(&"debug_grid"):
 		var key := ev as InputEventKey
-		if key != null and key.physical_keycode == KEY_F9:
+		if key != null and key.physical_keycode == KEY_F9 and key.shift_pressed:
 			found = true
-	assert_true(found, "debug_grid is not bound to physical F9")
+	assert_true(found, "debug_grid is not bound to Shift + physical F9")
+
+
+func test_plain_f9_does_not_match_the_grid() -> void:
+	assert_true(InputMap.event_is_action(_f9(true), &"debug_grid"), "Shift+F9 matches")
+	assert_false(InputMap.event_is_action(_f9(false), &"debug_grid"), "plain F9 does not")
 
 
 func test_overlay_hidden_by_default() -> void:

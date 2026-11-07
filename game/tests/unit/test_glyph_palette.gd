@@ -10,6 +10,7 @@ const SOURCES: Array[String] = [
 	"res://src/ui/hud/register_panel.gd",
 	"res://src/ui/screens/title/title_screen.gd",
 	"res://src/presentation/player_view.gd",
+	"res://src/debug/frame_overlay.gd",
 ]
 
 

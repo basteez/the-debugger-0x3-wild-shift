@@ -1,12 +1,15 @@
 class_name DebugKeys
 extends Node
-## F1-F5 debug jump keys (Story 1.6 AC4, DC6, DC7) and the F11 input recorder (Story 2.1 AC5).
+## F1-F5 debug jump keys (Story 1.6 AC4, DC6, DC7), the F9 frame overlay (Story 2.5 AC7) and the
+## F11 input recorder (Story 2.1 AC5).
 ## Main adds this node only when Debug.enabled, so release builds without `?debug` never see it. Keys are consumed in _input, before any screen.
 
 const GameFlow := preload("res://src/autoloads/game.gd")
 const SimClockScript := preload("res://src/autoloads/sim_clock.gd")
 ## F11 toggles input recording (AD-debug, D-S21-8). On web the browser may take F11 for fullscreen.
 const RECORD_KEY := KEY_F11
+## F9 (no modifiers) toggles the frame overlay; Shift+F9 is the HUD grid (D-S25-11).
+const OVERLAY_KEY := KEY_F9
 ## Physical keycode -> jump target. Matched by keycode (debug only, not an InputMap action).
 const JUMPS: Dictionary[Key, Array] = {
 	KEY_F1: [GameFlow.FlowState.TITLE, 0],
@@ -15,6 +18,9 @@ const JUMPS: Dictionary[Key, Array] = {
 	KEY_F4: [GameFlow.FlowState.FIGHT, 2],
 	KEY_F5: [GameFlow.FlowState.ENDING, 0],
 }
+
+## The frame overlay (Story 2.5), set by Main. Null = F9 does nothing.
+var frame_overlay: FrameOverlay
 
 
 ## Pure map: {state, boss_index} for F1-F5, empty for any other key.
@@ -32,6 +38,13 @@ func handle_key(event: InputEvent) -> bool:
 	var code: Key = key.physical_keycode if key.physical_keycode != KEY_NONE else key.keycode
 	if code == RECORD_KEY:
 		toggle_recording()
+		return true
+	if code == OVERLAY_KEY:
+		if key.shift_pressed or key.ctrl_pressed or key.alt_pressed or key.meta_pressed:
+			return false
+		if frame_overlay == null:
+			return false
+		frame_overlay.toggle()
 		return true
 	var target: Dictionary = target_for_key(code)
 	if target.is_empty():

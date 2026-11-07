@@ -1,5 +1,5 @@
 extends GutTest
-## Story 1.6 AC4/AC5/AC10: F1-F5 jump map, the release gate and input consumption.
+## Story 1.6 AC4/AC5/AC10: F1-F5 jump map, the release gate and input consumption; Story 2.5: F9.
 
 const DebugKeysScript := preload("res://src/debug/debug_keys.gd")
 const MainScript := preload("res://src/main/main.gd")
@@ -25,12 +25,13 @@ func after_each() -> void:
 	Game.first_input_frame = _saved_first
 
 
-func _key(code: Key, pressed: bool = true, echo: bool = false) -> InputEventKey:
+func _key(code: Key, pressed: bool = true, echo: bool = false, shift: bool = false) -> InputEventKey:
 	var ev := InputEventKey.new()
 	ev.keycode = code
 	ev.physical_keycode = code
 	ev.pressed = pressed
 	ev.echo = echo
+	ev.shift_pressed = shift
 	return ev
 
 
@@ -65,8 +66,24 @@ func test_handle_key_ignores_release_echo_and_unmapped() -> void:
 	var keys: Node = autofree(DebugKeysScript.new())
 	assert_false(keys.handle_key(_key(KEY_F2, false)))
 	assert_false(keys.handle_key(_key(KEY_F2, true, true)))
-	assert_false(keys.handle_key(_key(KEY_F9)))
 	assert_false(keys.handle_key(_key(KEY_A)))
+	assert_false(keys.handle_key(_key(KEY_F9, true, false, true)), "Shift+F9 is the HUD grid (D-S25-11)")
+
+
+## Story 2.5 AC7: F9 toggles the frame overlay (debug-only node).
+func test_f9_toggles_frame_overlay() -> void:
+	Debug.enabled = true
+	var keys: DebugKeys = autofree(DebugKeysScript.new())
+	var overlay: FrameOverlay = autofree(FrameOverlay.new())
+	keys.frame_overlay = overlay
+	assert_true(keys.handle_key(_key(KEY_F9)))
+	assert_true(overlay.visible)
+	assert_false(keys.handle_key(_key(KEY_F9, true, true)), "echo ignored")
+	assert_true(overlay.visible)
+	assert_true(keys.handle_key(_key(KEY_F9)))
+	assert_false(overlay.visible)
+	assert_false(keys.handle_key(_key(KEY_F9, true, false, true)))
+	assert_false(overlay.visible, "Shift+F9 does not toggle the overlay")
 
 
 func test_main_adds_debug_keys_only_when_enabled() -> void:
@@ -78,3 +95,9 @@ func test_main_adds_debug_keys_only_when_enabled() -> void:
 	var main_off: Node2D = (load("res://src/main/main.tscn") as PackedScene).instantiate()
 	add_child_autofree(main_off)
 	assert_null(main_off.get_node_or_null(^"DebugKeys"))
+
+
+## Review 2.5: F9 is not consumed when there is no overlay.
+func test_f9_without_overlay_is_not_consumed() -> void:
+	var keys: DebugKeys = autofree(DebugKeysScript.new())
+	assert_false(keys.handle_key(_key(KEY_F9)))

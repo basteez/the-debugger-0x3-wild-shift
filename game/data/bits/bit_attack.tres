@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="BitDef" format=3]
+
+[ext_resource type="Script" path="res://src/register/bit_def.gd" id="1_bdef"]
+[ext_resource type="Resource" path="res://data/actions/slash_1.tres" id="2_solo"]
+
+[resource]
+script = ExtResource("1_bdef")
+id = 1
+glyph = "A"
+solo_action = ExtResource("2_solo")

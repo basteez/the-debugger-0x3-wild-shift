@@ -19,6 +19,10 @@ var velocity_px: Vector2 = Vector2.ZERO
 var facing: Vector2i = DEFAULT_FACING
 ## Only an active player ticks (D-S22-5): on in FIGHT, off elsewhere.
 var active: bool = false
+## Movement lock (Story 2.5, D-S25-6): while true, tick() moves at `locked_velocity_px` and keeps
+## `facing`. Written only through lock_movement / unlock_movement (by the ActionStateMachine).
+var locked: bool = false
+var locked_velocity_px: Vector2 = Vector2.ZERO
 
 
 func _init(p_def: PlayerDef, p_bounds_px: Rect2) -> void:
@@ -34,6 +38,11 @@ func _init(p_def: PlayerDef, p_bounds_px: Rect2) -> void:
 ## One world frame (only SimClock calls this).
 func tick(ctx: SimContext) -> void:
 	if not active:
+		return
+	if locked:
+		velocity_px = locked_velocity_px
+		position_px += velocity_px
+		_clamp_to_bounds()
 		return
 	var dir: Vector2i = sanitize_dir(ctx.move_dir)
 	if dir != Vector2i.ZERO:
@@ -58,6 +67,22 @@ func reset_for_fight(spawn_px: Vector2) -> void:
 
 func set_active(on: bool) -> void:
 	active = on
+
+
+## Forces the per-frame velocity and freezes facing until unlock_movement (Story 2.5).
+func lock_movement(p_velocity_px: Vector2) -> void:
+	locked = true
+	locked_velocity_px = p_velocity_px
+
+
+## Releases the lock. The carried velocity is capped at walking top speed, so the normal decel ramp
+## stops the player within decel_frames after a dash ([design call] D-S25-15). No-op when unlocked.
+func unlock_movement() -> void:
+	if not locked:
+		return
+	locked = false
+	locked_velocity_px = Vector2.ZERO
+	velocity_px = velocity_px.limit_length(Const.tiles_per_s_to_px_per_frame(def.speed_tiles_s))
 
 
 ## Any direction reduced to its per-axis sign, so components are always in {-1, 0, 1} (C4).

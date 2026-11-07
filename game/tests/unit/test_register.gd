@@ -189,3 +189,17 @@ func test_fight_start_for_boss() -> void:
 	assert_eq(Register.fight_start_for_boss(2), _ring([A, D, L, N]))
 	assert_eq(Register.fight_start_for_boss(7), _ring([D, A]), "unknown index falls back to Boss 1")
 	assert_eq(Register.fight_start_for_boss(-1), _ring([D, A]))
+
+
+## Story 2.5 (D-S25-2): shift_serial counts applied shifts only.
+func test_shift_serial_counts_applied_shifts() -> void:
+	assert_eq(_reg.shift_serial, 0)
+	_reg.shift(Register.LEFT)
+	assert_eq(_reg.shift_serial, 1)
+	_reg.shift(Register.RIGHT)
+	assert_eq(_reg.shift_serial, 2)
+	_reg.shift(0)
+	assert_push_error("shift direction")
+	assert_eq(_reg.shift_serial, 2, "a rejected shift does not count")
+	_reg.preview(Register.LEFT)
+	assert_eq(_reg.shift_serial, 2, "preview never counts")
