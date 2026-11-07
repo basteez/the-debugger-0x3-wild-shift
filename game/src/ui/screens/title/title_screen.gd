@@ -7,10 +7,11 @@ enum Action { IGNORE, START, OPTION }
 
 const TITLE_TEXT := "The Debugger 0x03: Wild Shift"
 const PROMPT_TEXT := "press any key"
-const TITLE_FONT_SIZE := 32
-const PROMPT_FONT_SIZE := 16
-const TITLE_BASELINE_Y := 160
-const PROMPT_BASELINE_Y := 210
+## Pixel font at 2x (16-px glyph cells, Story 1.5 DC2). Y values are the top of each glyph row,
+## on the 8-px grid; x is centred on the 640-px base and snapped to the 8-px grid.
+const TEXT_SCALE := 2
+const TITLE_TOP_Y := 160
+const PROMPT_TOP_Y := 208
 ## Option id -> InputMap action (DC7). The keys live only in project.godot [input].
 const OPTION_ACTIONS: Dictionary[StringName, StringName] = {
 	&"new_run": &"title_option_new_run",
@@ -101,7 +102,11 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _draw() -> void:
-	var font: Font = ThemeDB.fallback_font
-	var width: float = float(Const.BASE_RES.x)
-	draw_string(font, Vector2(0, TITLE_BASELINE_Y), TITLE_TEXT, HORIZONTAL_ALIGNMENT_CENTER, width, TITLE_FONT_SIZE, Palette.INK)
-	draw_string(font, Vector2(0, PROMPT_BASELINE_Y), PROMPT_TEXT, HORIZONTAL_ALIGNMENT_CENTER, width, PROMPT_FONT_SIZE, Palette.INK)
+	GlyphFont.draw_at(self, Vector2(centred_x(TITLE_TEXT), TITLE_TOP_Y), TITLE_TEXT, Palette.INK, TEXT_SCALE)
+	GlyphFont.draw_at(self, Vector2(centred_x(PROMPT_TEXT), PROMPT_TOP_Y), PROMPT_TEXT, Palette.INK, TEXT_SCALE)
+
+
+## Left x that centres `text` at TEXT_SCALE on the base width, snapped down to the 8-px grid.
+static func centred_x(text: String) -> int:
+	var x: int = (Const.BASE_RES.x - GlyphFont.text_width(text, TEXT_SCALE)) / 2
+	return x - x % GlyphFont.CELL
