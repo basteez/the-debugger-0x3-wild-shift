@@ -614,3 +614,55 @@ func test_finish_during_active_starts_the_link_count() -> void:
 	assert_false(_fsm.link.counting)
 	_fsm._finish()
 	assert_true(_fsm.link.counting)
+
+
+# --- Story 2.7: the hit-shape anchor and the action serial (D-S27-4, D-S27-13) ---
+
+func test_action_origin_is_the_start_position_and_does_not_follow_a_dash() -> void:
+	_ring([D, A])
+	var start: Vector2 = _player.position_px
+	_press(J)
+	_tick() # dash frame 1: the player moves
+	assert_eq(_fsm.action_origin_px, start)
+	_run_to(10)
+	assert_gt(_player.position_px.distance_to(start), 1.0, "the player dashed")
+	assert_eq(_fsm.action_origin_px, start, "the anchor stays at the start")
+
+
+func test_action_origin_follows_the_next_start() -> void:
+	_ring([D, A])
+	_press(J)
+	_run_to(17) # dash done (16 frames), idle on tick 16
+	var second: Vector2 = _player.position_px
+	_press(K)
+	_tick()
+	assert_eq(_fsm.action, Defs.SLASH_1)
+	assert_eq(_fsm.action_origin_px, second)
+
+
+func test_action_serial_increments_per_start_only() -> void:
+	assert_eq(_fsm.action_serial, 0)
+	_ring([A, D])
+	_press(J)
+	_tick()
+	assert_eq(_fsm.action_serial, 1)
+	_run_to(22)
+	assert_eq(_fsm.action_serial, 1, "frames of the same action keep the serial")
+	_tick() # slash over, idle
+	assert_null(_fsm.action)
+	assert_eq(_fsm.action_serial, 1, "finishing does not increment")
+	_press(J)
+	_tick()
+	assert_eq(_fsm.action_serial, 2, "a new start, even the same slash, increments")
+	_fsm.reset_for_fight()
+	assert_eq(_fsm.action_serial, 2, "never reset in a session")
+
+
+func test_chain_and_combo_starts_increment_the_serial() -> void:
+	_ring([A, D])
+	_press(J)
+	_run_to(3)
+	_press(K)
+	_run_to(12) # Dash Strike starts on tick 11
+	assert_eq(_fsm.action, Defs.DASH_STRIKE)
+	assert_eq(_fsm.action_serial, 2)

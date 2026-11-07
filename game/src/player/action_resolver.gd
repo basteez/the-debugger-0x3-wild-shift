@@ -14,27 +14,34 @@ const K_SLOT := 1
 const CHAIN_WINDOW_FRAMES := 8
 
 
-## Rules in order: chain, link (Story 2.6), cancel, solo, else nothing.
-## `action` is the running ActionDef or null; `action_frame` its last executed frame.
-## `chain_key` / `chain_serial` are the chain record (serial -1 = no chain); `shift_serial` is
-## Register.shift_serial now. `link` is the FSM's LinkState (read only here; null = no link) and
-## `combos` the combo table (null = Defs.COMBOS).
-static func resolve(buffer: InputBuffer, frame: int, window: Vector2i, action: ActionDef, action_frame: int, chain_key: StringName, chain_serial: int, shift_serial: int, cooldowns: Cooldowns, link: LinkState = null, combos: ComboTable = null) -> ActionRequest:
-	if buffer == null or cooldowns == null:
+## Rules in order: chain, link (Story 2.6), cancel, solo, else nothing. Story 2.7 (AC6): the
+## inputs come in one ResolveInput. `action` is the running ActionDef or null; `action_frame` its
+## last executed frame. `chain_key` / `chain_serial` are the chain record (serial -1 = no chain);
+## `shift_serial` is Register.shift_serial now. `link` is the FSM's LinkState (read only here;
+## null = no link) and `combos` the combo table (null = Defs.COMBOS).
+static func resolve(input: ResolveInput) -> ActionRequest:
+	if input == null or input.buffer == null or input.cooldowns == null:
 		return null
+	var buffer: InputBuffer = input.buffer
+	var frame: int = input.frame
+	var window: Vector2i = input.window
+	var action: ActionDef = input.action
+	var action_frame: int = input.action_frame
+	var cooldowns: Cooldowns = input.cooldowns
+	var link: LinkState = input.link
 	var running: bool = action != null and action_frame < action.total_frames()
 	if action != null:
-		var chained: ActionRequest = _chain(buffer, frame, window, action, action_frame, chain_key, chain_serial, shift_serial)
+		var chained: ActionRequest = _chain(buffer, frame, window, action, action_frame, input.chain_key, input.chain_serial, input.shift_serial)
 		if chained != null:
 			return chained
 	# While the link is open on this window, K presses belong to the link rule only (D-S26-5).
-	var link_owns_k: bool = link != null and link.is_open() and link.serial == shift_serial and window == link.pair
+	var link_owns_k: bool = link != null and link.is_open() and link.serial == input.shift_serial and window == link.pair
 	if link_owns_k:
 		# Rule 8, AC6: J resolves first; a K press stays buffered (or held) for the link next tick.
 		var j_request: ActionRequest = _j_request(buffer, frame, window, action, action_frame, running, cooldowns, link_owns_k)
 		if j_request != null:
 			return j_request
-		return _link(buffer, frame, window, action, action_frame, running, cooldowns, link, combos if combos != null else Defs.COMBOS)
+		return _link(buffer, frame, window, action, action_frame, running, cooldowns, link, input.combos if input.combos != null else Defs.COMBOS)
 	return _j_request(buffer, frame, window, action, action_frame, running, cooldowns, link_owns_k)
 
 

@@ -9,6 +9,13 @@ func contains(_origin: Vector2, _facing: Vector2, _point: Vector2) -> bool:
 	return false
 
 
+## True when a circular hurtbox (`centre`, `radius_px`) touches the shape placed at `origin` and
+## turned to `facing` (Story 2.7, D-S27-1): any shared point counts, the tangent case included.
+## A zero facing means "no direction" (circle-like shapes collapse to a full circle).
+func overlaps(_origin: Vector2, _facing: Vector2, _centre: Vector2, _radius_px: float) -> bool:
+	return false
+
+
 ## Tiles to pixels (Const.TILE_PX), for subclasses.
 static func tiles_to_px(tiles: float) -> float:
 	return tiles * Const.TILE_PX

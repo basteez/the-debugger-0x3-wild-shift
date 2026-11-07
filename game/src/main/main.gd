@@ -29,6 +29,10 @@ var current_screen: Node
 var juice_director: JuiceDirector
 ## F9 frame overlay (Story 2.5): exists only when Debug.enabled; null otherwise.
 var frame_overlay: FrameOverlay
+## F1-F5 / F9 / F11 / Shift+F2 keys: exists only when Debug.enabled; null otherwise.
+var debug_keys: DebugKeys
+## Practice target view (Story 2.7): exists only when Debug.enabled; draws only while a target exists.
+var practice_view: PracticeTargetView
 
 
 func _ready() -> void:
@@ -36,10 +40,10 @@ func _ready() -> void:
 	_build_layers()
 	EventBus.pause_toggled.connect(apply_pause)
 	if should_add_debug_keys(Debug.enabled):
-		var keys: DebugKeys = DebugKeysScript.new()
-		keys.name = &"DebugKeys"
-		keys.frame_overlay = frame_overlay
-		add_child(keys)
+		debug_keys = DebugKeysScript.new()
+		debug_keys.name = &"DebugKeys"
+		debug_keys.frame_overlay = frame_overlay
+		add_child(debug_keys)
 	# Story 1.3 day-1 audio smoke test, behind ?debug&smoke=audio and the Debug gate (1.6 AC8).
 	if Debug.enabled and wants_audio_smoke(UrlQuery.web_search()):
 		var scene := load(SMOKE_AUDIO_SCENE) as PackedScene
@@ -70,6 +74,11 @@ func _build_layers() -> void:
 		frame_overlay.actions = arena.actions
 		frame_overlay.register = arena.register
 		arena.add_child(frame_overlay)
+	# Debug-only practice target view (Story 2.7, D-S27-9); lives in presentation/, so Main attaches it.
+	if Debug.enabled:
+		practice_view = PracticeTargetView.new()
+		practice_view.name = &"PracticeTargetView"
+		arena.add_child(practice_view)
 	for layer_name: StringName in [&"Entities", &"Particles"]:
 		var node := Node2D.new()
 		node.name = layer_name
@@ -122,9 +131,25 @@ func apply_flow_state(state: int, boss_index: int) -> void:
 	arena.visible = in_fight
 	hud.visible = in_fight
 	if in_fight:
-		arena.enter_fight(Register.fight_start_for_boss(boss_index))
+		arena.enter_fight(Register.fight_start_for_boss(boss_index), wants_practice())
 	else:
 		arena.leave_fight()
+	_attach_practice_target()
+
+
+## True when the fight should have the practice target: Shift+F2 was the last jump (Story 2.7,
+## D-S27-3). Always false without the debug gate (no DebugKeys node).
+func wants_practice() -> bool:
+	return Debug.enabled and is_instance_valid(debug_keys) and debug_keys.practice_requested
+
+
+## Hands the arena's practice target (or null) to the debug views.
+func _attach_practice_target() -> void:
+	if is_instance_valid(practice_view):
+		practice_view.target = arena.practice_target
+		practice_view.queue_redraw()
+	if is_instance_valid(frame_overlay):
+		frame_overlay.practice_target = arena.practice_target
 
 
 ## Shows the pause overlay while paused and frees it on resume (Story 1.7 AC2, DC6). Game owns

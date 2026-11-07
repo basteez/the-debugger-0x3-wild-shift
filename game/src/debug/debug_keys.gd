@@ -1,6 +1,6 @@
 class_name DebugKeys
 extends Node
-## F1-F5 debug jump keys (Story 1.6 AC4, DC6, DC7), the F9 frame overlay (Story 2.5 AC7) and the
+## F1-F5 debug jump keys (Story 1.6 AC4, DC6, DC7), Shift+F2 practice target (Story 2.7), the F9 frame overlay (Story 2.5 AC7) and the
 ## F11 input recorder (Story 2.1 AC5).
 ## Main adds this node only when Debug.enabled, so release builds without `?debug` never see it. Keys are consumed in _input, before any screen.
 
@@ -10,6 +10,8 @@ const SimClockScript := preload("res://src/autoloads/sim_clock.gd")
 const RECORD_KEY := KEY_F11
 ## F9 (no modifiers) toggles the frame overlay; Shift+F9 is the HUD grid (D-S25-11).
 const OVERLAY_KEY := KEY_F9
+## Shift+F2 (Story 2.7, D-S27-3): FIGHT boss 0 with the practice target. Plain F2 is unchanged.
+const PRACTICE_KEY := KEY_F2
 ## Physical keycode -> jump target. Matched by keycode (debug only, not an InputMap action).
 const JUMPS: Dictionary[Key, Array] = {
 	KEY_F1: [GameFlow.FlowState.TITLE, 0],
@@ -21,6 +23,16 @@ const JUMPS: Dictionary[Key, Array] = {
 
 ## The frame overlay (Story 2.5), set by Main. Null = F9 does nothing.
 var frame_overlay: FrameOverlay
+## True after Shift+F2 until another jump key (Story 2.7): Main reads it on every FIGHT entry, so a
+## retry keeps the practice target. Lives on this debug-only node, so release code never sees it.
+var practice_requested: bool = false
+
+
+## Pure map for Shift+<key>: FIGHT boss 0 with the practice target for F2, empty otherwise.
+static func shift_target_for_key(keycode: Key) -> Dictionary:
+	if keycode != PRACTICE_KEY:
+		return {}
+	return {&"state": GameFlow.FlowState.FIGHT, &"boss_index": 0, &"practice": true}
 
 
 ## Pure map: {state, boss_index} for F1-F5, empty for any other key.
@@ -46,9 +58,15 @@ func handle_key(event: InputEvent) -> bool:
 			return false
 		frame_overlay.toggle()
 		return true
-	var target: Dictionary = target_for_key(code)
+	var target: Dictionary = {}
+	if key.shift_pressed:
+		target = shift_target_for_key(code)
+	if target.is_empty():
+		target = target_for_key(code)
 	if target.is_empty():
 		return false
+	# Set before the jump: Main reads it while handling the flow change.
+	practice_requested = target.get(&"practice", false)
 	Game.debug_jump(target[&"state"], target[&"boss_index"])
 	return true
 

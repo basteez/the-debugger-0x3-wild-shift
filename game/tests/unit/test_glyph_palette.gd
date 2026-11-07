@@ -11,6 +11,7 @@ const SOURCES: Array[String] = [
 	"res://src/ui/screens/title/title_screen.gd",
 	"res://src/presentation/player_view.gd",
 	"res://src/debug/frame_overlay.gd",
+	"res://src/presentation/practice_target_view.gd",
 ]
 
 
@@ -34,7 +35,7 @@ func test_no_colour_literals_or_warn_in_glyph_sources() -> void:
 
 func test_drawn_colours_are_palette_constants() -> void:
 	var regex := RegEx.create_from_string("draw_(cell|at)\\([^\\n]*?,\\s*(Palette\\.[A-Z]+|[a-z_]+)\\s*,\\s*[A-Z_0-9]+\\)")
-	for path: String in ["res://src/arena/arena.gd", "res://src/ui/hud/hud_frame.gd", "res://src/ui/screens/title/title_screen.gd", "res://src/ui/hud/register_panel.gd", "res://src/presentation/player_view.gd"]:
+	for path: String in ["res://src/arena/arena.gd", "res://src/ui/hud/hud_frame.gd", "res://src/ui/screens/title/title_screen.gd", "res://src/ui/hud/register_panel.gd", "res://src/presentation/player_view.gd", "res://src/presentation/practice_target_view.gd"]:
 		var text: String = FileAccess.get_file_as_string(path)
 		var matches: Array[RegExMatch] = regex.search_all(text)
 		assert_gt(matches.size(), 0, "no glyph draw found in %s" % path)

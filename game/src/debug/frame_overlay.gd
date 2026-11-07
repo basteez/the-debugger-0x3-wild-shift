@@ -2,7 +2,8 @@ class_name FrameOverlay
 extends Node2D
 ## F9 frame overlay (Story 2.5 AC7): sim frame, player FSM state, frame in state, J/K cooldowns,
 ## invulnerability, the player hurtbox and the active hit shape. Story 2.6: the combo link (open or
-## closed, window pair, frames left in the 18-tick count, held K press). A child of the Arena (arena-local
+## closed, window pair, frames left in the 18-tick count, held K press). Story 2.7: the shape at the
+## action's start position and the practice target's hurtbox. A child of the Arena (arena-local
 ## pixels), added by Main only when Debug.enabled; hidden by default. Read-only: never writes sim state.
 
 const TEXT_ORIGIN := Vector2(4, 4)
@@ -13,6 +14,8 @@ const SEGMENTS := 24
 var player: Player
 var actions: ActionStateMachine
 var register: Register
+## The practice target (Story 2.7), set by Main; null = no target circle.
+var practice_target: PracticeTarget
 
 
 func _init() -> void:
@@ -36,7 +39,10 @@ func _draw() -> void:
 	var hurt_r: float = player.def.hurtbox_tiles * Const.TILE_PX / 2.0
 	draw_arc(centre, hurt_r, 0.0, TAU, SEGMENTS, Palette.INK, 1.0)
 	if actions.state == ActionStateMachine.ActionState.ACTIVE and actions.action != null:
-		_draw_shape(actions.action.hit_shape, centre, Vector2(actions.facing).normalized())
+		# Story 2.7, D-S27-13: shapes are anchored at the action's start, not the moving player.
+		_draw_shape(actions.action.hit_shape, actions.action_origin_px, Vector2(actions.facing).normalized())
+	if practice_target != null:
+		draw_arc(practice_target.position_px, practice_target.hurtbox_radius_px, 0.0, TAU, SEGMENTS, Palette.INK, 1.0)
 	var window: Vector2i = register.active_window() if register != null else Vector2i.ZERO
 	var link: LinkState = actions.link
 	var lines: PackedStringArray = format_lines(SimClock.sim_frame, actions.state, actions.frame_in_state(), actions.cooldowns.remaining(window.x), actions.cooldowns.remaining(window.y), actions.invulnerable(), link.is_open(), link.pair, link.frames_left, link.held)
