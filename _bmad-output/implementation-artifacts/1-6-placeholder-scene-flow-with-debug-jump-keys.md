@@ -4,7 +4,7 @@ baseline_commit: 2d1ed4e
 
 # Story 1.6: Placeholder Scene Flow with Debug Jump Keys
 
-Status: ready-for-dev
+Status: review
 
 ## Story
 
@@ -77,40 +77,40 @@ Then they never start the run (`TitleScreen.classify` ignores function keys), an
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Debug gate (AC: 4, 5, 8)
-  - [ ] 1.1 `src/autoloads/debug.gd`: add `static func gate_enabled(is_debug_build: bool, search: String) -> bool` returning `is_debug_build or UrlQuery.has_debug(search)`. Set `enabled = gate_enabled(OS.is_debug_build(), UrlQuery.web_search())` in `_ready()` (not as a field initialiser, so `web_search` runs once after the bridge is up). Keep the field name `enabled`.
-  - [ ] 1.2 `src/ui/hud/hud.gd`: the F9 key path reads `Debug.enabled`. The static `grid_toggle_allowed` and its test stay unchanged.
-  - [ ] 1.3 Test `tests/unit/test_debug_gate.gd`: `gate_enabled` truth table (`?debug`, `?debug&smoke=x`, `?debug=0`, `?debugger`, `?nodebug`, debug build true with empty search).
-- [ ] Task 2: RunState and Game flow (AC: 1, 3, 4)
-  - [ ] 2.1 `src/core/run_state.gd` (`class_name RunState`, `extends RefCounted`): `var boss_index: int = 0`. `deaths_on_boss` is added in 2.9, not here.
-  - [ ] 2.2 `src/autoloads/game.gd`: `const INTRO_MAX_FRAMES := 480`; `var run: RunState = RunState.new()`; `advance() -> void` with a `match flow_state` (TITLE is a no-op: its own input starts the run; INTRO → FIGHT with boss_index 0; FIGHT → ENDING if boss_index == 2 else HARVEST; HARVEST → FIGHT with boss_index + 1; ENDING → TITLE with `run = RunState.new()` and first_input_frame -1; DEAD → no-op, logged with `Log.warn` once per call).
-  - [ ] 2.3 `Game.finish_intro(frame)`: INTRO → FIGHT if `can_skip_intro(frame)` or the timeout is reached (`frame - intro_start_frame >= INTRO_MAX_FRAMES`); track `intro_start_frame` set on entering INTRO (`start_run_from_title` records `SimClock.sim_frame`).
-  - [ ] 2.4 `Game.debug_jump(target: FlowState, boss_index: int) -> void`: returns unless `Debug.enabled`; allowed targets TITLE, FIGHT (boss_index 0..2), ENDING; sets `run.boss_index`; TITLE resets `first_input_frame = -1`; logs `Log.info(&"debug", "jump -> %s boss=%d" % ...)`; emits through `_set_flow_state`.
-  - [ ] 2.5 All `flow_state` writes stay in `Game` (`_set_flow_state`). Presentation calls `advance()`, `finish_intro()` or `start_run_from_title()` only.
-  - [ ] 2.6 Tests in `tests/unit/test_game_state.gd` (extend) or `test_game_flow.gd`: full sequence Title → Intro → Fight 1 → Harvest → Fight 2 → Harvest → Fight 3 → Ending → Title; boss_index values; `can_skip_intro` false on the same frame as the title input and true on the next; intro timeout at 480 frames; debug jump ignored when `Debug.enabled` is false; jump to Title clears `first_input_frame`.
-- [ ] Task 3: Placeholder screens and host (AC: 2, 3, 6, 7)
-  - [ ] 3.1 `src/ui/screens/placeholder/placeholder_screen.gd` (`class_name PlaceholderScreen`, `extends Node2D`): one script for INTRO, FIGHT, HARVEST, ENDING. `setup(state: Game.FlowState)` picks the label text and whether the boss index is shown. `_draw()` uses `GlyphFont.draw_at` with `Palette.INK`, 2× scale, text top-left on the 8-px grid, centred with the same rule as the title (`TitleScreen.centred_x` or a shared helper).
-  - [ ] 3.2 Input: `_unhandled_input` treats any key press (not echo, not a modifier-only key, not a function key) or left-click press as the advance gesture. INTRO: call `Game.finish_intro(SimClock.sim_frame)` only when `Game.can_skip_intro(...)`. FIGHT, HARVEST, ENDING: call `Game.advance()`. Mark the event handled.
-  - [ ] 3.3 INTRO timeout: the screen does not use a Timer. Its `_physics_process` calls `Game.finish_intro(SimClock.sim_frame)`; the timeout check lives in `Game` (2.3). Presentation may use `_physics_process`; no `await`/Timer in `src/core` or `src/autoloads` for this.
-  - [ ] 3.4 `src/main/main.gd`: add a `Screens` `Node2D` child under `Main`. Listen to `EventBus.flow_state_changed` (connect in `_ready`); on change, free the current screen with `queue_free()` (guard `is_instance_valid`), then instance the new one: TITLE → `TitleScreen`, INTRO/FIGHT/HARVEST/ENDING → `PlaceholderScreen` after `setup()`, DEAD → none. Also instance the initial screen from `Game.flow_state` at boot (TITLE unless a smoke gate opened).
-  - [ ] 3.5 Arena/HUD visibility (AC7): set `arena.visible` and `hud.visible` from `flow_state == FIGHT` on each change and at boot. Remove `wants_arena_smoke`, `show_arena` and the arena smoke log line. Keep `_build_layers()` order (Arena → Entities → Particles → Hud → ScreenFX).
-  - [ ] 3.6 `TitleScreen`: on START it still calls `Game.start_run_from_title(SimClock.sim_frame)` and then `queue_free()` (the host is fine with an already-freed title). Add the function-key guard (AC10): `KEY_F1..KEY_F12` added to the non-start list in `classify`, so F9 on the title no longer starts the run (closes the 1.5 deferred item).
-  - [ ] 3.7 Debug keys (AC4, AC5): `src/debug/debug_keys.gd` (`class_name DebugKeys`, `extends Node`). `static func target_for_key(keycode: Key) -> Dictionary` (pure): F1 → TITLE/0, F2 → FIGHT/0, F3 → FIGHT/1, F4 → FIGHT/2, F5 → ENDING/0; anything else → empty. `_input(event)`: on a pressed, non-echo function key in the map, call `Game.debug_jump(...)`, then `get_viewport().set_input_as_handled()`. `Main._ready()` adds a `DebugKeys` node only when `Debug.enabled` (AC5).
-  - [ ] 3.8 `src/debug/smoke_audio/` stays as is; `Main` keeps the `?debug&smoke=audio` gate (`wants_audio_smoke`), now also requiring `Debug.enabled` (AC8).
-- [ ] Task 4: Tests (AC: all)
-  - [ ] 4.1 `tests/unit/test_debug_keys.gd`: `target_for_key` for F1–F5 and for a non-debug key; `DebugKeys` node not instanced when `Debug.enabled` is false (instance `Main` with the flag forced by a test helper, or test `Main.should_add_debug_keys(enabled)` as a pure static).
-  - [ ] 4.2 `tests/unit/test_main_layers.gd`: delete the `wants_arena_smoke` and `show_arena` tests (their behaviour is replaced). Add: arena and HUD visible only in FIGHT; screen for each state (TITLE → TitleScreen, INTRO/FIGHT/HARVEST/ENDING → PlaceholderScreen with matching label).
-  - [ ] 4.3 `tests/unit/test_title_input.gd`: F1–F12 classify as IGNORE, and F9 does not start the run.
-  - [ ] 4.4 `tests/unit/test_font_coverage.gd`: extend the glyph set with the placeholder labels (`TITLE`, `INTRO`, `FIGHT`, `HARVEST`, `ENDING`, `boss index`, digits). Glyphs must be in the Wildshift8 set.
-  - [ ] 4.5 Run the whole suite headless (command in Testing Requirements). The 1.1–1.5 tests stay green except the two arena-smoke tests in 4.2.
-- [ ] Task 5: Browser and export checks (AC: 4, 5, 9)
-  - [ ] 5.1 `game/tools/smoke_web.sh`: update the `?debug&smoke=arena` expectation to the FIGHT placeholder log line (`fight placeholder opened`), or add a `?debug` run that presses F2 and expects it. Keep the audio smoke run unchanged.
-  - [ ] 5.2 Release export (`game/tools/build_web_template.sh` is unchanged): record the build size in Completion Notes; expected about 28.4 MB (budget 30 000 000).
-  - [ ] 5.3 Windowed desktop check (`godot -- debug` on desktop, the `run` skill can drive it): F1–F5 move through the screens, the arena and HUD show only in FIGHT, F9 grid still toggles. Save the screenshot path (not committed).
-  - [ ] 5.4 Web local check: `?debug` F1–F5 jumps work; no `?debug` release: F1–F5 do nothing. Record results in Completion Notes.
-- [ ] Task 6: Docs and sprint status (AC: 9)
-  - [ ] 6.1 Completion Notes: the iframe route (DC2) written out as the steps the developer will use (H-items below).
-  - [ ] 6.2 `sprint-status.yaml`: `1-6-placeholder-scene-flow-with-debug-jump-keys` → `review` at the end of dev-story (not at create time).
+- [x] Task 1: Debug gate (AC: 4, 5, 8)
+  - [x] 1.1 `src/autoloads/debug.gd`: add `static func gate_enabled(is_debug_build: bool, search: String) -> bool` returning `is_debug_build or UrlQuery.has_debug(search)`. Set `enabled = gate_enabled(OS.is_debug_build(), UrlQuery.web_search())` in `_ready()` (not as a field initialiser, so `web_search` runs once after the bridge is up). Keep the field name `enabled`.
+  - [x] 1.2 `src/ui/hud/hud.gd`: the F9 key path reads `Debug.enabled`. The static `grid_toggle_allowed` and its test stay unchanged.
+  - [x] 1.3 Test `tests/unit/test_debug_gate.gd`: `gate_enabled` truth table (`?debug`, `?debug&smoke=x`, `?debug=0`, `?debugger`, `?nodebug`, debug build true with empty search).
+- [x] Task 2: RunState and Game flow (AC: 1, 3, 4)
+  - [x] 2.1 `src/core/run_state.gd` (`class_name RunState`, `extends RefCounted`): `var boss_index: int = 0`. `deaths_on_boss` is added in 2.9, not here.
+  - [x] 2.2 `src/autoloads/game.gd`: `const INTRO_MAX_FRAMES := 480`; `var run: RunState = RunState.new()`; `advance() -> void` with a `match flow_state` (TITLE is a no-op: its own input starts the run; INTRO → FIGHT with boss_index 0; FIGHT → ENDING if boss_index == 2 else HARVEST; HARVEST → FIGHT with boss_index + 1; ENDING → TITLE with `run = RunState.new()` and first_input_frame -1; DEAD → no-op, logged with `Log.warn` once per call).
+  - [x] 2.3 `Game.finish_intro(frame)`: INTRO → FIGHT if `can_skip_intro(frame)` or the timeout is reached (`frame - intro_start_frame >= INTRO_MAX_FRAMES`); track `intro_start_frame` set on entering INTRO (`start_run_from_title` records `SimClock.sim_frame`).
+  - [x] 2.4 `Game.debug_jump(target: FlowState, boss_index: int) -> void`: returns unless `Debug.enabled`; allowed targets TITLE, FIGHT (boss_index 0..2), ENDING; sets `run.boss_index`; TITLE resets `first_input_frame = -1`; logs `Log.info(&"debug", "jump -> %s boss=%d" % ...)`; emits through `_set_flow_state`.
+  - [x] 2.5 All `flow_state` writes stay in `Game` (`_set_flow_state`). Presentation calls `advance()`, `finish_intro()` or `start_run_from_title()` only.
+  - [x] 2.6 Tests in `tests/unit/test_game_state.gd` (extend) or `test_game_flow.gd`: full sequence Title → Intro → Fight 1 → Harvest → Fight 2 → Harvest → Fight 3 → Ending → Title; boss_index values; `can_skip_intro` false on the same frame as the title input and true on the next; intro timeout at 480 frames; debug jump ignored when `Debug.enabled` is false; jump to Title clears `first_input_frame`.
+- [x] Task 3: Placeholder screens and host (AC: 2, 3, 6, 7)
+  - [x] 3.1 `src/ui/screens/placeholder/placeholder_screen.gd` (`class_name PlaceholderScreen`, `extends Node2D`): one script for INTRO, FIGHT, HARVEST, ENDING. `setup(state: Game.FlowState)` picks the label text and whether the boss index is shown. `_draw()` uses `GlyphFont.draw_at` with `Palette.INK`, 2× scale, text top-left on the 8-px grid, centred with the same rule as the title (`TitleScreen.centred_x` or a shared helper).
+  - [x] 3.2 Input: `_unhandled_input` treats any key press (not echo, not a modifier-only key, not a function key) or left-click press as the advance gesture. INTRO: call `Game.finish_intro(SimClock.sim_frame)` only when `Game.can_skip_intro(...)`. FIGHT, HARVEST, ENDING: call `Game.advance()`. Mark the event handled.
+  - [x] 3.3 INTRO timeout: the screen does not use a Timer. Its `_physics_process` calls `Game.finish_intro(SimClock.sim_frame)`; the timeout check lives in `Game` (2.3). Presentation may use `_physics_process`; no `await`/Timer in `src/core` or `src/autoloads` for this.
+  - [x] 3.4 `src/main/main.gd`: add a `Screens` `Node2D` child under `Main`. Listen to `EventBus.flow_state_changed` (connect in `_ready`); on change, free the current screen with `queue_free()` (guard `is_instance_valid`), then instance the new one: TITLE → `TitleScreen`, INTRO/FIGHT/HARVEST/ENDING → `PlaceholderScreen` after `setup()`, DEAD → none. Also instance the initial screen from `Game.flow_state` at boot (TITLE unless a smoke gate opened).
+  - [x] 3.5 Arena/HUD visibility (AC7): set `arena.visible` and `hud.visible` from `flow_state == FIGHT` on each change and at boot. Remove `wants_arena_smoke`, `show_arena` and the arena smoke log line. Keep `_build_layers()` order (Arena → Entities → Particles → Hud → ScreenFX).
+  - [x] 3.6 `TitleScreen`: on START it still calls `Game.start_run_from_title(SimClock.sim_frame)` and then `queue_free()` (the host is fine with an already-freed title). Add the function-key guard (AC10): `KEY_F1..KEY_F12` added to the non-start list in `classify`, so F9 on the title no longer starts the run (closes the 1.5 deferred item).
+  - [x] 3.7 Debug keys (AC4, AC5): `src/debug/debug_keys.gd` (`class_name DebugKeys`, `extends Node`). `static func target_for_key(keycode: Key) -> Dictionary` (pure): F1 → TITLE/0, F2 → FIGHT/0, F3 → FIGHT/1, F4 → FIGHT/2, F5 → ENDING/0; anything else → empty. `_input(event)`: on a pressed, non-echo function key in the map, call `Game.debug_jump(...)`, then `get_viewport().set_input_as_handled()`. `Main._ready()` adds a `DebugKeys` node only when `Debug.enabled` (AC5).
+  - [x] 3.8 `src/debug/smoke_audio/` stays as is; `Main` keeps the `?debug&smoke=audio` gate (`wants_audio_smoke`), now also requiring `Debug.enabled` (AC8).
+- [x] Task 4: Tests (AC: all)
+  - [x] 4.1 `tests/unit/test_debug_keys.gd`: `target_for_key` for F1–F5 and for a non-debug key; `DebugKeys` node not instanced when `Debug.enabled` is false (instance `Main` with the flag forced by a test helper, or test `Main.should_add_debug_keys(enabled)` as a pure static).
+  - [x] 4.2 `tests/unit/test_main_layers.gd`: delete the `wants_arena_smoke` and `show_arena` tests (their behaviour is replaced). Add: arena and HUD visible only in FIGHT; screen for each state (TITLE → TitleScreen, INTRO/FIGHT/HARVEST/ENDING → PlaceholderScreen with matching label).
+  - [x] 4.3 `tests/unit/test_title_input.gd`: F1–F12 classify as IGNORE, and F9 does not start the run.
+  - [x] 4.4 `tests/unit/test_font_coverage.gd`: extend the glyph set with the placeholder labels (`TITLE`, `INTRO`, `FIGHT`, `HARVEST`, `ENDING`, `boss index`, digits). Glyphs must be in the Wildshift8 set.
+  - [x] 4.5 Run the whole suite headless (command in Testing Requirements). The 1.1–1.5 tests stay green except the two arena-smoke tests in 4.2.
+- [x] Task 5: Browser and export checks (AC: 4, 5, 9)
+  - [x] 5.1 `game/tools/smoke_web.sh`: update the `?debug&smoke=arena` expectation to the FIGHT placeholder log line (`fight placeholder opened`), or add a `?debug` run that presses F2 and expects it. Keep the audio smoke run unchanged.
+  - [x] 5.2 Release export (`game/tools/build_web_template.sh` is unchanged): record the build size in Completion Notes; expected about 28.4 MB (budget 30 000 000).
+  - [x] 5.3 Windowed desktop check (`godot -- debug` on desktop, the `run` skill can drive it): F1–F5 move through the screens, the arena and HUD show only in FIGHT, F9 grid still toggles. Save the screenshot path (not committed).
+  - [x] 5.4 Web local check: `?debug` F1–F5 jumps work; no `?debug` release: F1–F5 do nothing. Record results in Completion Notes.
+- [x] Task 6: Docs and sprint status (AC: 9)
+  - [x] 6.1 Completion Notes: the iframe route (DC2) written out as the steps the developer will use (H-items below).
+  - [x] 6.2 `sprint-status.yaml`: `1-6-placeholder-scene-flow-with-debug-jump-keys` → `review` at the end of dev-story (not at create time).
 
 ## Dev Notes
 
@@ -193,19 +193,63 @@ Then they never start the run (`TitleScreen.classify` ignores function keys), an
 ### Agent Model Used
 
 Claude Haiku 5.5 (claude-haiku-5-5), gds-create-story, unattended
+Claude Opus 5.5 (claude-opus-5-5), gds-dev-story, unattended
 
 ### Debug Log References
+
+- Red phase: new tests failed to parse before implementation (`gate_enabled`, `DebugKeys`, `should_add_debug_keys`, `PlaceholderScreen`, `RunState` missing).
+- Flow walk driver (scratchpad, not committed) found a real bug the first unit tests missed: the Intro screen polls `Game.finish_intro` every physics frame, and with the story's literal rule (`can_skip_intro(frame) or timeout`) the Intro advanced to FIGHT one frame after the title input with no key press. Fixed with an explicit `skip_requested` argument (DC12 below) and a unit test that polls 479 frames without input.
+- GUT (CI-identical marker check): 141 tests, 141 passing, `All tests passed!`, no failure markers. `check_guards.sh`: OK. Import: no script errors.
 
 ### Completion Notes List
 
 - Story created unattended by gds-create-story. Design calls DC1–DC11 recorded above; the implementer records any deviation with `[design call]`.
 - Iframe route (DC2): the itch.io page query does not reach the embedded game. Debug is reached by opening the hosted iframe URL directly with `?debug` appended. No in-game chord.
 - HUMAN steps (Tiziano), still open: H1 desktop walk-through, H2 Chrome and Firefox check of F1–F5 and the F5 reload risk, H3 release build size.
+- **Implemented (gds-dev-story, unattended).** `Debug.gate_enabled` + `Debug.enabled` set in `_ready` (single gate for F1–F5, F9 and the audio smoke gate); `RunState` (`boss_index`) owned by `Game.run`; `Game.advance`, `finish_intro`, `intro_timed_out`, `debug_jump`, `INTRO_MAX_FRAMES = 480`, every transition through `_set_flow_state` (now also logs `FROM -> TO` with tag `flow`); `PlaceholderScreen` (one script for INTRO/FIGHT/HARVEST/ENDING, `_draw()` with `GlyphFont.draw_at` at 2x, centred with `TitleScreen.centred_x`, BG backing rect so FIGHT text reads over the arena); `Main` gets a `Screens` host after the AD-07 layers, swaps screens on `EventBus.flow_state_changed`, shows arena + HUD only in FIGHT, adds `DebugKeys` only when `Debug.enabled`; the arena smoke gate (`wants_arena_smoke`, `show_arena`) is removed; `TitleScreen.is_function_key` makes F1–F12 (to F35) IGNORE; HUD F9 reads `Debug.enabled`.
+- **Tests added/changed:** `test_debug_gate.gd` (truth table + autoload matches gate), `test_game_flow.gd` (full sequence and signal count, boss_index, fresh RunState after Ending, TITLE/DEAD no-op, skip not on the title frame, no advance while polling without input, 480-frame timeout, debug jump gate/targets/rejections, Title jump clears `first_input_frame`), `test_debug_keys.gd` (F1–F5 map, other keys empty, `should_add_debug_keys`, `handle_key` jumps and ignores release/echo/unmapped, Main adds `DebugKeys` only when enabled), `test_main_layers.gd` (arena-smoke tests removed; Screens host, visibility per state, screen per state with label, old screen freed, signal-driven swap keeps Arena/Hud nodes), `test_title_input.gd` (F1–F12 IGNORE, F9 does not start the run), `test_grid_overlay.gd` (F9 ignored when `Debug.enabled` is false), `test_font_coverage.gd` (every placeholder line for boss 0–2).
+- **Flow walk (Task 5.3), real input events through `Input.parse_input_event` into `Main`:** headless and windowed (`godot --path game -s <scratchpad>/walk/walk.gd`), 20/20 steps OK both times: boot TITLE (arena/HUD hidden) → F9 on title (no start) → Enter → INTRO → Space → FIGHT 1 (boss 0, arena+HUD on) → HARVEST (boss 0) → FIGHT 2 (boss 1) → HARVEST (boss 1) → click → FIGHT 3 (boss 2) → ENDING → TITLE (boss 0, `first_input_frame` -1) → Enter → INTRO held at intro_start+479 → FIGHT at exactly intro_start+480 (f=45 → f=525) → F9 grid on in FIGHT → F5 ENDING → F4 FIGHT 3 → F3 FIGHT 2 → F2 FIGHT 1 → F1 TITLE (`first_input_frame` -1) → Shift on title (no start). `Screens` holds one child at the end. Screenshots (not committed): `/private/tmp/claude-501/-Users-tizianobasile-workspace-me-github-gameoff-2026/ff533116-16c6-46ad-8c71-3734310679b8/scratchpad/walk/step_00.png` … `step_19.png` (step_03 = FIGHT 1 over arena + HUD, step_04 = HARVEST).
+- **Release web export (Task 5.2):** stripped template from the `build_web_template.sh` work folder via a temporary `custom_template/release` (reverted, not committed). Export log clean. **Size 28,433,114 bytes** (budget 30,000,000; 1.5 was 28,425,410, +7,704 bytes).
+- **Web checks (Task 5.1, 5.4), `smoke_web.sh` headless Chrome over CDP, all PASS:** no query (boot); `?debug&smoke=audio` + click (`pan R`); `?debug` + F2 → `jump -> FIGHT boss=0`, `fight placeholder opened boss=0`; `?debug` + F5 F3 F4 F1 → ENDING, FIGHT 2, FIGHT 3, TITLE; release without `debug` + F2 F5 F1 → no `[debug] jump` line, title stays. Every run: no navigation after boot, the window sentinel survives.
+- **F5 in the browser:** a bubble-phase `keydown` listener on `window` reports `defaultPrevented: true` for F1, F2, F3, F4 and F5, with and without `?debug`: the Godot web canvas already calls `preventDefault` on these keys, so the browser does not run its own F5 reload / F1 help. A control page showed that CDP `Input.dispatchKeyEvent` never triggers Chrome's reload accelerator (not even headful, not even on a page without handlers), so "no reload" in automation alone proves nothing; `defaultPrevented: true` is the evidence. No code change needed and F5 stays the Ending jump (DC13). H2 confirms it with a physical keyboard in Chrome and Firefox.
+- **Iframe route (DC2), steps for Tiziano:** 1) open the itch.io game page, 2) take the embedded game's iframe `src` (the `https://html.itch.zone/html/<id>/index.html` address from 1.3 H4, browser dev tools → the game iframe), 3) open that URL directly in a new tab with `?debug` appended (`.../index.html?debug`), 4) F1–F5 jump, F9 toggles the grid in FIGHT; `?debug&smoke=audio` still opens the audio smoke scene. Without `?debug` the release build has no debug tools.
+- **[design call] DC12 Explicit Intro skip.** `Game.finish_intro(frame, skip_requested := false)`: the skip counts only with `skip_requested` (an input) and `can_skip_intro(frame)`; the per-frame poll only applies the 480-frame cap. Reason: the story's literal rule ended the Intro one frame after the title input without any key (found by the flow walk).
+- **[design call] DC13 F5 stays the Ending jump.** Verified that the engine prevents the browser default for F1–F5 (see above); no extra `preventDefault` code and no other key.
+- **[design call] DC14 `src/debug/` stays in the export.** The story's Project Structure note says `src/debug/` is excluded from release, but a release web build opened with `?debug` needs `DebugKeys` and the audio smoke scene. The preset is unchanged (it never excluded `src/debug/`); release safety comes from `Debug.enabled` (the node is not instanced without it).
+- **[design call] DC15 Smoke script interface.** `smoke_web.sh` gains `SMOKE_KEYS` (CDP key presses after boot) and `SMOKE_REJECT` (a log line that must not appear), and every run fails on a navigation after boot. The arena run is replaced by `SMOKE_QUERY="?debug" SMOKE_KEYS="F2" SMOKE_EXPECT="fight placeholder opened"`.
+- **[design call] DC16 Small extras inside the tasks.** `Game._set_flow_state` logs each transition (`[flow] FROM -> TO`, event-only); a debug jump to an invalid target logs `Log.warn(&"debug", ...)` and does nothing; `PlaceholderScreen` draws a BG rect behind its text so the FIGHT label is legible over the arena; `TitleScreen` gets the name `TitleScreen` under `Screens`.
+- **HUMAN steps (Tiziano), still open, not blocking review:** H1 desktop walk-through (`godot --path game -- debug`): F1–F5, arena/HUD only in FIGHT, F9 grid. H2 web with a physical keyboard in Chrome and Firefox at the direct `html.itch.zone/...?debug` URL: F1–F5 jump, F5 does not reload; release URL without `debug`: F1–F5 do nothing. H3 note the CI release export size on the PR (local: 28,433,114 bytes).
 
 ### File List
+
+- game/src/autoloads/debug.gd (modified)
+- game/src/autoloads/game.gd (modified)
+- game/src/core/run_state.gd (new)
+- game/src/core/run_state.gd.uid (new)
+- game/src/debug/debug_keys.gd (new)
+- game/src/debug/debug_keys.gd.uid (new)
+- game/src/main/main.gd (modified)
+- game/src/ui/hud/hud.gd (modified)
+- game/src/ui/screens/placeholder/placeholder_screen.gd (new)
+- game/src/ui/screens/placeholder/placeholder_screen.gd.uid (new)
+- game/src/ui/screens/title/title_screen.gd (modified)
+- game/tests/unit/test_debug_gate.gd (new)
+- game/tests/unit/test_debug_gate.gd.uid (new)
+- game/tests/unit/test_debug_keys.gd (new)
+- game/tests/unit/test_debug_keys.gd.uid (new)
+- game/tests/unit/test_game_flow.gd (new)
+- game/tests/unit/test_game_flow.gd.uid (new)
+- game/tests/unit/test_font_coverage.gd (modified)
+- game/tests/unit/test_grid_overlay.gd (modified)
+- game/tests/unit/test_main_layers.gd (modified)
+- game/tests/unit/test_title_input.gd (modified)
+- game/tools/smoke_web.sh (modified)
+- _bmad-output/implementation-artifacts/1-6-placeholder-scene-flow-with-debug-jump-keys.md (modified)
+- _bmad-output/implementation-artifacts/sprint-status.yaml (modified)
 
 ### Review Findings
 
 ### Change Log
 
 - 2026-11-07: Story created by gds-create-story (unattended). Status → ready-for-dev. Design calls DC1–DC11 recorded.
+- 2026-11-07: Implemented by gds-dev-story (unattended): Debug gate, RunState and Game flow, placeholder screens and Main screen host, F1–F5 debug keys, arena/HUD only in FIGHT, arena smoke gate removed, title ignores function keys, smoke_web.sh key presses and reload check. 141 GUT tests pass; web build 28,433,114 bytes. Design calls DC12–DC16 added. Status → review.
