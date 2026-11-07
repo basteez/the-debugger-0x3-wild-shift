@@ -30,7 +30,7 @@ const SEPARATOR_COL := 15
 
 func _unhandled_input(event: InputEvent) -> void:
 	if visible and event.is_action_pressed(&"debug_grid") and not event.is_echo() \
-			and grid_toggle_allowed(OS.is_debug_build(), UrlQuery.web_search()):
+			and (OS.is_debug_build() or grid_toggle_allowed(false, UrlQuery.web_search())):
 		grid_overlay.visible = not grid_overlay.visible
 		get_viewport().set_input_as_handled()
 
@@ -68,7 +68,9 @@ static func line_no_row(index: int) -> int:
 
 ## The box-drawing border strings for a panel rect: top, middle, bottom rows.
 static func box_rows(rect: Rect2i, title: String = "") -> PackedStringArray:
-	var inner: int = rect.size.x - 2
+	assert(rect.size.x >= 2 and rect.size.y >= 2, "Hud.box_rows: rect too small")
+	var inner: int = maxi(rect.size.x - 2, 0)
+	title = title.substr(0, maxi(inner - 2, 0))
 	var top: String = "┌" + ("─" + title + "─".repeat(maxi(inner - 1 - title.length(), 0)) if title != "" else "─".repeat(inner)) + "┐"
 	var mid: String = "│" + " ".repeat(inner) + "│"
 	var bottom: String = "└" + "─".repeat(inner) + "┘"

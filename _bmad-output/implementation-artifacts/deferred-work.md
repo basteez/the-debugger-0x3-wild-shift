@@ -30,3 +30,11 @@
 - Tests: bus_count == 4 exact assertion and AudioManager._unlocked cleanup are order-fragile.
 - Single SFX player restarts on rapid play_test_sfx; do not copy into pooled SFX (7.2).
 - default_bus_layout.tres has no explicit Master; flow_state_changed uses int instead of the enum.
+
+## Deferred from: code review of story-1.5 (2026-11-07)
+
+- Arena is a Node2D while the HUD is a CanvasLayer: a future Camera2D or screen shake desyncs them (Epic 7).
+- Glyph atlas has no padding; relies on nearest filter and integer stretch.
+- F9 on the title screen counts as "press any key" (pre-existing 1.4 behaviour).
+- Brittle source-regex tests, hand-written FRAME_GLYPHS, advisory colour guard, unused Hud.box_rows mid row, redundant _web_location_search wrapper, duplicated HUD_LAYER, per-glyph draw_string in Arena._draw, BMFont channel flags.
+- Font is self-authored (DC1 fallback); H2 CC0 confirmation by Tiziano still open.

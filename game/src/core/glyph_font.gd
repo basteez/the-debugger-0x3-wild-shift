@@ -29,7 +29,7 @@ static func cell_to_px(cell: Vector2i, scale: int) -> Vector2:
 
 
 ## Draws `text` with its first glyph's top-left corner at `cell * CELL * scale`, one glyph per cell.
-## Any colour other than INK or BG is a programmer error: asserted, logged, then drawn in INK.
+## Any colour other than INK or BG is a programmer error: logged, then drawn in INK.
 static func draw_cell(canvas: CanvasItem, cell: Vector2i, text: String, color: Color, scale: int) -> void:
 	draw_at(canvas, cell_to_px(cell, scale), text, color, scale)
 
@@ -38,7 +38,6 @@ static func draw_cell(canvas: CanvasItem, cell: Vector2i, text: String, color: C
 static func draw_at(canvas: CanvasItem, top_left: Vector2, text: String, color: Color, scale: int) -> void:
 	var c: Color = color
 	if not is_allowed_color(c):
-		assert(false, "GlyphFont: colour outside INK/BG")
 		Log.error(&"glyph", "colour outside INK/BG, drawing in INK")
 		c = Palette.INK
 	var size: int = size_for(scale)

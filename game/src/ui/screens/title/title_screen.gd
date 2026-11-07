@@ -108,5 +108,5 @@ func _draw() -> void:
 
 ## Left x that centres `text` at TEXT_SCALE on the base width, snapped down to the 8-px grid.
 static func centred_x(text: String) -> int:
-	var x: int = (Const.BASE_RES.x - GlyphFont.text_width(text, TEXT_SCALE)) / 2
+	var x: int = maxi((Const.BASE_RES.x - GlyphFont.text_width(text, TEXT_SCALE)) / 2, 0)
 	return x - x % GlyphFont.CELL

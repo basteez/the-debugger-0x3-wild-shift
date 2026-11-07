@@ -4,7 +4,7 @@ baseline_commit: 3646204
 
 # Story 1.5: The Clearing Arena and IDE HUD Frame
 
-Status: review
+Status: done
 
 ## Story
 
@@ -231,7 +231,29 @@ Claude Opus 5.5 (claude-opus-5-5), gds-dev-story, unattended
 - game/tests/unit/test_main_layers.gd (new) + .uid
 - game/tests/unit/test_title_font.gd (new) + .uid
 
+### Review Findings
+
+Code review 2026-11-07 (gds-code-review: Blind Hunter, Edge Case Hunter, Acceptance Auditor; unattended). 0 decision_needed, 0 HIGH. Font assets reviewed via gen_glyph_font.py (regeneration produced no diff: deterministic).
+
+- [x] [Review][Patch] `?debug=` empty value, case variants and percent-encoding enabled debug; duplicate-key policy differed between has_debug and has_smoke [game/src/core/url_query.gd] — fixed: off values (empty, 0, false, off, no, any case, decoded), last key wins for both, new test_url_query.gd
+- [x] [Review][Patch] Arena/HUD unreachable on desktop (MEDIUM) [url_query.gd web_search] — fixed: debug builds read user args after `--` (`godot -- debug smoke=arena`)
+- [x] [Review][Patch] JavaScriptBridge.eval ran on every F9 press even in debug builds [hud.gd] — fixed: is_debug_build() short-circuits first
+- [x] [Review][Patch] Hud.box_rows title overflow and degenerate rect [hud.gd] — fixed: title clipped, size assert, inner clamped
+- [x] [Review][Patch] centred_x rounded negative x toward zero [title_screen.gd] — fixed: clamped to 0
+- [x] [Review][Patch] assert in GlyphFont.draw_at made the INK fallback unreachable in debug [glyph_font.gd] — fixed: log then fall back
+- [x] [Review][Patch] "byte-identical" claim overstated (zlib builds); NARROW/WIDE overlap silently merged [gen_glyph_font.py] — fixed: docstring softened, overlap check added
+- [x] [Review][Defer] Font is self-authored instead of DC1 "blocked" path (MEDIUM) — accepted coordinator-fallback design call; H2 (CC0 confirmation) and H1 (look) remain HUMAN
+- [x] [Review][Defer] Arena is a Node2D, HUD a CanvasLayer: a future Camera2D/shake desyncs them — deferred, no camera yet; document when screen shake lands (Epic 7)
+- [x] [Review][Defer] No glyph atlas padding (bleed if filter/stretch changes) — deferred, project uses nearest + integer stretch
+- [x] [Review][Defer] F9 on the title counts as "press any key" — deferred, pre-existing 1.4 behaviour
+- [x] [Review][Defer] Source-text regex tests brittle; FRAME_GLYPHS hand-written; test assumes debug build; colour guard advisory; Hud.box_rows `mid` row unused; _web_location_search wrapper; duplicated HUD_LAYER; 576 draw_string calls; BMFont channel flags — deferred LOW, cosmetic
+- [x] [Review][Defer] F9 grid alpha 25%/50% and HUD box borders differ from wireframe; title prompt is 13 chars, not 16 — recorded in Completion Notes, accepted
+- Dismissed: font assets "missing from diff" (excluded from the review patch only; tracked in git).
+
+Post-fix validation: GUT 114/114, guards OK, web export 28,425,410 bytes (28.43 MB of 30 MB), smoke_web `?debug&smoke=arena` PASS.
+
 ### Change Log
 
 - 2026-11-07: Story created by gds-create-story (unattended). Status → ready-for-dev. Design calls DC1–DC12 recorded.
 - 2026-11-07: Story implemented by gds-dev-story (unattended). Original CC0 font Wildshift8 (generated BMFont), GlyphFont helper, Arena layout and clamp, HUD frame with F9 grid, render layers in Main, title on the pixel font; 38 new GUT tests (111/111). Web build 28,425,026 bytes. Status → review.
+- 2026-11-07: Code review (unattended): 7 patches applied, 6 deferred groups, 0 HIGH. Status -> done (H1-H2 pending).

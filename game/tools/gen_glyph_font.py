@@ -10,7 +10,8 @@ public domain under CC0 1.0 (see game/assets/fonts/wildshift8-LICENSE.txt).
 
 Run from the repo root (standard library only, no packages):
     python3 game/tools/gen_glyph_font.py
-The output is deterministic: running it twice gives byte-identical files.
+The output is deterministic: running it twice on one machine gives byte-identical files
+(the PNG uses zlib level 9, so another zlib build may differ in bytes but not in pixels).
 """
 
 import os
@@ -172,6 +173,8 @@ def png_bytes(width: int, height: int, rgba: bytearray) -> bytes:
 
 
 def main() -> None:
+    if set(NARROW) & set(WIDE):
+        sys.exit("glyphs in both NARROW and WIDE: %r" % sorted(set(NARROW) & set(WIDE)))
     chars = sorted(set(NARROW) | set(WIDE), key=ord)
     for c in range(32, 127):
         if chr(c) not in NARROW:
