@@ -4,7 +4,7 @@ baseline_commit: 2d1ed4e
 
 # Story 1.6: Placeholder Scene Flow with Debug Jump Keys
 
-Status: review
+Status: done
 
 ## Story
 
@@ -249,7 +249,25 @@ Claude Opus 5.5 (claude-opus-5-5), gds-dev-story, unattended
 
 ### Review Findings
 
+Review 2026-11-07 (gds-code-review, unattended; Blind Hunter, Edge Case Hunter, Acceptance Auditor). 0 decision_needed, 4 patch (fixed), 8 defer, rest dismissed as noise or by-design.
+
+- [x] [Review][Patch] Debug gate default `false` until `Debug._ready`: an earlier autoload (Log) reading `Debug.enabled` saw false in debug builds. Default is now `OS.is_debug_build()`, `_ready` widens it [game/src/autoloads/debug.gd]
+- [x] [Review][Patch] `debug_jump` into FIGHT/ENDING left `first_input_frame` at -1 (30-s first-shift clock never starts on a debug run) and stale `intro_start_frame`; now starts the clock and clears the intro start. Test added [game/src/autoloads/game.gd]
+- [x] [Review][Patch] `debug_jump` to TITLE kept the same `RunState` instance (inconsistent with `advance()` from ENDING); now a fresh `RunState` [game/src/autoloads/game.gd]
+- [x] [Review][Patch] Old screen kept receiving `_unhandled_input`/`_physics_process` until end of frame after a swap; now both are disabled before `queue_free` [game/src/main/main.gd]
+- [x] [Review][Defer] `Game.advance()` in INTRO ignores `can_skip_intro` — deferred: spec Task 2.2 mandates INTRO -> FIGHT in `advance`; the shipped UI routes INTRO through `finish_intro`. Revisit in Epic 5 when INTRO is real.
+- [x] [Review][Defer] Same node name for old and new screen in one frame (`@FightPlaceholder@2`) — deferred: `remove_child` would null `get_viewport()` in `TitleScreen` after `start_run_from_title`; nothing looks screens up by path.
+- [x] [Review][Defer] Duplicate flow log lines (`title -> intro` plus `TITLE -> INTRO`) — deferred: harmless, event-only.
+- [x] [Review][Defer] Tests mutate global autoloads/EventBus (order dependence risk) — deferred: each restores what it changes; 142 pass.
+- [x] [Review][Defer] `?debug` inside the itch.io iframe is not seen (query belongs to iframe src) — deferred: DC2, documented direct-URL route, human step.
+- [x] [Review][Defer] DebugKeys present on `?debug&smoke=audio` page with no flow listener — deferred: debug-only, harmless.
+- [x] [Review][Defer] `is_advance`/`classify` use `keycode` only (web events with keycode 0) — deferred: `KEY_NONE` handling for placeholders is Epic 5 input work.
+- [x] [Review][Defer] Browser default for F1/F11/F12 and non-Chrome browsers not covered by smoke — deferred: F5 and F1-F4 `defaultPrevented` verified true in headless Chrome; Firefox/Safari are a human check.
+
+DC14 assessment: every debug path (DebugKeys node, `Game.debug_jump`, HUD F9, audio smoke) is gated by `Debug.enabled`; `Debug.enabled` is a plain var set only from `OS.is_debug_build()` or the URL query / desktop user args. A release build without `?debug` cannot reach any of them (smoke run with F2 F5 F1 shows no `[debug] jump`). With `?debug`, anyone can jump (intended, DC14); no secret or progress is at risk. Post-fix re-verification: 142 GUT tests, guards OK, web export 28,433,306 bytes, smoke: `?debug` F2, F5 F3 F4 F1, release rejecting keys, audio smoke, plain boot all PASS.
+
 ### Change Log
 
 - 2026-11-07: Story created by gds-create-story (unattended). Status → ready-for-dev. Design calls DC1–DC11 recorded.
 - 2026-11-07: Implemented by gds-dev-story (unattended): Debug gate, RunState and Game flow, placeholder screens and Main screen host, F1–F5 debug keys, arena/HUD only in FIGHT, arena smoke gate removed, title ignores function keys, smoke_web.sh key presses and reload check. 141 GUT tests pass; web build 28,433,114 bytes. Design calls DC12–DC16 added. Status → review.
+- 2026-11-07: Code review (gds-code-review): 4 patches applied, 8 deferred, 142 GUT tests, web smoke PASS. Status -> done.

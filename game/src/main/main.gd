@@ -72,6 +72,9 @@ func _on_flow_state_changed(_from: int, to: int) -> void:
 ## FIGHT (Story 1.6 AC6, AC7, DC9).
 func apply_flow_state(state: int, boss_index: int) -> void:
 	if is_instance_valid(current_screen):
+		# Deaf for the rest of the frame: queue_free keeps it in the tree until then.
+		current_screen.set_process_unhandled_input(false)
+		current_screen.set_physics_process(false)
 		current_screen.queue_free()
 	current_screen = _make_screen(state, boss_index)
 	if current_screen != null:

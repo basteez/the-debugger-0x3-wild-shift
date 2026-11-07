@@ -82,10 +82,15 @@ func debug_jump(target: FlowState, boss_index: int) -> void:
 	if not valid:
 		Log.warn(&"debug", "jump rejected: %s boss=%d" % [FlowState.keys()[target], boss_index])
 		return
-	run.boss_index = boss_index
 	if target == FlowState.TITLE:
+		run = RunState.new()
 		first_input_frame = -1
 		intro_start_frame = -1
+	else:
+		run.boss_index = boss_index
+		intro_start_frame = -1
+		if first_input_frame < 0:
+			first_input_frame = SimClock.sim_frame # a debug-entered run still starts the clock
 	Log.info(&"debug", "jump -> %s boss=%d" % [FlowState.keys()[target], boss_index])
 	_set_flow_state(target)
 

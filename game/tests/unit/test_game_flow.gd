@@ -143,6 +143,14 @@ func test_debug_jump_to_title_clears_first_input_frame() -> void:
 	assert_false(game.can_skip_intro(43))
 
 
+func test_debug_jump_into_fight_starts_the_first_shift_clock() -> void:
+	Debug.enabled = true
+	var game: Node = _game()
+	game.debug_jump(S.FIGHT, 1)
+	assert_true(game.first_input_frame >= 0, "a debug-entered run still starts the clock")
+	assert_eq(game.intro_start_frame, -1)
+
+
 func test_debug_jump_rejects_other_targets_and_bad_boss() -> void:
 	Debug.enabled = true
 	var game: Node = _game()

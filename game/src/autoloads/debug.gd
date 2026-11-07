@@ -2,7 +2,8 @@ extends Node
 ## Debug tooling switch (Story 1.6 DC3): the single gate for F1-F5, the F9 grid and the smoke gates.
 ## On in debug builds, or in any build whose URL query has a `debug` key that is not off.
 
-var enabled: bool = false
+## Debug builds start open; _ready widens it with the URL query once the JS bridge is up.
+var enabled: bool = OS.is_debug_build()
 
 
 func _ready() -> void:
