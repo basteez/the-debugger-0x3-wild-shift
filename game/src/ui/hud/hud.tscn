@@ -1,0 +1,16 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://src/ui/hud/hud.gd" id="1_hud"]
+[ext_resource type="Script" path="res://src/ui/hud/hud_frame.gd" id="2_frame"]
+[ext_resource type="Script" path="res://src/ui/hud/grid_overlay.gd" id="3_grid"]
+
+[node name="Hud" type="CanvasLayer"]
+layer = 10
+script = ExtResource("1_hud")
+
+[node name="Frame" type="Node2D" parent="."]
+script = ExtResource("2_frame")
+
+[node name="GridOverlay" type="Node2D" parent="."]
+visible = false
+script = ExtResource("3_grid")
