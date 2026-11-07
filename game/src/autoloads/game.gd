@@ -19,6 +19,9 @@ var intro_start_frame: int = -1
 var run: RunState = RunState.new()
 ## Web only: the JS focus callback, kept alive for the session (a freed callback is never called).
 var _web_focus_cb: JavaScriptObject = null
+## True from a focus loss until focus returns or the player presses Esc: a blur seen in a
+## non-pausable state (TITLE, DEAD, HARVEST) pauses on entering INTRO or FIGHT (review fix).
+var _focus_lost: bool = false
 
 
 func _ready() -> void:
@@ -31,9 +34,15 @@ func _input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 
 
+func _exit_tree() -> void:
+	_unlisten_web_focus()
+
+
 func _notification(what: int) -> void:
 	if is_focus_lost_notification(what):
 		on_focus_lost()
+	elif is_focus_gained_notification(what):
+		_focus_lost = false
 
 
 ## Pause on or off. The only writer of SimClock.paused outside tests (DC2). Refused outside
@@ -44,7 +53,7 @@ func set_paused(on: bool, reason: StringName) -> bool:
 	if SimClock.paused == on:
 		return true
 	SimClock.paused = on
-	Log.info(&"flow", "pause on (%s)" % reason if on else "pause off")
+	Log.info(&"flow", ("pause on (%s)" % reason) if on else "pause off")
 	EventBus.pause_toggled.emit(on)
 	return true
 
@@ -54,6 +63,7 @@ func set_paused(on: bool, reason: StringName) -> bool:
 func handle_pause_input(event: InputEvent) -> bool:
 	if not is_pause_press(event):
 		return false
+	_focus_lost = false # an Esc press proves the window has focus
 	return set_paused(not SimClock.paused, &"esc")
 
 
@@ -68,9 +78,18 @@ static func is_focus_lost_notification(what: int) -> bool:
 	return what == NOTIFICATION_APPLICATION_FOCUS_OUT or what == NOTIFICATION_WM_WINDOW_FOCUS_OUT
 
 
+## Pure: the engine notifications that mean the player is back.
+static func is_focus_gained_notification(what: int) -> bool:
+	return what == NOTIFICATION_APPLICATION_FOCUS_IN or what == NOTIFICATION_WM_WINDOW_FOCUS_IN
+
+
 ## Focus loss pauses; focus return never resumes (AC4, DC3). A no-op when already paused.
+## The loss is remembered so a blur in a non-pausable state still pauses on the next INTRO/FIGHT.
+## On web the canvas is re-focused so Esc reaches it when the player returns.
 func on_focus_lost() -> void:
-	set_paused(true, &"focus")
+	_focus_lost = true
+	if set_paused(true, &"focus") and OS.has_feature("web"):
+		JavaScriptBridge.eval("var c=document.querySelector('canvas'); if (c) { c.focus(); }")
 
 
 ## Title press-to-start (FR47). Valid only from TITLE.
@@ -165,20 +184,37 @@ func _set_flow_state(to: FlowState) -> void:
 		Log.info(&"flow", "pause off")
 		EventBus.pause_toggled.emit(false)
 	EventBus.flow_state_changed.emit(from, to)
+	if _focus_lost and to in PAUSABLE_STATES:
+		set_paused(true, &"focus")
 
 
 ## Web fallback for DC9: document `visibilitychange` (tab hidden) and window `blur` pause the game.
 ## The engine's WM_WINDOW_FOCUS_OUT comes from canvas blur only, which a page that never focused
 ## the canvas does not get; these listeners cover that case. Web builds only.
 func _listen_web_focus() -> void:
-	_web_focus_cb = JavaScriptBridge.create_callback(_on_web_focus_event)
+	if _web_focus_cb != null: # never register twice
+		return
 	var window: JavaScriptObject = JavaScriptBridge.get_interface("window")
 	var document: JavaScriptObject = JavaScriptBridge.get_interface("document")
 	if window == null or document == null:
 		Log.warn(&"flow", "web focus listeners not installed")
 		return
+	_web_focus_cb = JavaScriptBridge.create_callback(_on_web_focus_event)
 	document.addEventListener("visibilitychange", _web_focus_cb)
 	window.addEventListener("blur", _web_focus_cb)
+	window.addEventListener("focus", _web_focus_cb)
+
+
+func _unlisten_web_focus() -> void:
+	if _web_focus_cb == null:
+		return
+	var window: JavaScriptObject = JavaScriptBridge.get_interface("window")
+	var document: JavaScriptObject = JavaScriptBridge.get_interface("document")
+	if window != null and document != null:
+		document.removeEventListener("visibilitychange", _web_focus_cb)
+		window.removeEventListener("blur", _web_focus_cb)
+		window.removeEventListener("focus", _web_focus_cb)
+	_web_focus_cb = null
 
 
 func _on_web_focus_event(args: Array) -> void:
@@ -189,6 +225,8 @@ func _on_web_focus_event(args: Array) -> void:
 	var hidden: bool = document != null and bool(document.hidden)
 	if is_web_focus_loss(str(js_event.type), hidden):
 		on_focus_lost()
+	elif not hidden:
+		_focus_lost = false # `focus`, or the tab became visible again
 
 
 ## Pure: a `blur`, or a `visibilitychange` to hidden, is a focus loss; becoming visible is not.

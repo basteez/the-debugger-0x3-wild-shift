@@ -4,7 +4,7 @@ baseline_commit: 26067e8
 
 # Story 1.7: Pause Screen and Auto-Pause on Focus Loss
 
-Status: review
+Status: done
 
 <!-- Last story of Epic 1. Story-level AC coverage is below; the Epic 1 Definition of Done has human steps that this story cannot close (see "Epic 1 done: what remains"). -->
 
@@ -219,7 +219,29 @@ Claude Opus 5.5 (claude-opus-5-5), gds-dev-story, unattended
 
 ### Review Findings
 
+Code review (gds-code-review, 2026-11-07): Blind Hunter, Edge Case Hunter, Acceptance Auditor. 0 decision_needed, 6 patch (all applied), 8 defer, about 14 dismissed. No HIGH findings.
+
+- [x] [Review][Patch] MED: a blur seen in TITLE/DEAD/HARVEST was lost; the next INTRO/FIGHT ran unpaused with the window unfocused [game.gd] — `_focus_lost` flag set on focus loss, cleared on focus-in (engine and web `focus`/visible) and on Esc; `_set_flow_state` pauses on entering a pausable state while it is set. Tests added.
+- [x] [Review][Patch] MED: after a web focus-loss pause the canvas may not hold keyboard focus, so Esc never arrives [game.gd] — `on_focus_lost` re-focuses the canvas on web. Smoke tab-switch run passes.
+- [x] [Review][Patch] LOW: web listeners never removed; callback created before the null check; duplicate registration not guarded [game.gd] — guard on `_web_focus_cb`, create after the null check, `_exit_tree` removes the three listeners (visibilitychange, blur, focus). Callback stays referenced in `_web_focus_cb`.
+- [x] [Review][Patch] LOW: Main did not connect `pause_toggled` on the audio-smoke early return [main.gd] — connect moved right after `_build_layers`.
+- [x] [Review][Patch] LOW: log ternary precedence fragile [game.gd] — parenthesised.
+- [x] [Review][Patch] LOW: `focus` web event added so a return to the window clears the remembered blur.
+- [x] [Review][Defer] Debug keys (F1-F5) work while paused and clear the pause via DC5 — deferred, intended: debug tool, DC5 says any flow change clears the pause; DC5 test covers the flow path.
+- [x] [Review][Defer] Only `SimClock.paused` is paused; tweens, timers, AnimationPlayers, particles keep running — deferred, by design (AD sim clock); gameplay stories must read SimClock.paused; music keeps playing.
+- [x] [Review][Defer] Held gameplay actions are not released on pause (key-up lost on blur) — deferred, no gameplay input exists yet; revisit with the player controller (Epic 2).
+- [x] [Review][Defer] Esc priority: `Game._input` runs after `_input` of later nodes (reverse tree order), spec DC2/DC15 text says otherwise; any future `_input` node eating Esc beats pause; `ui_cancel` shares Esc — deferred, no such node today; correct the spec wording and add a modal-open rule when a menu appears in FIGHT.
+- [x] [Review][Defer] Smoke tab-switch only logs the hidden state, does not assert it — deferred, run passes in headless Chrome (hidden confirmed); harden if flaky.
+- [x] [Review][Defer] Esc in browser fullscreen is consumed by the browser (needs a second Esc) — deferred, document in human checks.
+- [x] [Review][Defer] `window.blur` also fires for iframe/devtools/alert focus moves (spurious pause) — deferred, acceptable for a game.
+- [x] [Review][Defer] Completion-note wording of the mute label direction (OFF/ON) is ambiguous; DC9 text not updated for the extra WM_WINDOW_FOCUS_OUT — deferred, doc only.
+
+Dismissed as noise or verified fine: JavaScriptObject class availability in non-web builds (parses, GUT green), mouse coordinate space (identity layer), intro frame count while paused (frames are SimClock-counted, tested), duplicate blur+visibilitychange (idempotent), desktop double notification, `pause_toggled` before `flow_state_changed` ordering, echo handling, mute persistence, spec-conformance items.
+
+Evidence after fixes: GUT 171/171, guards OK, web export 28,447,262 bytes (budget 30,000,000), smoke_web runs pass: Esc pause on, Esc pause off, tab-switch "pause on (focus)" (page hidden), release Enter+Escape, F2 regression.
+
 ### Change Log
 
 - 2026-11-07: Story created by gds-create-story (unattended). Status → ready-for-dev. Design calls DC1–DC15 recorded. Last story of Epic 1; Epic DoD human steps listed.
 - 2026-11-07: Implemented by gds-dev-story (unattended): InputMap actions, Game-owned pause (Esc, focus loss with a web visibilitychange/blur fallback), Master mute, pause screen on layer 15, smoke runs. GUT 168/168, guards OK, web build 28,446,366 bytes. Design calls DC9 (resolved), DC16–DC19. Status → review.
+- 2026-11-07: Code review fixes (focus-loss memory, canvas refocus, listener lifecycle, Main connect order). Status → done (HUMAN steps pending).

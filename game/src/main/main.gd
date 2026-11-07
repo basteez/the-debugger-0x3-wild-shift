@@ -30,6 +30,7 @@ var current_screen: Node
 func _ready() -> void:
 	Log.info(&"flow", "boot")
 	_build_layers()
+	EventBus.pause_toggled.connect(apply_pause)
 	if should_add_debug_keys(Debug.enabled):
 		var keys: Node = DebugKeysScript.new()
 		keys.name = &"DebugKeys"
@@ -43,7 +44,6 @@ func _ready() -> void:
 			return
 		Log.warn(&"flow", "audio smoke scene missing, opening title")
 	EventBus.flow_state_changed.connect(_on_flow_state_changed)
-	EventBus.pause_toggled.connect(apply_pause)
 	apply_flow_state(Game.flow_state, Game.run.boss_index)
 
 

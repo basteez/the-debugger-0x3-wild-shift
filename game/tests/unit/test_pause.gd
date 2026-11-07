@@ -123,6 +123,28 @@ func test_focus_loss_outside_pausable_state_is_ignored() -> void:
 	assert_false(SimClock.paused)
 
 
+func test_blur_in_title_pauses_on_entering_intro() -> void:
+	var game: Node = _game(S.TITLE)
+	game.on_focus_lost()
+	assert_false(SimClock.paused, "TITLE is not pausable")
+	game.start_run_from_title(0)
+	assert_true(SimClock.paused, "the remembered blur pauses on INTRO")
+
+
+func test_focus_return_forgets_a_blur_seen_in_title() -> void:
+	var game: Node = _game(S.TITLE)
+	game.on_focus_lost()
+	game._notification(Node.NOTIFICATION_APPLICATION_FOCUS_IN)
+	game.start_run_from_title(0)
+	assert_false(SimClock.paused)
+
+
+func test_focus_gained_notifications() -> void:
+	assert_true(GameScript.is_focus_gained_notification(Node.NOTIFICATION_APPLICATION_FOCUS_IN))
+	assert_true(GameScript.is_focus_gained_notification(Node.NOTIFICATION_WM_WINDOW_FOCUS_IN))
+	assert_false(GameScript.is_focus_gained_notification(Node.NOTIFICATION_APPLICATION_FOCUS_OUT))
+
+
 func test_advance_and_finish_intro_do_nothing_while_paused() -> void:
 	var game: Node = _game()
 	game.set_paused(true, &"esc")
