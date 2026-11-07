@@ -111,3 +111,38 @@ func test_flow_signal_swaps_screen_and_keeps_layers() -> void:
 	assert_false(arena.visible)
 	assert_same(main.get_node(^"Arena"), arena)
 	assert_same(main.get_node(^"Hud"), hud)
+
+
+func _pause_screens(main: Node2D) -> int:
+	var count: int = 0
+	for child: Node in main.get_node(^"Pause").get_children():
+		if child is PauseScreen and not child.is_queued_for_deletion():
+			count += 1
+	return count
+
+
+func test_pause_layer_between_hud_and_screen_fx() -> void:
+	var main: Node2D = _main()
+	var pause := main.get_node(^"Pause") as CanvasLayer
+	assert_not_null(pause)
+	assert_eq(pause.layer, MainScript.PAUSE_LAYER)
+	assert_gt(pause.layer, (main.get_node(^"Hud") as CanvasLayer).layer)
+	assert_lt(pause.layer, (main.get_node(^"ScreenFX") as CanvasLayer).layer)
+	assert_eq(_pause_screens(main), 0, "empty unless paused")
+
+
+func test_pause_toggled_adds_and_frees_the_pause_screen() -> void:
+	var main: Node2D = _main()
+	var arena: Node = main.get_node(^"Arena")
+	var hud: Node = main.get_node(^"Hud")
+	EventBus.pause_toggled.emit(true)
+	assert_eq(_pause_screens(main), 1)
+	EventBus.pause_toggled.emit(true)
+	assert_eq(_pause_screens(main), 1, "a second true does not stack overlays")
+	var shown: Node = main.pause_screen
+	EventBus.pause_toggled.emit(false)
+	assert_eq(_pause_screens(main), 0)
+	assert_true(not is_instance_valid(shown) or shown.is_queued_for_deletion())
+	assert_null(main.pause_screen)
+	assert_same(main.get_node(^"Arena"), arena)
+	assert_same(main.get_node(^"Hud"), hud)

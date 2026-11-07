@@ -4,6 +4,7 @@ extends Node
 ## Music crossfade and pooled SFX arrive with the real assets (7.1, 7.2).
 
 const SFX_BUS := &"SFX"
+const MASTER_BUS := &"Master"
 const BLIP_HZ := 880.0
 const BLIP_SECONDS := 0.15
 const BLIP_MIX_RATE := 22050
@@ -26,6 +27,21 @@ func unlock() -> void:
 
 func is_unlocked() -> bool:
 	return _unlocked
+
+
+## Master bus mute for the session (Story 1.7 AC3, DC8). AudioServer holds the value, so the
+## save service (7.3) can read it back; nothing is written to disk here. Logs once per change.
+func set_master_muted(muted: bool) -> void:
+	var bus: int = AudioServer.get_bus_index(MASTER_BUS)
+	if bus < 0 or AudioServer.is_bus_mute(bus) == muted:
+		return
+	AudioServer.set_bus_mute(bus, muted)
+	Log.info(&"audio", "master %s" % ("muted" if muted else "unmuted"))
+
+
+func is_master_muted() -> bool:
+	var bus: int = AudioServer.get_bus_index(MASTER_BUS)
+	return bus >= 0 and AudioServer.is_bus_mute(bus)
 
 
 ## Story 1.4 test SFX (DC4): a generated blip on the SFX bus. Ignored before unlock.

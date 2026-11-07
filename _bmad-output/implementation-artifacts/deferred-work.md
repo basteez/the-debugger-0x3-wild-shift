@@ -49,3 +49,14 @@
 - DebugKeys present on the `?debug&smoke=audio` page without a flow listener.
 - `PlaceholderScreen.is_advance`/`TitleScreen.classify` use `keycode` only (web events with keycode 0).
 - F1/F11/F12 browser defaults and Firefox/Safari F-key behaviour not smoke-covered (headless Chrome F1-F5 `defaultPrevented` true).
+
+## Deferred from: code review of story-1.7 (2026-11-07)
+
+- Debug keys F1-F5 while paused clear the pause (DC5); intended for a debug tool.
+- Only SimClock.paused is paused: tweens, timers, AnimationPlayers and particles keep running; gameplay must read SimClock.paused.
+- Held gameplay actions are not released on pause; handle with the player controller (Epic 2).
+- Esc priority: Game._input runs after later nodes' _input (reverse tree order) and ui_cancel shares Esc; correct spec DC2/DC15 wording and add a modal-open rule when a menu appears in FIGHT.
+- smoke_web tab switch only logs the hidden state; add an assertion if flaky.
+- Esc in browser fullscreen is eaten by the browser (second Esc needed).
+- window.blur also fires for iframe/devtools/alert focus moves (spurious pause, acceptable).
+- Doc nits: mute label direction wording in completion notes; DC9 text lacks the WM_WINDOW_FOCUS_OUT addition.

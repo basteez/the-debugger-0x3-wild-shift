@@ -23,6 +23,9 @@ func _used_codepoints() -> Dictionary[int, String]:
 	for state: int in [Game.FlowState.INTRO, Game.FlowState.FIGHT, Game.FlowState.HARVEST, Game.FlowState.ENDING]:
 		for boss: int in 3:
 			texts.append_array(PlaceholderScreen.lines_for(state, boss))
+	# Story 1.7 pause screen, both mute states.
+	texts.append_array(PauseScreen.lines_for(false))
+	texts.append_array(PauseScreen.lines_for(true))
 	var used: Dictionary[int, String] = {}
 	for t: String in texts:
 		for i: int in t.length():
