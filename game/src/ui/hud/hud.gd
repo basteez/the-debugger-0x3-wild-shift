@@ -29,13 +29,13 @@ const SEPARATOR_COL := 15
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if visible and event.is_action_pressed(&"debug_grid") and not event.is_echo() \
-			and (OS.is_debug_build() or grid_toggle_allowed(false, UrlQuery.web_search())):
+	if visible and Debug.enabled and event.is_action_pressed(&"debug_grid") and not event.is_echo():
 		grid_overlay.visible = not grid_overlay.visible
 		get_viewport().set_input_as_handled()
 
 
 ## Debug rule (project-context): debug builds, or any build whose URL has `?debug`.
+## The live gate is Debug.enabled (Story 1.6 DC3); this pure form stays for its tests.
 static func grid_toggle_allowed(is_debug_build: bool, search: String) -> bool:
 	return is_debug_build or UrlQuery.has_debug(search)
 

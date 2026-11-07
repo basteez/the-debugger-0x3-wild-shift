@@ -45,3 +45,16 @@ func test_f9_toggles_overlay_when_hud_visible() -> void:
 	hud.visible = false
 	hud._unhandled_input(ev)
 	assert_false(hud.get_node(^"GridOverlay").visible, "ignored while the HUD is hidden")
+
+
+func test_f9_ignored_when_debug_disabled() -> void:
+	var saved: bool = Debug.enabled
+	Debug.enabled = false
+	var hud: Hud = (load("res://src/ui/hud/hud.tscn") as PackedScene).instantiate()
+	add_child_autofree(hud)
+	var ev := InputEventAction.new()
+	ev.action = &"debug_grid"
+	ev.pressed = true
+	hud._unhandled_input(ev)
+	Debug.enabled = saved
+	assert_false(hud.get_node(^"GridOverlay").visible, "Story 1.6: F9 reads Debug.enabled")
