@@ -19,7 +19,7 @@ _This file contains critical rules and patterns that AI agents must follow when 
 
 - **Godot 4.7.2-stable** — pinned for the whole jam; do not upgrade. GDScript only (no C#: unsupported on web).
 - Renderer **Compatibility** (WebGL2). Web export: **Thread Support off**, **Extensions Support on** (dlink template). Web audio playback type: **Sample**.
-- **mumble-speech** Godot addon (GDExtension, web + desktop; first release including basteez/mumble-speech#32, exact version pinned in `addons/mumble_speech`). Access only via `VoiceService`.
+- **mumble-speech** Godot addon (GDExtension, web + desktop; first release including basteez/mumble-speech#32 = v0.3.0, released 2026-11-07, Firefox/Safari not yet hand-verified; exact version pinned in `addons/mumble_speech`). Access only via `VoiceService`.
 - **GUT 9.6.1** for tests (fallback gdUnit4 6.x if GUT fails on 4.7.2).
 - Godot docs: use Context7 `/godotengine/godot-docs/__branch__4.7` — APIs differ from Godot 3 and from older 4.x tutorials.
 - Source of truth: `_bmad-output/game-architecture.md` (AD-xx decisions, NP-x patterns). GDD: `_bmad-output/planning-artifacts/gdds/gdd-github-gameoff-2026-2026-11-06/gdd.md`.

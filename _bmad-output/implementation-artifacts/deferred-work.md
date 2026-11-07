@@ -1,3 +1,42 @@
+# Deferred: itch.io deploy & browser smoke (decided 2026-11-07 by Tiziano)
+
+Tiziano decided on 2026-11-07 that everything involving the itch.io page, the first deploy and real-browser checks is done LATER. Each item is tagged with its source story. Nothing here is done yet.
+
+**Epic 1 Definition of Done is BLOCKED on this section.** The DoD requires a release web build deployed with `butler` to the itch.io draft page and a Chrome/Firefox smoke test. Epic 1 stays `in-progress` in `sprint-status.yaml` until the checklist below is cleared.
+
+**Open question (needs Tiziano):** the submission deadline differs between files. `README.md` says 2026-12-01 13:37 PST; `epics.md` (NFR16, Epic 7) and the `sprint-status.yaml` header say 2026-11-29 12:00 PST. Confirm the right date, then fix whichever file is wrong.
+
+## Checklist
+
+### itch.io setup and first deploy (HUMAN)
+- [ ] [1.3 H1] Create the itch.io draft page (HTML, played in browser, 1280x720 viewport, fullscreen button on, SharedArrayBuffer off, Draft/Restricted).
+- [ ] [1.3 H2] Add the `BUTLER_API_KEY` secret and the `ITCH_TARGET` variable (`<user>/<slug>`) in the repo settings.
+- [ ] [1.3 H3] First manual deploy: Actions, CI, Run workflow on `main` (or `butler push` by hand). Check the `butler version` and `butler push --help` output in the log (butler pin 15.32.0, flags and sha256 are verified only here). Decide the 48.5 MB stock-template size waiver first (CI still exports with the stock template).
+- [ ] [1.3 H4] Chrome, Firefox and Safari smoke: glyph boots with no console errors; `?debug&smoke=audio` (click, then L/R audible, or "fails" and the hum falls back to `playback_type = Stream`); size shown on itch.io and transfer size in DevTools; embed viewport and fullscreen behaviour.
+
+### Browser checks on the deployed build (HUMAN)
+- [ ] [1.4 H1] Audio unlock per browser (Chrome, Firefox, Safari): silent until first key or click, test blip audible after the first click and not before; note the result per browser. Also verify the AudioContext state (1.4 review deferral).
+- [ ] [1.4 H3] NFR3: title reaches a playable state in 10 s or less on a throttled 50 Mbps connection, cold cache.
+- [ ] [1.3 / 1.6 H2] Get the `?debug` iframe URL (`https://html.itch.zone/html/<id>/index.html` from the game iframe `src`) and open it directly with `?debug` appended; the itch.io page query never reaches the iframe.
+- [ ] [1.6 H2] On that URL in Chrome and Firefox: F1-F5 jump between screens, and F5 does not reload the page. Release URL (no `debug`): F1-F5 do nothing. Also note F1/F11/F12 browser defaults and Firefox/Safari F-key behaviour.
+- [ ] [1.7 H2] On the direct `?debug` URL in Chrome and Firefox: Esc pauses and resumes in INTRO and FIGHT; M mutes; pause on tab switch and on window blur to another app (headless Chrome could not emulate blur); Esc in browser fullscreen (the browser eats the first Esc, a second is needed; record observed behaviour).
+- [ ] [1.7 H3] Release build (no `debug`): Esc and M on the title.
+- [ ] [1.6 H3 / 1.7] Record the release web build size as shown on itch.io (local export: 28,447,262 bytes, budget 30,000,000).
+- [ ] [1.5 H1] Real-browser visual check of `?debug&smoke=arena` (Chrome and Firefox): arena layout, HUD grid alignment, F9 overlay. (Not itch-specific; listed here because it needs the deployed or hosted build.)
+
+### Not itch-related, still open for Tiziano
+- [ ] [1.5 H2] Confirm the CC0 licence of the self-authored pixel font.
+
+## mumble-speech web support: UNBLOCKED by v0.3.0 (2026-11-07)
+
+Story 1.3 AC9 / I-6 ("mumble-speech web check, moved to 3.7") is UNBLOCKED. Tiziano released mumble-speech v0.3.0 on 2026-11-07, which closes basteez/mumble-speech#32. The Godot addon zip (`mumble-speech-godot-0.3.0.zip`, 3.9 MB) now ships `mumble_godot.wasm`. It works for Godot 4.3+ web exports with Extensions Support ON and Thread Support OFF (our preset), and there is also a threads build. Known issue: Firefox and Safari are not yet verified by hand. Do NOT vendor the addon now; that is Story 3.7's job. Checks for Story 3.7:
+- [ ] [3.7 / 1.3 I-6] Vendor `addons/mumble_speech` from the v0.3.0 zip and verify it against `SHA256SUMS.txt`.
+- [ ] [3.7 / 1.3 I-6] Confirm the stripped web template (`game/tools/build_web_template.sh`) still loads GDExtension side modules; CI uses the dlink/extensions template.
+- [ ] [3.7 / 1.3 I-6] Re-measure the web export against the 30,000,000-byte budget (currently about 28.45 MB, so the addon's wasm must fit).
+- [ ] [3.7 / 1.3 I-6] Smoke-test the duck voice in Chrome, Firefox and Safari.
+
+---
+
 ## Deferred from: code review of story-1.1 (2026-11-06)
 
 - Log.error prints and also calls push_error (double line in editor); intentional per DC6.

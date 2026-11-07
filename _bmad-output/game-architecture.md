@@ -884,7 +884,7 @@ var tell := roundi(def.tell * (1.5 if Game.run.assist else 1.0))
 
 | # | Action | When |
 |---|---|---|
-| I-6 | mumble-speech web GDExtension (basteez/mumble-speech#32) is built on gdext's experimental wasm support: pin the release and pass the web smoke test (Chrome, Firefox, Safari; build size) as early as possible (Epic 1 story 1.3 if released); the voice is its own story (3.7) and never blocks the MVP; otherwise switch `VoiceService` to the pre-render backend | Epic 1–3 |
+| I-6 | **Status: #32 resolved in mumble-speech v0.3.0 (2026-11-07); Firefox and Safari not yet hand-verified.** mumble-speech web GDExtension (basteez/mumble-speech#32) is built on gdext's experimental wasm support: pin the release and pass the web smoke test (Chrome, Firefox, Safari; build size) as early as possible (Epic 1 story 1.3 if released); the voice is its own story (3.7) and never blocks the MVP; otherwise switch `VoiceService` to the pre-render backend | Epic 1–3 |
 | I-7 | Verify GUT 9.6.1 on Godot 4.7.2 headless; fall back to gdUnit4 6.x | Epic 1 |
 | — | Day-1 web smoke test of `AudioStreamPlayer2D` panning in Sample mode (AD-09) | Epic 1 |
 
@@ -908,7 +908,7 @@ Design calls made during architecture — **all confirmed on 2026-11-06 (GDD D-0
 ### Prerequisites
 
 - Godot **4.7.2-stable** (standard build) + matching **Web export templates** (including the dlink / Extensions Support template)
-- mumble-speech Godot addon with web support (first release including basteez/mumble-speech#32; pin exact version)
+- mumble-speech Godot addon with web support (first release including basteez/mumble-speech#32 = v0.3.0, released 2026-11-07; pin exact version)
 - GUT 9.x addon (verify on 4.7.2; fallback gdUnit4 6.x)
 - Node.js 18+ (for the GoPeak MCP via `npx`)
 - Git + GitHub CLI; itch.io account with `butler` for uploads to the draft page
