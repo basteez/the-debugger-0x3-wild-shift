@@ -5,12 +5,19 @@
 # SMOKE_TIMEOUT_S (60), CHROME_BIN, SMOKE_CLICK=1 (click the canvas after boot),
 # SMOKE_EXPECT (a log substring that must appear, e.g. "pan R"),
 # SMOKE_KEYS (space-separated key names pressed after boot, e.g. "F2" or "F5 F1"; Story 1.6),
-# SMOKE_REJECT (a log substring that must NOT appear, e.g. "[debug] jump").
+# SMOKE_REJECT (a log substring that must NOT appear, e.g. "[debug] jump"),
+# SMOKE_TAB_SWITCH=1 (after the keys, open and activate another tab for 1.5 s, then come back; Story 1.7).
+# Key names: F1-F12, Escape, Enter, Space, or a single letter.
 # Every run fails if the page navigates or reloads after boot (F5 must not reload the game).
 # Story 1.6 runs (after a release export):
 #   SMOKE_QUERY="?debug" SMOKE_KEYS="F2" SMOKE_EXPECT="fight placeholder opened" bash game/tools/smoke_web.sh
 #   SMOKE_QUERY="?debug" SMOKE_KEYS="F5" SMOKE_EXPECT="jump -> ENDING" bash game/tools/smoke_web.sh
 #   SMOKE_KEYS="F2 F5" SMOKE_REJECT="[debug] jump" bash game/tools/smoke_web.sh
+# Story 1.7 runs (pause on Esc, resume on Esc, pause on tab switch, release build pause):
+#   SMOKE_QUERY="?debug" SMOKE_KEYS="F2 Escape Escape" SMOKE_EXPECT="pause on (esc)" bash game/tools/smoke_web.sh
+#   SMOKE_QUERY="?debug" SMOKE_KEYS="F2 Escape Escape" SMOKE_EXPECT="pause off" bash game/tools/smoke_web.sh
+#   SMOKE_QUERY="?debug" SMOKE_KEYS="F2" SMOKE_TAB_SWITCH=1 SMOKE_EXPECT="pause on (focus)" bash game/tools/smoke_web.sh
+#   SMOKE_KEYS="Enter Escape" SMOKE_EXPECT="pause on (esc)" bash game/tools/smoke_web.sh
 # Serves build/web on a local port, checks the files over HTTP, checks index.html for the
 # no-threads / no-cross-origin-isolation setup, prints the size, and, if Google Chrome is
 # installed, loads the page headless and fails on console errors or WASM load failures.
@@ -143,7 +150,8 @@ while (!targets.some((t) => t.type === "page")) {
 	targets = await (await fetch(`http://127.0.0.1:${port}/json/list`)).json();
 	await sleep(100);
 }
-const ws = new WebSocket(targets.find((t) => t.type === "page").webSocketDebuggerUrl);
+const pageTarget = targets.find((t) => t.type === "page");
+const ws = new WebSocket(pageTarget.webSocketDebuggerUrl);
 await new Promise((r) => ws.addEventListener("open", r, { once: true }));
 let id = 0;
 const pending = new Map();
@@ -200,10 +208,12 @@ if (booted && keys.length) {
 	// whether the engine called preventDefault (the browser then skips F5 reload, F1 help...).
 	await sleep(1000);
 	await send("Runtime.evaluate", { expression: "window.__smokeSentinel = 1; window.__smokeKeys = []; window.addEventListener('keydown', (e) => window.__smokeKeys.push(e.key + ':' + e.defaultPrevented));" });
+	const named = { Escape: [27, "Escape"], Enter: [13, "Enter"], Space: [32, "Space"] };
 	for (const k of keys) {
 		const fn = /^F([0-9]+)$/.exec(k);
-		const vk = fn ? 111 + Number(fn[1]) : k.toUpperCase().charCodeAt(0);
-		const base = { key: k, code: fn ? k : `Key${k.toUpperCase()}`, windowsVirtualKeyCode: vk, nativeVirtualKeyCode: vk };
+		const vk = fn ? 111 + Number(fn[1]) : named[k] ? named[k][0] : k.toUpperCase().charCodeAt(0);
+		const code = fn ? k : named[k] ? named[k][1] : `Key${k.toUpperCase()}`;
+		const base = { key: k === "Space" ? " " : k, code, windowsVirtualKeyCode: vk, nativeVirtualKeyCode: vk };
 		await send("Input.dispatchKeyEvent", { type: "rawKeyDown", ...base });
 		await send("Input.dispatchKeyEvent", { type: "keyUp", ...base });
 		console.log(`smoke key: ${k}`);
@@ -214,6 +224,18 @@ if (booted && keys.length) {
 	const st = after?.result?.value ? JSON.parse(after.result.value) : { sentinel: null, keys: null };
 	console.log(`smoke keys: keydown defaultPrevented ${JSON.stringify(st.keys)}, page kept: ${st.sentinel === 1}`);
 	if (st.sentinel !== 1) errors.push("page state lost after key presses (reload?)");
+}
+if (booted && process.env.SMOKE_TAB_SWITCH === "1") {
+	// A real tab switch: the game page becomes hidden (visibilitychange), then active again.
+	const base = `http://127.0.0.1:${port}`;
+	const other = await (await fetch(`${base}/json/new?about:blank`, { method: "PUT" })).json();
+	await fetch(`${base}/json/activate/${other.id}`);
+	await sleep(1500);
+	const hidden = await send("Runtime.evaluate", { expression: "document.visibilityState", returnByValue: true });
+	await fetch(`${base}/json/activate/${pageTarget.id}`);
+	await sleep(1000);
+	await fetch(`${base}/json/close/${other.id}`);
+	console.log(`smoke tab switch: game page was ${hidden?.result?.value ?? "unknown"} while the other tab was active`);
 }
 if (booted && expect) {
 	while (!lines.some((l) => l.includes(expect)) && errors.length === 0 && Date.now() < deadline) await sleep(200);
