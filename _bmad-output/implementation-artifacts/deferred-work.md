@@ -19,3 +19,14 @@
 - smoke_web.sh Chrome launch robustness (root `--no-sandbox`, partial DevToolsActivePort), Node 22+ requirement.
 - butler install layout, flags and pinned sha256 verified only at the first real deploy (H3).
 - Actions pinned by tag rather than SHA.
+
+## Deferred from: code review of story-1.4 (2026-11-07)
+
+- AudioManager.unlock() only sets a flag; no AudioContext verification or re-lock after focus loss (check in H1).
+- ScreenTouch not handled; relies on emulated mouse.
+- TitleScreen.label_rects canvas vs viewport coordinates once options become visible (7.x).
+- Modified option keys (Shift+N) resolve to START due to exact_match; decide in 7.x.
+- Game.first_input_frame not reset on re-entering TITLE; start_run_from_title returns nothing.
+- Tests: bus_count == 4 exact assertion and AudioManager._unlocked cleanup are order-fragile.
+- Single SFX player restarts on rapid play_test_sfx; do not copy into pooled SFX (7.2).
+- default_bus_layout.tres has no explicit Master; flow_state_changed uses int instead of the enum.
