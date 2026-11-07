@@ -3,7 +3,14 @@
 #   bash game/tools/smoke_web.sh
 # Optional env: SMOKE_WEB_DIR (default build/web), SMOKE_PORT (8060), SMOKE_QUERY (e.g. "?debug&smoke=audio"),
 # SMOKE_TIMEOUT_S (60), CHROME_BIN, SMOKE_CLICK=1 (click the canvas after boot),
-# SMOKE_EXPECT (a log substring that must appear, e.g. "pan R").
+# SMOKE_EXPECT (a log substring that must appear, e.g. "pan R"),
+# SMOKE_KEYS (space-separated key names pressed after boot, e.g. "F2" or "F5 F1"; Story 1.6),
+# SMOKE_REJECT (a log substring that must NOT appear, e.g. "[debug] jump").
+# Every run fails if the page navigates or reloads after boot (F5 must not reload the game).
+# Story 1.6 runs (after a release export):
+#   SMOKE_QUERY="?debug" SMOKE_KEYS="F2" SMOKE_EXPECT="fight placeholder opened" bash game/tools/smoke_web.sh
+#   SMOKE_QUERY="?debug" SMOKE_KEYS="F5" SMOKE_EXPECT="jump -> ENDING" bash game/tools/smoke_web.sh
+#   SMOKE_KEYS="F2 F5" SMOKE_REJECT="[debug] jump" bash game/tools/smoke_web.sh
 # Serves build/web on a local port, checks the files over HTTP, checks index.html for the
 # no-threads / no-cross-origin-isolation setup, prints the size, and, if Google Chrome is
 # installed, loads the page headless and fails on console errors or WASM load failures.
@@ -150,10 +157,14 @@ const send = (method, params = {}) => new Promise((resolve) => {
 const errors = [];
 const lines = [];
 const expect = process.env.SMOKE_EXPECT ?? "";
+const reject = process.env.SMOKE_REJECT ?? "";
+const keys = (process.env.SMOKE_KEYS ?? "").split(/\s+/).filter(Boolean);
 let booted = false;
+let navigationsAfterBoot = 0;
 ws.addEventListener("message", (ev) => {
 	const m = JSON.parse(ev.data);
 	if (m.id && pending.has(m.id)) { pending.get(m.id)(m.result); pending.delete(m.id); return; }
+	if (m.method === "Page.frameNavigated" && !m.params.frame.parentId && booted) navigationsAfterBoot++;
 	if (m.method === "Runtime.consoleAPICalled") {
 		const text = m.params.args.map((a) => a.value ?? a.description ?? "").join(" ");
 		console.log(`console.${m.params.type}: ${text}`);
@@ -184,6 +195,26 @@ if (booted && process.env.SMOKE_CLICK === "1") {
 		await send("Input.dispatchMouseEvent", { type, x: 320, y: 180, button: "left", clickCount: 1 });
 	}
 }
+if (booted && keys.length) {
+	// A sentinel on window and a bubble-phase keydown log tell whether the page reloaded and
+	// whether the engine called preventDefault (the browser then skips F5 reload, F1 help...).
+	await sleep(1000);
+	await send("Runtime.evaluate", { expression: "window.__smokeSentinel = 1; window.__smokeKeys = []; window.addEventListener('keydown', (e) => window.__smokeKeys.push(e.key + ':' + e.defaultPrevented));" });
+	for (const k of keys) {
+		const fn = /^F([0-9]+)$/.exec(k);
+		const vk = fn ? 111 + Number(fn[1]) : k.toUpperCase().charCodeAt(0);
+		const base = { key: k, code: fn ? k : `Key${k.toUpperCase()}`, windowsVirtualKeyCode: vk, nativeVirtualKeyCode: vk };
+		await send("Input.dispatchKeyEvent", { type: "rawKeyDown", ...base });
+		await send("Input.dispatchKeyEvent", { type: "keyUp", ...base });
+		console.log(`smoke key: ${k}`);
+		await sleep(500);
+	}
+	await sleep(1500);
+	const after = await send("Runtime.evaluate", { expression: "JSON.stringify({sentinel: window.__smokeSentinel ?? null, keys: window.__smokeKeys ?? null})", returnByValue: true });
+	const st = after?.result?.value ? JSON.parse(after.result.value) : { sentinel: null, keys: null };
+	console.log(`smoke keys: keydown defaultPrevented ${JSON.stringify(st.keys)}, page kept: ${st.sentinel === 1}`);
+	if (st.sentinel !== 1) errors.push("page state lost after key presses (reload?)");
+}
 if (booted && expect) {
 	while (!lines.some((l) => l.includes(expect)) && errors.length === 0 && Date.now() < deadline) await sleep(200);
 }
@@ -199,6 +230,8 @@ if (state.unresponsive) { console.log("FAIL page did not answer Runtime.evaluate
 if (state.notice) { console.log(`FAIL loader notice: ${state.notice}`); process.exit(1); }
 if (!booted) { console.log(`FAIL no '[flow] boot' log line within ${timeoutS}s (loader overlay present: ${state.overlay})`); process.exit(1); }
 if (expect && !lines.some((l) => l.includes(expect))) { console.log(`FAIL expected log line '${expect}' not seen`); process.exit(1); }
+if (reject && lines.some((l) => l.includes(reject))) { console.log(`FAIL rejected log line '${reject}' seen`); process.exit(1); }
+if (navigationsAfterBoot) { console.log(`FAIL page navigated ${navigationsAfterBoot} time(s) after boot (reload?)`); process.exit(1); }
 console.log(`OK engine booted, loader overlay removed: ${!state.overlay}`);
 process.exit(0);
 JS

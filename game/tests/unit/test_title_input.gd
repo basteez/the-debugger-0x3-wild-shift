@@ -110,3 +110,15 @@ func test_non_left_mouse_buttons_are_ignored() -> void:
 		var ev := _click()
 		ev.button_index = button
 		assert_eq(TitleScreenScript.classify(ev), TitleScreenScript.Action.IGNORE, "button %d" % button)
+
+
+func test_function_keys_are_ignored() -> void:
+	for code: int in range(KEY_F1, KEY_F12 + 1):
+		assert_eq(TitleScreenScript.classify(_key(code as Key)), TitleScreenScript.Action.IGNORE, "F-key %d" % code)
+
+
+func test_f9_on_the_title_does_not_start_the_run() -> void:
+	var title: TitleScreen = autofree(TitleScreenScript.new())
+	var before: int = Game.flow_state
+	assert_eq(title.handle_input(_key(KEY_F9)), TitleScreenScript.Action.IGNORE)
+	assert_eq(Game.flow_state, before)

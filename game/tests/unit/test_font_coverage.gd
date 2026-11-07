@@ -1,5 +1,6 @@
 extends GutTest
-## Story 1.5 AC5: the vendored font covers every glyph the arena, HUD frame and title draw.
+## Story 1.5 AC5 / 1.6 AC2: the vendored font covers every glyph the arena, HUD frame, title and
+## placeholder screens draw.
 ## The set is derived from the code's constants so it cannot drift from what is drawn.
 
 const FONT_DIR := "res://assets/fonts/"
@@ -18,6 +19,10 @@ func _used_codepoints() -> Dictionary[int, String]:
 	texts.append_array(Hud.box_rows(Hud.DUCK))
 	texts.append_array([TitleScreen.TITLE_TEXT, TitleScreen.PROMPT_TEXT])
 	texts.append(FRAME_GLYPHS)
+	# Story 1.6 placeholder screens: every state and boss index they can show.
+	for state: int in [Game.FlowState.INTRO, Game.FlowState.FIGHT, Game.FlowState.HARVEST, Game.FlowState.ENDING]:
+		for boss: int in 3:
+			texts.append_array(PlaceholderScreen.lines_for(state, boss))
 	var used: Dictionary[int, String] = {}
 	for t: String in texts:
 		for i: int in t.length():

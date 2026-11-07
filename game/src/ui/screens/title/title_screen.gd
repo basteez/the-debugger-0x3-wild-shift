@@ -41,7 +41,7 @@ static func classify(event: InputEvent, rects: Dictionary[StringName, Rect2] = {
 	if key != null:
 		if not key.pressed or key.echo:
 			return Action.IGNORE
-		if key.keycode in NON_START_KEYS:
+		if key.keycode in NON_START_KEYS or is_function_key(key.keycode):
 			return Action.IGNORE
 		return Action.OPTION if option_of(key) != &"" else Action.START
 	var mouse := event as InputEventMouseButton
@@ -50,6 +50,11 @@ static func classify(event: InputEvent, rects: Dictionary[StringName, Rect2] = {
 			return Action.IGNORE
 		return Action.OPTION if option_of(mouse, rects) != &"" else Action.START
 	return Action.IGNORE
+
+
+## F1-F12 (and beyond) never start the run (Story 1.6 DC7): they are debug keys or browser keys.
+static func is_function_key(keycode: Key) -> bool:
+	return keycode >= KEY_F1 and keycode <= KEY_F35
 
 
 ## Option id for a key (via InputMap) or a click on a label rect; &"" when none.

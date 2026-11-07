@@ -1,8 +1,9 @@
 extends GutTest
-## Story 1.5 AC2/DC8/DC9: Main's render layer order and boot visibility.
+## Story 1.5 AC2/DC8 and Story 1.6 AC6/AC7: Main's render layers, boot visibility and screen host.
 
 const MainScene := preload("res://src/main/main.tscn")
 const MainScript := preload("res://src/main/main.gd")
+const GameScript := preload("res://src/autoloads/game.gd")
 
 
 func _main() -> Node2D:
@@ -49,24 +50,64 @@ func test_arena_and_hud_exist_and_hidden_at_boot() -> void:
 func test_boot_opens_title_without_smoke_query() -> void:
 	var main: Node2D = _main()
 	var titles: int = 0
-	for child: Node in main.get_children():
+	for child: Node in main.get_node(^"Screens").get_children():
 		if child is TitleScreen:
 			titles += 1
 	assert_eq(titles, 1)
 
 
-func test_wants_arena_smoke() -> void:
-	assert_true(MainScript.wants_arena_smoke("?debug&smoke=arena"))
-	assert_true(MainScript.wants_arena_smoke("?smoke=arena&debug=1"))
-	assert_false(MainScript.wants_arena_smoke("?smoke=arena"))
-	assert_false(MainScript.wants_arena_smoke("?debug&smoke=audio"))
-	assert_false(MainScript.wants_arena_smoke("?debug=false&smoke=arena"))
-	assert_false(MainScript.wants_arena_smoke("?debug&smoke=arenax"))
-	assert_false(MainScript.wants_audio_smoke("?debug&smoke=arena"))
+func _screen_of(main: Node2D) -> Node:
+	return main.current_screen
 
 
-func test_show_arena_reveals_arena_and_hud() -> void:
+func test_screen_host_exists_after_the_layers() -> void:
 	var main: Node2D = _main()
-	main.show_arena(true)
-	assert_true(main.get_node(^"Arena").visible)
-	assert_true(main.get_node(^"Hud").visible)
+	var screens := main.get_node_or_null(^"Screens") as Node2D
+	assert_not_null(screens)
+	assert_gt(screens.get_index(), main.get_node(^"ScreenFX").get_index())
+
+
+func test_arena_and_hud_visible_only_in_fight() -> void:
+	var main: Node2D = _main()
+	for state: int in GameScript.FlowState.values():
+		main.apply_flow_state(state, 0)
+		var in_fight: bool = state == GameScript.FlowState.FIGHT
+		assert_eq(main.get_node(^"Arena").visible, in_fight, "arena in state %d" % state)
+		assert_eq(main.get_node(^"Hud").visible, in_fight, "hud in state %d" % state)
+
+
+func test_screen_for_each_state() -> void:
+	var main: Node2D = _main()
+	main.apply_flow_state(GameScript.FlowState.TITLE, 0)
+	assert_true(_screen_of(main) is TitleScreen)
+	var labels: Dictionary[int, String] = {
+		GameScript.FlowState.INTRO: "INTRO",
+		GameScript.FlowState.FIGHT: "FIGHT 2",
+		GameScript.FlowState.HARVEST: "HARVEST",
+		GameScript.FlowState.ENDING: "ENDING",
+	}
+	for state: int in labels:
+		var old: Node = _screen_of(main)
+		main.apply_flow_state(state, 1)
+		var screen := _screen_of(main) as PlaceholderScreen
+		assert_not_null(screen, "placeholder for state %d" % state)
+		assert_eq(screen.state, state)
+		assert_eq(screen.lines[0], labels[state])
+		assert_eq(screen.get_parent(), main.get_node(^"Screens"))
+		assert_true(not is_instance_valid(old) or old.is_queued_for_deletion(), "old screen freed")
+	main.apply_flow_state(GameScript.FlowState.DEAD, 0)
+	assert_null(_screen_of(main), "no DEAD placeholder (2.9)")
+
+
+func test_flow_signal_swaps_screen_and_keeps_layers() -> void:
+	var main: Node2D = _main()
+	var arena: Node = main.get_node(^"Arena")
+	var hud: Node = main.get_node(^"Hud")
+	EventBus.flow_state_changed.emit(GameScript.FlowState.TITLE, GameScript.FlowState.FIGHT)
+	assert_true(_screen_of(main) is PlaceholderScreen)
+	assert_true(arena.visible)
+	EventBus.flow_state_changed.emit(GameScript.FlowState.FIGHT, GameScript.FlowState.TITLE)
+	assert_true(_screen_of(main) is TitleScreen)
+	assert_false(arena.visible)
+	assert_same(main.get_node(^"Arena"), arena)
+	assert_same(main.get_node(^"Hud"), hud)

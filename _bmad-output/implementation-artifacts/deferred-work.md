@@ -38,3 +38,14 @@
 - F9 on the title screen counts as "press any key" (pre-existing 1.4 behaviour).
 - Brittle source-regex tests, hand-written FRAME_GLYPHS, advisory colour guard, unused Hud.box_rows mid row, redundant _web_location_search wrapper, duplicated HUD_LAYER, per-glyph draw_string in Arena._draw, BMFont channel flags.
 - Font is self-authored (DC1 fallback); H2 CC0 confirmation by Tiziano still open.
+
+## Deferred from: code review of story-1.6 (2026-11-07)
+
+- `Game.advance()` in INTRO ignores `can_skip_intro` (spec Task 2.2 mandates it); revisit with the real Intro (Epic 5).
+- Old and new screen can share a node name within a frame (`remove_child` breaks `TitleScreen`'s `get_viewport()` call); nothing looks screens up by path.
+- Duplicate flow log lines per transition (specific line plus `_set_flow_state` line).
+- Tests mutate shared autoloads and the global EventBus; each restores what it changes, but order dependence is possible.
+- `?debug` is not visible inside the itch.io iframe (DC2, direct-URL route documented, human step).
+- DebugKeys present on the `?debug&smoke=audio` page without a flow listener.
+- `PlaceholderScreen.is_advance`/`TitleScreen.classify` use `keycode` only (web events with keycode 0).
+- F1/F11/F12 browser defaults and Firefox/Safari F-key behaviour not smoke-covered (headless Chrome F1-F5 `defaultPrevented` true).
