@@ -15,6 +15,12 @@ const ROCK := "o"
 const WATER := "~"
 const LABEL := "stack frame 0x03"
 const LABEL_COL := 2
+const PLAYER_DEF: PlayerDef = preload("res://data/player/player_def.tres")
+## Player spawn (D-S22-6): centre of the play area, arena-local pixels.
+const SPAWN_PX := Vector2(TILES * TILE_PX) / 2.0
+## Inset of the player's glyph centre from the play-area edge: half a tile, so the whole `@` cell
+## stays inside the 32x18 play area (D-S22-2). One more tile inward makes the tree ring a wall.
+const PLAYER_EDGE_INSET_PX := TILE_PX / 2.0
 ## 18 rows x 32 glyphs (DC5): tree ring, grass, a connected stream, rocks, the label on row 0.
 const LAYOUT: PackedStringArray = [
 	'♣♣stack frame 0x03♣♣♣♣♣♣♣♣♣♣♣♣♣♣',
@@ -36,6 +42,36 @@ const LAYOUT: PackedStringArray = [
 	'♣"    "    "    "    "    "    ♣',
 	'♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣',
 ]
+
+## The player movement system (Story 2.2). Owned here; ticked by SimClock while in the tree.
+var player: Player = Player.new(PLAYER_DEF, player_bounds())
+
+
+func _enter_tree() -> void:
+	SimClock.register_system(player)
+
+
+## Detach from the autoload clock so re-instancing Main (tests) never double-ticks (D-S22-10).
+func _exit_tree() -> void:
+	SimClock.unregister_system(player)
+
+
+## Every route into FIGHT (D-S22-5): reset to spawn, then start ticking.
+func enter_fight() -> void:
+	player.reset_for_fight(SPAWN_PX)
+	player.set_active(true)
+	_redraw_player_view()
+
+
+func leave_fight() -> void:
+	player.set_active(false)
+
+
+## Drops the previous fight's cached frame so the view never shows the old position for a frame.
+func _redraw_player_view() -> void:
+	var view: Node = get_node_or_null(^"PlayerView")
+	if view != null:
+		view.queue_redraw()
 
 
 func _ready() -> void:
@@ -61,3 +97,9 @@ static func play_area() -> Rect2:
 static func clamp_to_play_area(p: Vector2) -> Vector2:
 	var area: Rect2 = play_area()
 	return p.clamp(area.position, area.end)
+
+
+## Rect the player's glyph centre may occupy (Story 2.2 C3): the play area shrunk by half a tile,
+## i.e. centre in [8, 504] x [8, 280]. Handed to Player at construction.
+static func player_bounds() -> Rect2:
+	return play_area().grow(-PLAYER_EDGE_INSET_PX)

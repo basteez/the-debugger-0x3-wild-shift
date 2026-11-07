@@ -15,3 +15,13 @@ func presses_for_frame() -> Array[StringName]:
 		if InputMap.has_action(action) and Input.is_action_just_pressed(action):
 			out.append(action)
 	return out
+
+
+## Held direction from the move_* actions, each axis reduced to its sign so opposing keys cancel.
+func move_for_frame() -> Vector2i:
+	for action: StringName in [&"move_left", &"move_right", &"move_up", &"move_down"]:
+		if not InputMap.has_action(action):
+			return Vector2i.ZERO
+	return Vector2i(
+		int(signf(Input.get_axis(&"move_left", &"move_right"))),
+		int(signf(Input.get_axis(&"move_up", &"move_down"))))

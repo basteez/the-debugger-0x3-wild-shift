@@ -3,10 +3,12 @@ extends RefCounted
 ## Debug input recorder (AC5, D-S21-5). SimClock calls record() once per polled frame while a
 ## recorder is set; frame 0 is the first poll after start. Never created in release builds.
 
-const FORMAT_VERSION := 1
+## v2 (Story 2.2, D-S22-4): adds a parallel `moves` array, one [x, y] per frame.
+const FORMAT_VERSION := 2
 
 var seed_value: int = 0
 var _frames: Array[Array] = []
+var _moves: Array[Array] = []
 var _recording: bool = false
 
 
@@ -20,6 +22,7 @@ static func create(debug_enabled: bool) -> InputRecorder:
 func start(recorded_seed: int) -> void:
 	seed_value = recorded_seed
 	_frames.clear()
+	_moves.clear()
 	_recording = true
 
 
@@ -27,19 +30,25 @@ func is_recording() -> bool:
 	return _recording
 
 
-func record(presses: Array[StringName]) -> void:
+func record(presses: Array[StringName], move: Vector2i = Vector2i.ZERO) -> void:
 	if not _recording:
 		return
 	var frame: Array[String] = []
 	for action: StringName in presses:
 		frame.append(String(action))
 	_frames.append(frame)
+	_moves.append([move.x, move.y])
 
 
-## Ends the recording and returns {"version", "seed", "frames"}.
+## Ends the recording and returns {"version", "seed", "frames", "moves"}.
 func stop() -> Dictionary:
 	_recording = false
-	return {"version": FORMAT_VERSION, "seed": seed_value, "frames": _frames.duplicate(true)}
+	return {
+		"version": FORMAT_VERSION,
+		"seed": seed_value,
+		"frames": _frames.duplicate(true),
+		"moves": _moves.duplicate(true),
+	}
 
 
 ## Pure: one-line JSON for a recording (also the web console print, D-S21-7).

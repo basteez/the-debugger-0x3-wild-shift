@@ -106,3 +106,10 @@ Story 1.3 AC9 / I-6 ("mumble-speech web check, moved to 3.7") is UNBLOCKED. Tizi
 - A recording started before FIGHT entry (or mid-fight) does not hold the RNG state reached; exact replay needs F11 right at fight start (already a known limitation in the story notes). Revisit with 2.2+.
 - LiveInput `is_action_just_pressed` at display rates above 60 Hz is unverified headlessly (human check H3, fallback: `_unhandled_input` queue).
 - Recording `seed` is stored as a JSON number: exact up to 2^53, ample for `get_ticks_usec`.
+
+## Deferred from: code review of story-2.2 (2026-11-07)
+
+- [design call] F11 recording started mid-fight does not capture player position/velocity/facing (same limitation as RNG state); exact replay needs F11 right at fight start. Revisit if replays become a shipped feature.
+- Float determinism of Vector2 `move_toward`/`normalized` across native vs wasm is unverified; replays are same-binary only. Quantise to fixed point if cross-platform replays are needed.
+- ReplayInput does not validate `moves` length against `frames` and has no version gate: truncated moves or v1 files play with silent zero movement.
+- Duck position jumps on a 180-degree facing flip and presentation has no interpolation (cosmetic); judge in human check H1.

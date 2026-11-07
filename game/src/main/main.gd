@@ -53,6 +53,10 @@ func _build_layers() -> void:
 	arena.name = &"Arena"
 	arena.visible = false
 	add_child(arena)
+	# The player view lives in presentation/, so Main (not the arena/ sim folder) attaches it.
+	var player_view := PlayerView.new(arena.player)
+	player_view.name = &"PlayerView"
+	arena.add_child(player_view)
 	for layer_name: StringName in [&"Entities", &"Particles"]:
 		var node := Node2D.new()
 		node.name = layer_name
@@ -80,7 +84,7 @@ func _on_flow_state_changed(_from: int, to: int) -> void:
 
 
 ## Frees the old screen, instances the one for `state`, and shows the arena and HUD only in
-## FIGHT (Story 1.6 AC6, AC7, DC9).
+## FIGHT (Story 1.6 AC6, AC7, DC9). The player is reset and active only in FIGHT (Story 2.2).
 func apply_flow_state(state: int, boss_index: int) -> void:
 	if is_instance_valid(current_screen):
 		# Deaf for the rest of the frame: queue_free keeps it in the tree until then.
@@ -93,6 +97,10 @@ func apply_flow_state(state: int, boss_index: int) -> void:
 	var in_fight: bool = state == GameFlow.FlowState.FIGHT
 	arena.visible = in_fight
 	hud.visible = in_fight
+	if in_fight:
+		arena.enter_fight()
+	else:
+		arena.leave_fight()
 
 
 ## Shows the pause overlay while paused and frees it on resume (Story 1.7 AC2, DC6). Game owns
