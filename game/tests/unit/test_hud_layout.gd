@@ -63,4 +63,7 @@ func test_hud_scene_layer_and_children() -> void:
 	assert_eq(hud.layer, 10)
 	assert_not_null(hud.get_node_or_null(^"Frame"))
 	assert_not_null(hud.get_node_or_null(^"GridOverlay"))
+	assert_not_null(hud.register_panel, "register panel exposed (Story 2.3 C4)")
+	assert_lt(hud.get_node(^"RegisterPanel").get_index(), hud.get_node(^"GridOverlay").get_index())
+	assert_gt(hud.get_node(^"RegisterPanel").get_index(), hud.get_node(^"Frame").get_index())
 	assert_eq(hud.get_child(hud.get_child_count() - 1).name, &"GridOverlay", "grid overlay drawn last")

@@ -28,6 +28,18 @@ func consume(action: StringName, frame: int) -> bool:
 	return false
 
 
+## Consumes the oldest live press whose action is in `actions` at `frame` (D-S23-3), so presses of
+## several actions are handled in press order. Returns that action, or &"" when none is live.
+func consume_oldest(actions: Array[StringName], frame: int) -> StringName:
+	for i: int in _actions.size():
+		if _consumed[i] or not actions.has(_actions[i]):
+			continue
+		if _is_live(_frames[i], frame):
+			_consumed[i] = true
+			return _actions[i]
+	return &""
+
+
 func clear() -> void:
 	_actions.clear()
 	_frames.clear()

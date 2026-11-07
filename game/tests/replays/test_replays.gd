@@ -20,7 +20,7 @@ class HashSystem:
 		clock = p_clock
 
 	func tick(ctx: SimContext) -> void:
-		var frame: int = clock.get(&"sim_frame")
+		var frame: int = ctx.poll_frame # the buffer time base (D-S23-2)
 		var buffer: InputBuffer = clock.get(&"buffer")
 		var i: int = 0
 		for action: StringName in LiveInput.BUFFERED_ACTIONS:

@@ -213,8 +213,10 @@ func test_input_buffered_during_hitstop() -> void:
 	_tick(3)
 	assert_eq(src.polls, 3, "input polled every hit-stop frame")
 	assert_eq(_clock.sim_frame, 0)
-	assert_true(_clock.buffer.consume(&"action_1", 0))
-	assert_true(_clock.buffer.consume(&"shift_left", 0))
+	assert_eq(_clock.poll_frame, 3, "hit-stop frames are polled frames (D-S23-2)")
+	assert_false(_clock.buffer.consume(&"action_1", 0), "stamped with poll_frame, not sim_frame")
+	assert_true(_clock.buffer.consume(&"action_1", 1))
+	assert_true(_clock.buffer.consume(&"shift_left", 2))
 
 
 # --- Pause and Breakpoint gates (AC1) ---
@@ -255,7 +257,7 @@ func test_breakpoint_gate_freezes_world_and_hitstop_but_polls() -> void:
 	assert_eq(log.size(), 1)
 
 
-func test_presses_buffered_at_current_sim_frame() -> void:
+func test_presses_buffered_at_current_poll_frame() -> void:
 	var src := ScriptedInput.new()
 	src.frames = [[], [], [&"watch"]]
 	_clock.input_source = src
@@ -351,3 +353,46 @@ func test_recorder_records_moves() -> void:
 	_clock.recorder = rec
 	_tick(2)
 	assert_eq(rec.stop()["moves"], [[1, -1], [0, 1]])
+
+
+# --- Poll frame time base (Story 2.3 A2, D-S23-2) ---
+
+## Records ctx.poll_frame on each world tick.
+class PollProbe:
+	extends SimSystem
+	var seen: Array[int] = []
+
+	func tick(ctx: SimContext) -> void:
+		seen.append(ctx.poll_frame)
+
+
+func test_poll_frame_counts_every_unpaused_frame() -> void:
+	assert_eq(_clock.poll_frame, 0)
+	_tick(2)
+	_clock.hitstop_frames = 2
+	_tick(2)
+	_clock.breakpoint_gate_active = true
+	_tick(3)
+	_clock.breakpoint_gate_active = false
+	_clock.paused = true
+	_tick(5)
+	assert_eq(_clock.poll_frame, 7, "hit-stop and Breakpoint count, pause does not")
+	assert_eq(_clock.sim_frame, 2)
+
+
+func test_ctx_poll_frame_is_the_ticked_poll() -> void:
+	var probe := PollProbe.new()
+	_clock.register_system(probe)
+	_tick(2)
+	_clock.hitstop_frames = 3
+	_tick(4)
+	assert_eq(probe.seen, [0, 1, 5] as Array[int])
+
+
+func test_press_during_long_hitstop_expires() -> void:
+	var src := ScriptedInput.new()
+	src.frames = [[&"shift_left"]]
+	_clock.input_source = src
+	_clock.hitstop_frames = 9
+	_tick(10) # poll 0 holds the press; polls 0-8 are hit-stop; poll 9 is the first world tick
+	assert_false(_clock.buffer.consume(&"shift_left", _clock.ctx.poll_frame), "expired after 9 frames")

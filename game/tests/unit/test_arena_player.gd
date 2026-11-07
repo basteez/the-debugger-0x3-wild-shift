@@ -24,7 +24,7 @@ func test_enter_and_leave_fight() -> void:
 	var arena := Arena.new()
 	arena.player.position_px = Vector2(10, 10)
 	arena.player.facing = Vector2i(-1, 0)
-	arena.enter_fight()
+	arena.enter_fight(Register.fight_start_for_boss(0))
 	assert_true(arena.player.active)
 	assert_eq(arena.player.position_px, Vector2(256, 144))
 	assert_eq(arena.player.facing, Vector2i(1, 0))
@@ -55,4 +55,60 @@ func test_main_registers_and_unregisters_player() -> void:
 	assert_true(systems.has(arena.player), "registered while in the tree")
 	remove_child(main)
 	assert_false((SimClock.get(&"_systems") as Array).has(arena.player), "unregistered on exit")
+	main.free()
+
+
+# --- Register wiring (Story 2.3 E5, AC9) ---
+
+func test_enter_fight_resets_and_activates_the_register() -> void:
+	var arena := Arena.new()
+	var start: PackedInt32Array = Register.fight_start_for_boss(0)
+	arena.enter_fight(start)
+	assert_true(arena.register.active)
+	assert_eq(arena.register.ring, start)
+	arena.register.shift(Register.LEFT)
+	assert_ne(arena.register.ring, start)
+	arena.leave_fight()
+	assert_false(arena.register.active, "leave_fight deactivates the register")
+	arena.enter_fight(start)
+	assert_eq(arena.register.ring, PackedInt32Array([Register.Bit.DASH, Register.Bit.ATTACK]), "back to [D, A]")
+	assert_true(arena.register.active)
+	arena.free()
+
+
+func test_arena_register_reads_the_shared_buffer() -> void:
+	var arena := Arena.new()
+	assert_eq(arena.register.get(&"_buffer"), SimClock.buffer)
+	assert_eq(arena.register.phase, SimSystem.SimPhase.SHIFTS)
+	arena.free()
+
+
+func test_main_resets_register_on_every_fight_entry() -> void:
+	var main: Node2D = MainScene.instantiate()
+	add_child_autofree(main)
+	var arena := main.get_node(^"Arena") as Arena
+	var hud := main.get_node(^"Hud") as Hud
+	assert_eq(hud.register_panel.register, arena.register, "panel shows the arena's register")
+	assert_false(arena.register.active, "inactive on the title")
+	main.apply_flow_state(GameScript.FlowState.FIGHT, 0)
+	assert_true(arena.register.active)
+	arena.register.shift(Register.RIGHT)
+	main.apply_flow_state(GameScript.FlowState.HARVEST, 0)
+	assert_false(arena.register.active)
+	main.apply_flow_state(GameScript.FlowState.FIGHT, 0)
+	assert_eq(arena.register.ring, Register.fight_start_for_boss(0), "reset on re-entry")
+	assert_eq(arena.register.byte_value(), 0x03)
+	main.apply_flow_state(GameScript.FlowState.FIGHT, 1)
+	assert_eq(arena.register.ring, Register.fight_start_for_boss(1), "fight-start set follows the boss index")
+
+
+func test_main_registers_and_unregisters_register() -> void:
+	var main: Node2D = MainScene.instantiate()
+	add_child(main)
+	var arena := main.get_node(^"Arena") as Arena
+	var systems: Array = SimClock.get(&"_systems")
+	assert_true(systems.has(arena.register), "registered while in the tree")
+	assert_eq(systems.find(arena.register), 0, "SHIFTS ticks first")
+	remove_child(main)
+	assert_false((SimClock.get(&"_systems") as Array).has(arena.register), "unregistered on exit")
 	main.free()

@@ -92,3 +92,47 @@ func test_same_frame_presses_keep_push_order() -> void:
 	assert_true(_buf.consume(&"action_1", 3))
 	assert_true(_buf.consume(&"action_1", 3))
 	assert_false(_buf.consume(&"action_1", 3))
+
+
+# --- consume_oldest (Story 2.3 E3, D-S23-3) ---
+
+const SHIFTS: Array[StringName] = [&"shift_left", &"shift_right"]
+
+
+func test_consume_oldest_across_actions_in_press_order() -> void:
+	_buf.push(&"shift_right", 3)
+	_buf.push(&"shift_left", 4)
+	_buf.push(&"shift_right", 5)
+	assert_eq(_buf.consume_oldest(SHIFTS, 6), &"shift_right")
+	assert_eq(_buf.consume_oldest(SHIFTS, 6), &"shift_left")
+	assert_eq(_buf.consume_oldest(SHIFTS, 6), &"shift_right")
+	assert_eq(_buf.consume_oldest(SHIFTS, 6), &"")
+
+
+func test_consume_oldest_consumes_once() -> void:
+	_buf.push(&"shift_left", 0)
+	assert_eq(_buf.consume_oldest(SHIFTS, 0), &"shift_left")
+	assert_eq(_buf.consume_oldest(SHIFTS, 0), &"")
+	assert_false(_buf.consume(&"shift_left", 0), "consumed for consume() too")
+
+
+func test_consume_oldest_skips_expired_and_other_actions() -> void:
+	_buf.push(&"shift_left", 0) # expired at 9
+	_buf.push(&"action_1", 2) # not a shift
+	_buf.push(&"shift_right", 4)
+	assert_eq(_buf.consume_oldest(SHIFTS, 9), &"shift_right")
+	assert_eq(_buf.consume_oldest(SHIFTS, 9), &"")
+	assert_true(_buf.consume(&"action_1", 9), "other actions untouched")
+
+
+func test_consume_oldest_empty_or_no_match() -> void:
+	assert_eq(_buf.consume_oldest(SHIFTS, 0), &"")
+	_buf.push(&"action_2", 0)
+	assert_eq(_buf.consume_oldest(SHIFTS, 0), &"")
+	assert_eq(_buf.consume_oldest([] as Array[StringName], 0), &"")
+
+
+func test_consume_oldest_ignores_future_press() -> void:
+	_buf.push(&"shift_left", 5)
+	assert_eq(_buf.consume_oldest(SHIFTS, 4), &"")
+	assert_eq(_buf.consume_oldest(SHIFTS, 5), &"shift_left")

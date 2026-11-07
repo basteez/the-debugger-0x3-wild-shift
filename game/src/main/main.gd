@@ -66,6 +66,8 @@ func _build_layers() -> void:
 	hud.layer = HUD_LAYER
 	hud.visible = false
 	add_child(hud)
+	# The panel lives in ui/, so Main (not the arena/ sim folder) hands it the register (D-S23-9).
+	hud.register_panel.register = arena.register
 	pause_layer = CanvasLayer.new()
 	pause_layer.name = &"Pause"
 	pause_layer.layer = PAUSE_LAYER
@@ -84,7 +86,8 @@ func _on_flow_state_changed(_from: int, to: int) -> void:
 
 
 ## Frees the old screen, instances the one for `state`, and shows the arena and HUD only in
-## FIGHT (Story 1.6 AC6, AC7, DC9). The player is reset and active only in FIGHT (Story 2.2).
+## FIGHT (Story 1.6 AC6, AC7, DC9). The player and the register are reset and active only in FIGHT
+## (Stories 2.2, 2.3): the register starts at the boss's fight-start set.
 func apply_flow_state(state: int, boss_index: int) -> void:
 	if is_instance_valid(current_screen):
 		# Deaf for the rest of the frame: queue_free keeps it in the tree until then.
@@ -98,7 +101,7 @@ func apply_flow_state(state: int, boss_index: int) -> void:
 	arena.visible = in_fight
 	hud.visible = in_fight
 	if in_fight:
-		arena.enter_fight()
+		arena.enter_fight(Register.fight_start_for_boss(boss_index))
 	else:
 		arena.leave_fight()
 
