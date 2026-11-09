@@ -3,7 +3,10 @@ extends Node2D
 ## The REGISTER box content (Story 2.3, FR9, GFR5-GFR10, D-S23-8): hex byte value, the 8 bit cells,
 ## the faded `<<` / `>>` previews around the inverted active window, and `J→K`. Presentation only
 ## (AD-05, D-S23-9): reads the injected Register, never writes it. HUD text at 1x on the 8-px grid.
-## The pure `plan()` decides every cell; `_draw()` only executes it.
+## The pure `plan()` decides every cell; `_draw_content()` only executes it.
+## Story 2.4 (D-S24-3): the cells are drawn by a child `Content` node shifted by `slide_px`, and this
+## node is its clip mask (CLIP_CHILDREN_ONLY: the opaque interior rect is not drawn, it only keeps
+## the slid cells inside the REGISTER box, off the border and the col-12 gap).
 
 ## One run of text to draw: top-left HUD cell, text (one glyph per cell) and style.
 class Cell:
@@ -43,31 +46,57 @@ const NIBBLE_BITS := 4
 const RESERVED_LABEL := "reserved"
 const JK_LABEL := "J→K"
 const UNOWNED := "0"
+## REGISTER box interior in px at 1x, relative to the panel origin: cols 1-10, rows 3-20 (D-S24-3).
+const CLIP_RECT := Rect2(8, 24, 80, 144)
 
 ## The register to show. Injected by Main (null-safe: nothing is drawn without one).
 var register: Register
+
+## Horizontal slide of the cells in px (Story 2.4 shift juice). Set by JuiceDirector; 0 = rest,
+## which draws exactly as Story 2.3.
+var slide_px: int = 0:
+	set(value):
+		slide_px = value
+		content.position = Vector2(value, 0)
+		content.queue_redraw()
+
+## The child that draws the cells; clipped to CLIP_RECT by this node.
+var content: Node2D
 
 ## 8x8 50% checker of BG pixels (transparent elsewhere), built once on first draw.
 static var _checker: ImageTexture
 
 
+func _init() -> void:
+	clip_children = CanvasItem.CLIP_CHILDREN_ONLY
+	content = Node2D.new()
+	content.name = &"Content"
+	content.draw.connect(_draw_content)
+	add_child(content)
+
+
 func _process(_delta: float) -> void:
 	if register != null and register.active:
-		queue_redraw()
+		content.queue_redraw()
 
 
+## The clip mask: an opaque rect over the interior. Not shown (CLIP_CHILDREN_ONLY).
 func _draw() -> void:
+	draw_rect(CLIP_RECT, Palette.INK)
+
+
+func _draw_content() -> void:
 	if register == null:
 		return
 	for c: Cell in plan(register.ring):
 		var rect := Rect2(GlyphFont.cell_to_px(c.cell, SCALE), Vector2(c.text.length(), 1) * GlyphFont.CELL)
 		if c.style == INVERTED:
-			draw_rect(rect, Palette.INK)
-			GlyphFont.draw_cell(self, c.cell, c.text, Palette.BG, SCALE)
+			content.draw_rect(rect, Palette.INK)
+			GlyphFont.draw_cell(content, c.cell, c.text, Palette.BG, SCALE)
 			continue
-		GlyphFont.draw_cell(self, c.cell, c.text, Palette.INK, SCALE)
+		GlyphFont.draw_cell(content, c.cell, c.text, Palette.INK, SCALE)
 		if c.style == GREYED or c.style == FADED:
-			draw_texture_rect(_checker_texture(), rect, true)
+			content.draw_texture_rect(_checker_texture(), rect, true)
 
 
 ## Every cell of the panel for a ring of owned bits (window first), in draw order. Pure: no node,

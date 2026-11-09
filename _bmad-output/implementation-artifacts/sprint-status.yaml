@@ -104,7 +104,7 @@ development_status:
   2-1-deterministic-sim-clock-input-buffer-and-replays: done # large; not split (design call D-S21-1)
   2-2-player-movement-and-facing: done
   2-3-register-ring-shift-and-hud-panel: done
-  2-4-shift-juice: backlog
+  2-4-shift-juice: done
   2-5-action-state-machine-with-attack-and-dash: backlog
   2-6-ordered-combo-engine-and-dash-strike: backlog # large; not split (design call)
   2-7-combat-resolver-damage-calc-and-practice-target: backlog

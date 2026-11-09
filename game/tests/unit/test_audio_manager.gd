@@ -59,6 +59,33 @@ func test_unlock_is_idempotent_and_play_uses_sfx() -> void:
 	assert_eq(am.get("locked_warn_count"), 0)
 
 
+# Story 2.4: play_sfx for the shift clicks.
+func test_play_sfx_before_unlock_is_ignored_and_warns_once() -> void:
+	var am: Node = add_child_autofree(AudioManagerScript.new())
+	am.play_sfx(AudioManagerScript.make_blip())
+	am.play_sfx(AudioManagerScript.make_blip())
+	assert_eq(_playing_players(am), 0)
+	assert_eq(am.get_child_count(), 0)
+	assert_eq(am.get("locked_warn_count"), 1, "exactly one warn per session")
+
+
+func test_play_sfx_after_unlock_plays_on_sfx_and_reuses_one_player() -> void:
+	var am: Node = add_child_autofree(AudioManagerScript.new())
+	am.unlock()
+	var stream: AudioStreamWAV = AudioManagerScript.make_blip()
+	am.play_sfx(stream)
+	assert_eq(_playing_players(am), 1)
+	var player := am.get_node(^"ShiftSfx") as AudioStreamPlayer
+	assert_eq(player.bus, &"SFX")
+	assert_eq(player.stream, stream)
+	var other: AudioStreamWAV = AudioManagerScript.make_blip()
+	am.play_sfx(other)
+	assert_eq(am.get_child_count(), 1, "a rapid second click restarts the same player")
+	assert_eq(player.stream, other)
+	assert_true(player.playing)
+	assert_eq(am.get("locked_warn_count"), 0)
+
+
 func test_blip_is_short_16bit_mono() -> void:
 	var blip: AudioStreamWAV = AudioManagerScript.make_blip()
 	assert_eq(blip.format, AudioStreamWAV.FORMAT_16_BITS)
