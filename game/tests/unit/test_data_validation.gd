@@ -77,3 +77,14 @@ func test_player_def_edge_values_are_valid() -> void:
 	assert_eq(_messages_for(&"invuln_frames", 0).size(), 0)
 	assert_eq(_messages_for(&"hurtbox_tiles", 1.0).size(), 0)
 	assert_eq(_messages_for(&"accel_frames", 1).size(), 0)
+
+
+## Review 2.5: a chain_next cycle is rejected.
+func test_action_def_chain_cycle_is_invalid() -> void:
+	var a := ActionDef.new()
+	var b := ActionDef.new()
+	a.chain_next = b
+	b.chain_next = a
+	assert_false(a.validate().is_empty(), "cycle must be flagged")
+	b.chain_next = null
+	assert_true(a.validate().is_empty())

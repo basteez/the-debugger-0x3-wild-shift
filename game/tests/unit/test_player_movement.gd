@@ -214,3 +214,49 @@ func test_duck_sits_behind_the_player_inside_the_play_area() -> void:
 	assert_lt(at.x + 32.0, SPAWN.x - 8.0 + 0.5, "duck left of a right-facing player")
 	var corner: Vector2 = PlayerView.duck_top_left(Vector2(8, 8), Vector2i(1, 1))
 	assert_true(Rect2(Vector2.ZERO, Vector2(512 - 32, 288 - 16)).has_point(corner), "clamped inside")
+
+
+## Story 2.5 (D-S25-6): the movement lock used by the ActionStateMachine.
+func test_lock_forces_velocity_and_keeps_facing() -> void:
+	_player.facing = Vector2i(0, 1)
+	_player.lock_movement(Vector2(3, 0))
+	_hold(Vector2i(-1, 0), 2)
+	assert_eq(_player.velocity_px, Vector2(3, 0))
+	assert_almost_eq(_player.position_px.x, SPAWN.x + 6.0, EPS)
+	assert_eq(_player.facing, Vector2i(0, 1), "facing frozen while locked")
+
+
+func test_lock_with_zero_velocity_holds_position() -> void:
+	_hold(Vector2i(1, 0), 4)
+	var at: Vector2 = _player.position_px
+	_player.lock_movement(Vector2.ZERO)
+	_hold(Vector2i(1, 0), 3)
+	assert_eq(_player.position_px, at)
+	assert_eq(_player.velocity_px, Vector2.ZERO)
+
+
+func test_locked_movement_is_clamped() -> void:
+	_player.reset_for_fight(Vector2(500, 144))
+	_player.lock_movement(Vector2(10, 0))
+	_hold(Vector2i.ZERO, 1)
+	assert_eq(_player.position_px.x, Arena.player_bounds().end.x)
+	assert_eq(_player.velocity_px.x, 0.0)
+
+
+func test_unlock_caps_velocity_and_restores_normal_movement() -> void:
+	_player.lock_movement(Vector2(6.4, 0))
+	_hold(Vector2i.ZERO, 1)
+	_player.unlock_movement()
+	assert_false(_player.locked)
+	assert_almost_eq(_player.velocity_px.length(), _v_max(), EPS, "capped at walking top speed")
+	_hold(Vector2i.ZERO, 3)
+	assert_almost_eq(_player.velocity_px.length(), 0.0, EPS, "normal decel ramp")
+	_hold(Vector2i(0, -1), 1)
+	assert_eq(_player.facing, Vector2i(0, -1))
+
+
+func test_unlock_when_not_locked_is_a_no_op() -> void:
+	_hold(Vector2i(1, 0), 4)
+	var v: Vector2 = _player.velocity_px
+	_player.unlock_movement()
+	assert_eq(_player.velocity_px, v)

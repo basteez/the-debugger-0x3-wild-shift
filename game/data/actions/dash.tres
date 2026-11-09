@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="ActionDef" format=3]
+
+[ext_resource type="Script" path="res://src/player/action_def.gd" id="1_adef"]
+
+[resource]
+script = ExtResource("1_adef")
+id = &"dash"
+startup_frames = 0
+active_frames = 10
+recovery_frames = 6
+invuln_from = 1
+invuln_to = 8
+base_damage = 0
+cooldown_frames = 24
+move_tiles = 4.0
+cancel_into = PackedInt32Array(2)

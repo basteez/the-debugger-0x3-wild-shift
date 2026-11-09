@@ -27,6 +27,8 @@ var pause_screen: PauseScreen
 var current_screen: Node
 ## Shift juice (Story 2.4): slides the register panel, inverts the `@`, plays the click.
 var juice_director: JuiceDirector
+## F9 frame overlay (Story 2.5): exists only when Debug.enabled; null otherwise.
+var frame_overlay: FrameOverlay
 
 
 func _ready() -> void:
@@ -34,8 +36,9 @@ func _ready() -> void:
 	_build_layers()
 	EventBus.pause_toggled.connect(apply_pause)
 	if should_add_debug_keys(Debug.enabled):
-		var keys: Node = DebugKeysScript.new()
+		var keys: DebugKeys = DebugKeysScript.new()
 		keys.name = &"DebugKeys"
+		keys.frame_overlay = frame_overlay
 		add_child(keys)
 	# Story 1.3 day-1 audio smoke test, behind ?debug&smoke=audio and the Debug gate (1.6 AC8).
 	if Debug.enabled and wants_audio_smoke(UrlQuery.web_search()):
@@ -59,6 +62,14 @@ func _build_layers() -> void:
 	var player_view := PlayerView.new(arena.player)
 	player_view.name = &"PlayerView"
 	arena.add_child(player_view)
+	# Debug-only frame overlay (Story 2.5 AC7), above the `@`; lives in debug/, so Main attaches it.
+	if Debug.enabled:
+		frame_overlay = FrameOverlay.new()
+		frame_overlay.name = &"FrameOverlay"
+		frame_overlay.player = arena.player
+		frame_overlay.actions = arena.actions
+		frame_overlay.register = arena.register
+		arena.add_child(frame_overlay)
 	for layer_name: StringName in [&"Entities", &"Particles"]:
 		var node := Node2D.new()
 		node.name = layer_name

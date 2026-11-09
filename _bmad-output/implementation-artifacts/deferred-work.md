@@ -138,3 +138,13 @@ Story 1.3 AC9 / I-6 ("mumble-speech web check, moved to 3.7") is UNBLOCKED. Tizi
 - `AudioManager.play_sfx` uses one shared player, so overlapping SFX cut each other; pool in Story 7.2.
 - Hit-stop test uses a synthetic frame counter and the AC5 source guard covers only two files; real hit-stop check is H4 (Story 2.8).
 
+## Deferred from: code review of story-2-5-action-state-machine-with-attack-and-dash (2026-11-07)
+
+- Player lock state (`locked`, `locked_velocity_px`) is owned by the FSM; `Player.set_active(false)` / `reset_for_fight` do not clear it. Make Player self-resetting if a second caller appears.
+- [design call] Post-dash velocity cap (D-S25-15) drops speed abruptly on unlock; blend through the ramp if H1 finds the dash stops dead.
+- `dash.tres` `cancel_into = [DASH]` is unreachable (cooldown 24 > total 16); drop it or lower the cooldown if a dash chain is wanted.
+- `HitArc` returns false for a zero facing while `HitCapsule` collapses to a circle; unify in Story 2.7.
+- FrameOverlay: stale after leaving FIGHT, added below Entities/Particles layers, treats `hurtbox_tiles` as a diameter; revisit with the hit resolver (2.7).
+- `ActionDef.validate` does not check that `cancel_into` bits have a solo action, or `hit_shape`/`base_damage` consistency; `HitShape` subclasses have no validation.
+- Cleanup: dead `chain_slot`, `_chain` hard-codes ATTACK and `CHAIN_WINDOW_FRAMES` is not data, `resolve` takes 9 positional args, ActionRequest/ActionResolver reference each other.
+- Missing: "cooldown block" debug log, Arena FSM integration test, pause/hit-stop and shift-during-dash FSM tests, `FrameOverlay._draw` tests.

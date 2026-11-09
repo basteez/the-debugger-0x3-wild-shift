@@ -1,5 +1,5 @@
 extends Node2D
-## F9 debug grid (Story 1.5 DC7): 1-px lines on every 8-px HUD cell boundary (80x45), brighter
+## Shift+F9 debug grid (Story 1.5 DC7; moved from F9 by Story 2.5 D-S25-11): 1-px lines on every 8-px HUD cell boundary (80x45), brighter
 ## every 16 px (one arena tile). INK only, at reduced alpha. Hidden by default; Hud toggles it.
 
 const FAINT_ALPHA := 0.25

@@ -25,6 +25,9 @@ const GLYPHS: Dictionary[int, String] = {
 var ring: PackedInt32Array = PackedInt32Array([Bit.DASH, Bit.ATTACK])
 ## Only an active register applies shifts (D-S23-11): on in FIGHT, off elsewhere.
 var active: bool = false
+## Count of applied shifts (Story 2.5, D-S25-2): a changed serial resets the ATTACK chain. Written
+## only in shift(); read-only for other systems.
+var shift_serial: int = 0
 
 var _buffer: InputBuffer
 
@@ -58,6 +61,7 @@ func shift(direction: int) -> void:
 		Log.error(&"register", "shift on a ring of %d bits" % ring.size())
 		return
 	ring = rotated(ring, direction)
+	shift_serial += 1
 	EventBus.register_shifted.emit(direction, active_window(), ring.duplicate(), &"player")
 
 

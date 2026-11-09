@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="ActionDef" format=3]
+
+[ext_resource type="Script" path="res://src/player/action_def.gd" id="1_adef"]
+[ext_resource type="Script" path="res://src/combat/shapes/hit_arc.gd" id="2_arc"]
+[ext_resource type="Resource" path="res://data/actions/slash_3.tres" id="3_next"]
+
+[sub_resource type="Resource" id="Resource_arc"]
+script = ExtResource("2_arc")
+radius_tiles = 1.5
+angle_deg = 120.0
+
+[resource]
+script = ExtResource("1_adef")
+id = &"slash_2"
+startup_frames = 6
+active_frames = 4
+recovery_frames = 12
+hit_shape = SubResource("Resource_arc")
+base_damage = 10
+cooldown_frames = 0
+move_tiles = 0.0
+cancel_into = PackedInt32Array(2)
+chain_next = ExtResource("3_next")

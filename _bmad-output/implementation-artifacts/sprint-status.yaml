@@ -105,7 +105,7 @@ development_status:
   2-2-player-movement-and-facing: done
   2-3-register-ring-shift-and-hud-panel: done
   2-4-shift-juice: done
-  2-5-action-state-machine-with-attack-and-dash: backlog
+  2-5-action-state-machine-with-attack-and-dash: done
   2-6-ordered-combo-engine-and-dash-strike: backlog # large; not split (design call)
   2-7-combat-resolver-damage-calc-and-practice-target: backlog
   2-8-hit-feedback-hit-stop-particles-and-log-lines: backlog
