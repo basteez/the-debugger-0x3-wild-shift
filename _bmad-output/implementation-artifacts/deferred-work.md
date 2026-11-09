@@ -113,3 +113,17 @@ Story 1.3 AC9 / I-6 ("mumble-speech web check, moved to 3.7") is UNBLOCKED. Tizi
 - Float determinism of Vector2 `move_toward`/`normalized` across native vs wasm is unverified; replays are same-binary only. Quantise to fixed point if cross-platform replays are needed.
 - ReplayInput does not validate `moves` length against `frames` and has no version gate: truncated moves or v1 files play with silent zero movement.
 - Duck position jumps on a 180-degree facing flip and presentation has no interpolation (cosmetic); judge in human check H1.
+
+## Deferred from: code review of story-2-3 (2026-11-07)
+
+- [design call] Hit-stop/Breakpoint longer than 8 frames drops all buffered input (attacks, dashes too), not only shifts, since the buffer clock is `poll_frame` (D-S23-2). Judge by feel; widen the buffer window if needed.
+- RegisterPanel rebuilds ~20 Cells and redraws every frame while active; switch to redraw on `register_shifted` / flow change if web perf needs it.
+- Replay hash uses absolute `ctx.poll_frame`; `begin_fight` does not reset it, so a replay started in a different clock state hashes differently. Recorder does not store poll_frame.
+- `SimClock._systems` can be mutated during tick iteration (unregister from a `register_shifted` listener); iterate over a duplicate when such a listener appears.
+- `register_shifted` source is hard-coded `&"player"`; add a `source` parameter to `shift` with boss effects (Epic 3).
+- `Register.insert` vs buffered shifts ordering in the same tick is undefined (harvest, Story 3.8).
+- Checker texture is a static cache, not rebuilt on palette change or lost web GL context.
+- Greyed and faded cell styles look identical; differentiate if H1 finds them unclear.
+- `Arena.register` binds `SimClock.buffer` at field init; breaks if SimClock ever replaces its buffer.
+- `test_panel_never_writes_the_register` regex misses aliased writes (smoke guard only).
+- Register `ring` is a public var (single-writer rule is convention); make read-only if misuse appears.

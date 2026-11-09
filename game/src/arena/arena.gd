@@ -45,26 +45,37 @@ const LAYOUT: PackedStringArray = [
 
 ## The player movement system (Story 2.2). Owned here; ticked by SimClock while in the tree.
 var player: Player = Player.new(PLAYER_DEF, player_bounds())
+## The bit register (Story 2.3, D-S23-4). Owned here, reads SimClock's shared buffer; ticked by
+## SimClock in the SHIFTS phase while in the tree. Drawn by the HUD's RegisterPanel (Main injects).
+var register: Register = Register.new(SimClock.buffer)
 
 
 func _enter_tree() -> void:
+	SimClock.register_system(register)
 	SimClock.register_system(player)
 
 
 ## Detach from the autoload clock so re-instancing Main (tests) never double-ticks (D-S22-10).
 func _exit_tree() -> void:
+	SimClock.unregister_system(register)
 	SimClock.unregister_system(player)
 
 
-## Every route into FIGHT (D-S22-5): reset to spawn, then start ticking.
-func enter_fight() -> void:
+## Every route into FIGHT (D-S22-5, Story 2.3 AC9): reset the player to spawn and the register to
+## `fight_start`, then start ticking both.
+func enter_fight(fight_start: PackedInt32Array) -> void:
 	player.reset_for_fight(SPAWN_PX)
 	player.set_active(true)
+	if not register.set_fight_start(fight_start):
+		register.set_fight_start(Register.fight_start_for_boss(0))
+	SimClock.buffer.clear() # stale Q/E presses never carry into a fight (D-S23-11 belt and braces)
+	register.set_active(true)
 	_redraw_player_view()
 
 
 func leave_fight() -> void:
 	player.set_active(false)
+	register.set_active(false)
 
 
 ## Drops the previous fight's cached frame so the view never shows the old position for a frame.

@@ -1,7 +1,8 @@
 class_name Hud
 extends CanvasLayer
 ## IDE HUD frame (Story 1.5, FR57 shell, D-047): 80x45 cells of 8 px at 1x on the 640x360 base.
-## Static placeholder text only (DC10); register bits, duck text, log lines and HP come later.
+## Static placeholder text (DC10) plus the RegisterPanel (Story 2.3); duck text, log lines and HP
+## come later.
 
 const COLS := 80
 const ROWS := 45
@@ -26,6 +27,8 @@ const LINE_NO_COL := 13
 const SEPARATOR_COL := 15
 
 @onready var grid_overlay: Node2D = $GridOverlay
+## Register content of the REGISTER box (Story 2.3). Main injects the arena's Register.
+@onready var register_panel: RegisterPanel = $RegisterPanel
 
 
 func _unhandled_input(event: InputEvent) -> void:

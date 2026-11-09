@@ -1,11 +1,16 @@
 extends Node
 ## Fixed 60 Hz simulation clock (AD-01, NP-2). Each physics frame: gate on pause, poll the
-## InputSource (presses into the InputBuffer, held direction into ctx.move_dir), gate on
+## InputSource (presses into the InputBuffer stamped with poll_frame, held direction into
+## ctx.move_dir, ctx.poll_frame), advance poll_frame, gate on
 ## Breakpoint then hit-stop, else tick the registered SimSystems by phase and advance
 ## sim_frame. Only SimClock calls tick().
 
 ## World ticks since the session started (not paused or gated frames, D-S21-2). Monotonic.
 var sim_frame: int = 0
+## Polled (non-paused) physics frames since the session started, including hit-stop and Breakpoint
+## frames (D-S23-2). The InputBuffer time base, so a press made during hit-stop still ages and
+## expires. Monotonic. sim_frame keeps counting world ticks only.
+var poll_frame: int = 0
 ## Pause gate. Written only by Game (Story 1.7 DC2).
 var paused: bool = false
 ## Input for the simulation. LiveInput in play (_ready); null = no presses (headless tests).
@@ -40,10 +45,12 @@ func tick() -> void:
 	if input_source != null:
 		presses = input_source.presses_for_frame()
 	for action: StringName in presses:
-		buffer.push(action, sim_frame)
+		buffer.push(action, poll_frame)
 	ctx.move_dir = input_source.move_for_frame() if input_source != null else Vector2i.ZERO
+	ctx.poll_frame = poll_frame
 	if recorder != null:
 		recorder.record(presses, ctx.move_dir)
+	poll_frame += 1 # counts this polled frame even when a gate below freezes the world
 	if breakpoint_gate_active: # world frozen, hit-stop counter untouched (NP-2, D-S21-11)
 		return
 	if hitstop_frames > 0:
