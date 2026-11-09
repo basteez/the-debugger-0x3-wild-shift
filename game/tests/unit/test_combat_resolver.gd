@@ -524,3 +524,114 @@ func test_hits_for_dedupes_a_target_listed_twice() -> void:
 func test_target_ids() -> void:
 	assert_eq(PracticeTarget.new().hit_target_id(), &"practice_target")
 	assert_eq(BossController.new().hit_target_id(), &"boss")
+
+
+# --- Story 3.3: the Infinite Loop's `;` through overlaps_shape (AC 4, D-S33-4, D-S33-5, D-S33-14) ---
+
+const IL_DEF: BossDef = preload("res://data/bosses/infinite_loop/boss_def.tres")
+
+var _il_shifts: int = 0
+
+
+## The real Infinite Loop, started (first shift seen, `;` open at angle 0, i.e. right of the centre)
+## unless `open` is false, with segment `k` placed at `at`. The resolver test never ticks the boss,
+## so the ring stays put during the action.
+func _loop(at: Vector2, k: int = 0, open: bool = true, skip_phase: bool = false) -> InfiniteLoopBody:
+	_il_shifts = 0
+	var ctx := ArenaContext.new()
+	ctx.shift_count = func() -> int: return _il_shifts
+	var b := InfiniteLoopBody.new()
+	assert_true(b.setup(IL_DEF, null, ctx))
+	b.reset_for_fight()
+	var centre: Vector2 = b.body_center_px
+	ctx.player_source = func() -> Vector2: return centre # no drift (never capture b: a ref cycle)
+	var sim := SimContext.new()
+	if skip_phase:
+		b.debug_skip_phase()
+		for i: int in BossController.ROAR_FRAMES:
+			b.tick(sim)
+		assert_eq(b.state, BossController.BossState.GAP)
+	if open:
+		_il_shifts = 1
+		b.tick(sim)
+		assert_true(b.is_open())
+	b.body_center_px += at - b.segment_px(k)
+	_combat.boss = b
+	return b
+
+
+func test_dash_strike_into_the_open_semicolon_on_a_d_patches_and_deals_30() -> void:
+	_ring([A, D])
+	var b: InfiniteLoopBody = _loop(SPAWN + Vector2(64, 0))
+	_dash_strike()
+	assert_signal_emit_count(EventBus, "patched_applied", 1)
+	assert_signal_emitted_with_parameters(EventBus, "patched_applied", [&"infinite_loop", 180])
+	assert_eq(b.hp, 370, "P1 A>D: 20 x 1.5 = 30")
+	assert_eq(_boss_hits()[0], [&"boss", 30, DamageState.Kind.PATCHED, true, b.semicolon_px()], "lands on the `;`")
+	assert_eq(SimClock._pending_hitstop, HitFeedback.PATCHED_APPLIED_HITSTOP)
+
+
+func test_link_second_slash_on_d_a_patches_the_loop_in_phase_2() -> void:
+	_ring([D, A])
+	_buf.push(J, 0) # solo dash, opens the link
+	_run_to(16)
+	var b: InfiniteLoopBody = _loop(_player.position_px + Vector2(32, 0), 0, true, true)
+	assert_eq(b.phase_index, 1)
+	assert_eq(b.current_weak_window(), Vector2i(D, A))
+	var hp: int = b.hp
+	_buf.push(K, _t)
+	var guard: int = 0
+	while _boss_hits().is_empty() and guard < 20:
+		SimClock._pending_hitstop = 0
+		_tick()
+		guard += 1
+	assert_true(_fsm.link_second)
+	assert_signal_emit_count(EventBus, "patched_applied", 1)
+	assert_eq(b.hp, hp - 15, "slash 10 x 1.5")
+
+
+func test_a_hit_on_a_segment_does_nothing_and_does_not_mark_the_action() -> void:
+	_ring([A, D])
+	var b: InfiniteLoopBody = _loop(SPAWN + Vector2(64, 0), 12) # the far side of the ring on the path
+	assert_gt(b.semicolon_px().distance_to(SPAWN), 8.0 * Const.TILE_PX, "the `;` is out of reach")
+	_dash_strike()
+	_assert_loop_untouched(b)
+
+
+func test_a_hit_on_a_closed_semicolon_does_nothing() -> void:
+	_ring([A, D])
+	var b: InfiniteLoopBody = _loop(SPAWN + Vector2(64, 0), 0, false)
+	assert_false(b.is_open())
+	_dash_strike()
+	_assert_loop_untouched(b)
+
+
+func _assert_loop_untouched(b: InfiniteLoopBody) -> void:
+	assert_eq(_fsm.action, Defs.DASH_STRIKE)
+	while _fsm.action != null:
+		_tick()
+	assert_eq(b.hp, 400)
+	assert_false(b.weak_window.is_patched())
+	assert_eq(_boss_hits().size(), 0, "no hit_landed")
+	assert_signal_emit_count(EventBus, "patched_applied", 0)
+	assert_eq(SimClock._pending_hitstop, 0, "no hit-stop")
+	assert_eq(b.last_hit_serial, -1, "the action is not marked (D-S33-5)")
+
+
+func test_a_dash_through_the_closed_semicolon_lands_when_it_opens_mid_action() -> void:
+	_ring([A, D])
+	var b: InfiniteLoopBody = _loop(SPAWN + Vector2(64, 0), 0, false)
+	_buf.push(J, 0)
+	_run_to(3)
+	_buf.push(K, _t)
+	_run_to(11)
+	SimClock._pending_hitstop = 0
+	_tick() # first strike frame on the closed `;`
+	assert_eq(_boss_hits().size(), 0)
+	var seg0: Vector2 = b.segment_px(0)
+	_il_shifts = 1
+	b.tick(SimContext.new()) # the `;` opens (no motion on the start tick)
+	assert_eq(b.segment_px(0), seg0)
+	_tick()
+	assert_eq(_boss_hits().size(), 1, "the same action lands once the `;` opens")
+	assert_eq(b.hp, 370)

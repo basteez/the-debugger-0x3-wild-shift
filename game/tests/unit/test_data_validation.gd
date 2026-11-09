@@ -139,3 +139,50 @@ func test_boss_def_name_signature_rules() -> void:
 		var d: BossDef = _valid_boss()
 		d.name_signature = bad
 		assert_true(_boss_messages_contain(d, "name_signature"), "rejects \"%s\"" % bad)
+
+
+# --- Story 3.3 AC 6: the Infinite Loop's data ---
+
+func test_infinite_loop_boss_def_matches_the_gdd() -> void:
+	var def: BossDef = load("res://data/bosses/infinite_loop/boss_def.tres")
+	assert_eq(def.validate(), PackedStringArray(), "valid with empty pools (D-S33-9)")
+	assert_eq(def.boss_id, &"infinite_loop")
+	assert_eq(def.boss_id, Game.BOSS_IDS[0])
+	assert_eq(def.name_signature, "infiniteLoop")
+	assert_eq(def.max_hp, 400)
+	assert_eq(def.drop_bit, Register.Bit.LOOP)
+	assert_eq(def.fixed_line, "for (i = 0; i < n; i++) { }")
+	var ring: RingDef = load("res://data/bosses/infinite_loop/ring_def.tres")
+	assert_almost_eq(def.body_radius_tiles, ring.radius_tiles(), 0.01, "fallback body circle = ring radius (D-S33-3)")
+	var a := Register.Bit.ATTACK
+	var d := Register.Bit.DASH
+	var expected: Array = [[100, Vector2i(a, d), 120], [66, Vector2i(d, a), 90], [33, Vector2i(a, d), 60]]
+	assert_eq(def.phases.size(), 3)
+	for i: int in 3:
+		var p: PhaseDef = def.phases[i]
+		assert_eq([p.hp_threshold, p.weak_window, p.gap_frames], expected[i], "phase %d" % (i + 1))
+		assert_eq(p.attack_pool.size(), 0, "no attacks until 3.4")
+
+
+func test_infinite_loop_ring_def_matches_the_gdd() -> void:
+	var ring: RingDef = load("res://data/bosses/infinite_loop/ring_def.tres")
+	assert_eq(ring.validate(), PackedStringArray())
+	assert_eq([ring.segments, ring.base_speed_tps, ring.speed_cap_tps, ring.ramp_percent, ring.drift_tps, ring.open_frames], [24, 8, 12, 5, 2, 90])
+	assert_eq(ring.contact_radius_tiles, 0.5)
+	assert_eq(ring.hurt_radius_tiles, 0.5)
+	assert_eq(RingDef.new().validate(), PackedStringArray(), "defaults are the GDD values")
+
+
+func test_ring_def_reports_each_bad_value() -> void:
+	var fields: Dictionary = {
+		&"segments": 12, &"base_speed_tps": 9, &"speed_cap_tps": 7, &"ramp_percent": 10,
+		&"drift_tps": 0, &"open_frames": 0, &"contact_radius_tiles": 0.0, &"hurt_radius_tiles": -1.0,
+	}
+	for field: StringName in fields:
+		var r := RingDef.new()
+		r.set(field, fields[field])
+		var messages: PackedStringArray = r.validate()
+		var found: bool = false
+		for m: String in messages:
+			found = found or m.begins_with(String(field))
+		assert_true(found, "%s flagged (%s)" % [field, messages])

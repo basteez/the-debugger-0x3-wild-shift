@@ -208,3 +208,16 @@ Story 1.3 AC9 / I-6 ("mumble-speech web check, moved to 3.7") is UNBLOCKED. Tizi
 - Patched tag/bar can overlap the TELL mark row and has no top-edge clamp; revisit with art (3.3).
 - Damage number counts presentation frames, not sim frames; BossView/AudioManager connections lack `_exit_tree` disconnect; LogPanel `_dithered` not reset on `clear()`; hard-coded tick numbers and `LOG_LINES` in tests are brittle; `DamageState.multiplier` falls back to BASE silently.
 - A multi-tick action overlapping a boss during ROAR is not marked consumed and could land after ROAR if an action outlasted 60 ticks.
+
+## Deferred from: code review of story-3.3 (2026-11-09)
+
+- Ring contact/`;` hits use float trig and `move_toward`; replays may diverge across native/wasm. Consider integer/fixed-point segment positions or quantising before hit tests; the replay test only proves same-process determinism.
+- Start gate keys on `Register.shift_serial` changing; when non-player shifts (Echo, Epic 6) exist, gate on player-sourced shifts only and use "greater than".
+- Spawn (clamped y 4.32) plus drift may put a segment on the player almost immediately and the ring is a solid wall to non-invulnerable crossing; fast dashes can tunnel between tick endpoints. Judge in G1 playtest, tune in .tres.
+- Defeat leaves the ring stopped with no exit from FIGHT until Harvest/flow (3.8); D-S33-11 makes this visible in all builds.
+- Tests hard-code pixel offsets (7.9, 8.5, 11.9) assuming TILE_PX 16, and read private `_pending` / `_pending_hitstop`.
+- `RingDef.validate` hard-codes GDD constants; ring_def.tres is preloaded, not linked from boss_def.tres, and not validated at runtime; `body_radius_tiles` hand-synced with segments/TAU.
+- `PhaseDef.validate` skips the 2-attack rule for any empty pool (not only the Infinite Loop); add per-boss opt-in.
+- `Arena._set_boss`: null `load()` result and failed setup give no log; boss reuse keeps old `body_center_px`.
+- Patched tag/bar stack can overlap the ring top and the `;`; revisit with art.
+

@@ -117,7 +117,7 @@ development_status:
   epic-3: in-progress
   3-1-reusable-boss-framework: done # large; not split (design call)
   3-2-weak-window-patched-and-damage-states: done
-  3-3-infinite-loop-body-and-loop-condition: backlog
+  3-3-infinite-loop-body-and-loop-condition: done
   3-4-head-rush-and-constrict: backlog
   3-5-nested-loop-semicolon-spit-and-phase-3: backlog # phase 3 droppable under MVP fallback
   3-6-duck-bubble-and-tutorial-beats: backlog

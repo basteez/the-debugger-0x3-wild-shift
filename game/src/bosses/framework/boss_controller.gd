@@ -120,6 +120,7 @@ func tick(ctx: SimContext) -> void:
 	if not active:
 		return
 	weak_window.tick() # D-S32-22: Patched counts live sim frames, ROAR included
+	_tick_body(ctx) # Story 3.3 (D-S33-14): the boss body moves before the FSM step
 	if state == BossState.ACTIVE and _current_index >= 0:
 		_attacks[_current_index].on_active(_arena)
 	frames_left -= 1
@@ -132,6 +133,9 @@ func tick(ctx: SimContext) -> void:
 func _advance(rng: RandomNumberGenerator) -> void:
 	match state:
 		BossState.GAP:
+			if _pools[phase_index].is_empty(): # D-S33-9: no attacks yet, stay in GAP (no pick, no RNG)
+				_enter(BossState.GAP, def.phases[phase_index].gap_frames)
+				return
 			_current_index = pick_next(rng)
 			current = _defs[_current_index]
 			_enter(BossState.TELL, current.tell)
@@ -196,7 +200,7 @@ func pick_next(rng: RandomNumberGenerator) -> int:
 func _check_contact() -> void:
 	if _health == null or _arena == null or state == BossState.DEFEATED:
 		return
-	if body_center_px.distance_to(_arena.player_position()) <= _body_radius_px:
+	if touches_player(_arena.player_position()):
 		_health.queue_hit()
 
 
@@ -278,6 +282,29 @@ func hit_target_id() -> StringName:
 
 ## Speed-ramp reset hook (FR30), called on every phase change. The framework does nothing.
 func _on_phase_reset() -> void:
+	pass
+
+
+## Story 3.3 (D-S33-14) virtual hooks. The defaults are the 3.1/3.2 single body circle; a boss body
+## (InfiniteLoopBody) overrides them. CombatResolver and body contact call only these.
+
+## True when a player hit shape placed at `origin`, turned to `facing`, touches the boss's hurtbox.
+func overlaps_shape(shape: HitShape, origin: Vector2, facing: Vector2) -> bool:
+	return shape != null and shape.overlaps(origin, facing, body_center_px, _body_radius_px)
+
+
+## Where a boss hit lands (EventBus.hit_landed position, particles, number).
+func hit_position() -> Vector2:
+	return body_center_px
+
+
+## True when the player's centre `p` is inside the boss's contact area (D-S31-25: no player radius).
+func touches_player(p: Vector2) -> bool:
+	return body_center_px.distance_to(p) <= _body_radius_px
+
+
+## Per-live-tick body motion, after the Patched tick and before the FSM step. Default: nothing.
+func _tick_body(_ctx: SimContext) -> void:
 	pass
 
 

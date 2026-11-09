@@ -10,7 +10,8 @@ extends Def
 @export var weak_window: Vector2i = Vector2i.ZERO
 ## Frames of GAP between one attack's recovery and the next tell (>= 1).
 @export var gap_frames: int = 30
-## Attacks drawn uniformly (no-triple-repeat, D-S31-6). At least two distinct attacks.
+## Attacks drawn uniformly (no-triple-repeat, D-S31-6). Empty (the boss sits in GAP, Story 3.3,
+## D-S33-9) or at least two distinct attacks.
 @export var attack_pool: Array[AttackDef] = []
 
 
@@ -31,6 +32,6 @@ func validate() -> PackedStringArray:
 			continue
 		distinct.append(attack)
 		out.append_array(attack.validate())
-	if distinct.size() < 2:
+	if not attack_pool.is_empty() and distinct.size() < 2: # D-S33-9: an empty pool is allowed
 		out.append("phase attack_pool needs at least 2 distinct attacks (got %d)" % distinct.size())
 	return out

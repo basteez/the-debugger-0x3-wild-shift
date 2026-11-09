@@ -1,0 +1,36 @@
+[gd_resource type="Resource" script_class="BossDef" format=3]
+
+[ext_resource type="Script" path="res://src/bosses/framework/boss_def.gd" id="1_bdef"]
+[ext_resource type="Script" path="res://src/bosses/framework/phase_def.gd" id="2_pdef"]
+[ext_resource type="Script" path="res://src/bosses/framework/attack_def.gd" id="3_adef"]
+
+[sub_resource type="Resource" id="Resource_phase1"]
+script = ExtResource("2_pdef")
+hp_threshold = 100
+weak_window = Vector2i(1, 2)
+gap_frames = 120
+attack_pool = Array[ExtResource("3_adef")]([])
+
+[sub_resource type="Resource" id="Resource_phase2"]
+script = ExtResource("2_pdef")
+hp_threshold = 66
+weak_window = Vector2i(2, 1)
+gap_frames = 90
+attack_pool = Array[ExtResource("3_adef")]([])
+
+[sub_resource type="Resource" id="Resource_phase3"]
+script = ExtResource("2_pdef")
+hp_threshold = 33
+weak_window = Vector2i(1, 2)
+gap_frames = 60
+attack_pool = Array[ExtResource("3_adef")]([])
+
+[resource]
+script = ExtResource("1_bdef")
+boss_id = &"infinite_loop"
+name_signature = "infiniteLoop"
+max_hp = 400
+phases = Array[ExtResource("2_pdef")]([SubResource("Resource_phase1"), SubResource("Resource_phase2"), SubResource("Resource_phase3")])
+drop_bit = 3
+fixed_line = "for (i = 0; i < n; i++) { }"
+body_radius_tiles = 3.82
