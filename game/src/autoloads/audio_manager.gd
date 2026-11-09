@@ -18,6 +18,19 @@ var _warned_locked: bool = false
 var _sfx_player: AudioStreamPlayer = null
 ## The one player for gameplay SFX (Story 2.4 shift clicks); a new play cuts the previous one.
 var _shift_player: AudioStreamPlayer = null
+## Placeholder boss tell cue (Story 3.1, D-S31-16), built in _ready so no tell hitches the sim tick. 7.2 maps tell_sfx ids
+## to real streams.
+var _tell_blip: AudioStreamWAV = null
+
+
+func _ready() -> void:
+	_tell_blip = make_blip()
+	EventBus.boss_tell_started.connect(_on_boss_tell_started)
+
+
+## Story 3.1 (AC 4): every boss tell plays its cue on the SFX bus. Presentation only.
+func _on_boss_tell_started(_attack_id: StringName, _tell_sfx: StringName) -> void:
+	play_sfx(_tell_blip)
 
 
 func unlock() -> void:

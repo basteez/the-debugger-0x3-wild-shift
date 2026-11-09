@@ -114,8 +114,8 @@ development_status:
 
   # Epic 3: Infinite Loop (MVP) — window Nov 11–14; MVP GATE Nov 14 (>= 3 playtesters)
   # Fallback: Boss 1 ships phases 1–2 only.
-  epic-3: backlog
-  3-1-reusable-boss-framework: backlog # large; not split (design call)
+  epic-3: in-progress
+  3-1-reusable-boss-framework: done # large; not split (design call)
   3-2-weak-window-patched-and-damage-states: backlog
   3-3-infinite-loop-body-and-loop-condition: backlog
   3-4-head-rush-and-constrict: backlog

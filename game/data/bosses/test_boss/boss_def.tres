@@ -1,0 +1,29 @@
+[gd_resource type="Resource" script_class="BossDef" format=3]
+
+[ext_resource type="Script" path="res://src/bosses/framework/boss_def.gd" id="1_bdef"]
+[ext_resource type="Script" path="res://src/bosses/framework/phase_def.gd" id="2_pdef"]
+[ext_resource type="Script" path="res://src/bosses/framework/attack_def.gd" id="3_adef"]
+[ext_resource type="Resource" path="res://data/bosses/test_boss/attack_pulse.tres" id="4_pulse"]
+[ext_resource type="Resource" path="res://data/bosses/test_boss/attack_sweep.tres" id="5_sweep"]
+
+[sub_resource type="Resource" id="Resource_phase1"]
+script = ExtResource("2_pdef")
+hp_threshold = 100
+gap_frames = 40
+attack_pool = Array[ExtResource("3_adef")]([ExtResource("4_pulse"), ExtResource("5_sweep")])
+
+[sub_resource type="Resource" id="Resource_phase2"]
+script = ExtResource("2_pdef")
+hp_threshold = 50
+gap_frames = 30
+attack_pool = Array[ExtResource("3_adef")]([ExtResource("4_pulse"), ExtResource("5_sweep")])
+
+[resource]
+script = ExtResource("1_bdef")
+boss_id = &"test_boss"
+name_signature = "testBoss"
+max_hp = 20
+phases = Array[ExtResource("2_pdef")]([SubResource("Resource_phase1"), SubResource("Resource_phase2")])
+drop_bit = 0
+fixed_line = "// test fixture: the framework's own boss"
+body_radius_tiles = 1.0
