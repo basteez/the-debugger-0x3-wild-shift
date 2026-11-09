@@ -58,6 +58,10 @@ static func is_advance(event: InputEvent) -> bool:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	# FIGHT is playable since Epic 2: its keys are gameplay, never an any-key advance. Leaving a
+	# fight goes through boss defeat (3.8) or the debug jump keys.
+	if state == GameFlow.FlowState.FIGHT:
+		return
 	if not is_advance(event):
 		return
 	get_viewport().set_input_as_handled()
