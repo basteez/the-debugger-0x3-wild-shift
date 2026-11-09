@@ -162,3 +162,45 @@ func test_debug_jump_rejects_other_targets_and_bad_boss() -> void:
 	game.debug_jump(S.FIGHT, -1)
 	assert_eq(game.flow_state, S.TITLE)
 	assert_signal_emit_count(EventBus, "flow_state_changed", 0)
+
+
+# --- Story 2.1 D1: fight seed on every FIGHT entry ---
+
+func _assert_clock_seeded_with(seed_value: int) -> void:
+	var expected := SimContext.new()
+	expected.reseed(seed_value)
+	assert_eq(SimClock.ctx.rng.randi(), expected.rng.randi(), "SimClock.ctx reseeded with run.fight_seed")
+
+
+func test_run_state_fight_seed_defaults_to_zero() -> void:
+	assert_eq(RunState.new().fight_seed, 0)
+
+
+func test_intro_to_fight_seeds_the_fight() -> void:
+	var game: Node = _game()
+	game.start_run_from_title(0)
+	SimClock.buffer.push(&"action_1", SimClock.sim_frame)
+	game.advance()
+	assert_eq(game.flow_state, S.FIGHT)
+	assert_gt(game.run.fight_seed, 0)
+	assert_eq(SimClock.buffer.size(), 0, "begin_fight cleared the buffer")
+	_assert_clock_seeded_with(game.run.fight_seed)
+
+
+func test_each_fight_entry_takes_a_new_seed() -> void:
+	var game: Node = _game()
+	game.start_run_from_title(0)
+	game.advance() # FIGHT 1
+	var first: int = game.run.fight_seed
+	game.advance() # HARVEST
+	game.advance() # FIGHT 2
+	assert_ne(game.run.fight_seed, first)
+	_assert_clock_seeded_with(game.run.fight_seed)
+
+
+func test_debug_jump_into_fight_seeds_the_fight() -> void:
+	Debug.enabled = true
+	var game: Node = _game()
+	game.debug_jump(S.FIGHT, 1)
+	assert_gt(game.run.fight_seed, 0)
+	_assert_clock_seeded_with(game.run.fight_seed)

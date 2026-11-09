@@ -5,3 +5,6 @@ extends RefCounted
 
 ## 0, 1, 2 for Fight 1, 2, 3.
 var boss_index: int = 0
+## Seed of the current fight's SimContext RNG (Story 2.1, D-S21-6). Set by Game on FIGHT entry
+## from a presentation-side clock; written into every input recording.
+var fight_seed: int = 0

@@ -183,9 +183,19 @@ func _set_flow_state(to: FlowState) -> void:
 		SimClock.paused = false
 		Log.info(&"flow", "pause off")
 		EventBus.pause_toggled.emit(false)
+	if to == FlowState.FIGHT:
+		_begin_fight()
 	EventBus.flow_state_changed.emit(from, to)
 	if _focus_lost and to in PAUSABLE_STATES:
 		set_paused(true, &"focus")
+
+
+## Every route into FIGHT (intro, harvest, retry, debug jump) seeds the fight here (D-S21-6).
+## The seed comes from the wall clock on the presentation side; simulation never reads it.
+func _begin_fight() -> void:
+	run.fight_seed = Time.get_ticks_usec()
+	SimClock.begin_fight(run.fight_seed)
+	Log.info(&"flow", "fight seed %d" % run.fight_seed)
 
 
 ## Web fallback for DC9: document `visibilitychange` (tab hidden) and window `blur` pause the game.
