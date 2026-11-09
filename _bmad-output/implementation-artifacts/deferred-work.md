@@ -143,10 +143,10 @@ Story 1.3 AC9 / I-6 ("mumble-speech web check, moved to 3.7") is UNBLOCKED. Tizi
 - Player lock state (`locked`, `locked_velocity_px`) is owned by the FSM; `Player.set_active(false)` / `reset_for_fight` do not clear it. Make Player self-resetting if a second caller appears.
 - [design call] Post-dash velocity cap (D-S25-15) drops speed abruptly on unlock; blend through the ramp if H1 finds the dash stops dead.
 - `dash.tres` `cancel_into = [DASH]` is unreachable (cooldown 24 > total 16); drop it or lower the cooldown if a dash chain is wanted.
-- `HitArc` returns false for a zero facing while `HitCapsule` collapses to a circle; unify in Story 2.7.
+- ~~`HitArc` returns false for a zero facing while `HitCapsule` collapses to a circle; unify in Story 2.7.~~ RESOLVED in Story 2.7 (D-S27-1: `overlaps` and `contains` both collapse to a circle; capsule zero facing now explicit).
 - FrameOverlay: stale after leaving FIGHT, added below Entities/Particles layers, treats `hurtbox_tiles` as a diameter; revisit with the hit resolver (2.7).
 - `ActionDef.validate` does not check that `cancel_into` bits have a solo action, or `hit_shape`/`base_damage` consistency; `HitShape` subclasses have no validation.
-- Cleanup: dead `chain_slot`, `_chain` hard-codes ATTACK and `CHAIN_WINDOW_FRAMES` is not data, `resolve` takes 9 positional args, ActionRequest/ActionResolver reference each other.
+- Cleanup: dead `chain_slot`, `_chain` hard-codes ATTACK and `CHAIN_WINDOW_FRAMES` is not data, ~~`resolve` takes 9 positional args~~ (RESOLVED in Story 2.7: `ResolveInput`), ActionRequest/ActionResolver reference each other.
 - Missing: "cooldown block" debug log, Arena FSM integration test, pause/hit-stop and shift-during-dash FSM tests, `FrameOverlay._draw` tests.
 
 ## Deferred from: code review of story-2-6-ordered-combo-engine-and-dash-strike (2026-11-07)
@@ -157,6 +157,15 @@ Story 1.3 AC9 / I-6 ("mumble-speech web check, moved to 3.7") is UNBLOCKED. Tizi
 - `LinkOp.DROP` branch is unreachable in play (cooldown on the target cannot start mid-link); `LinkState.held_key`/`held_slot` are never read. Remove or test when another action touches the target cooldown.
 - `ComboDef.validate`: check `second` has a solo def, `action.cooldown_frames == 0`, no word longer than 10 chars ("Dereference" is cut to "Dereferenc" on the panel; fix in Story 6.2), and J startup + 1 <= 8 (buffered K stays live until the link opens).
 - `ComboTable` index is lazy and never invalidated; the pair key packs `first*256+second` (use `Vector2i`).
-- `resolve` has 11 positional args and `format_lines` 10 (two adjacent bools); introduce a context object. `combos == null` silently falls back to `Defs.COMBOS`.
+- ~~`resolve` has 11 positional args~~ (RESOLVED in Story 2.7: `ResolveInput`); `format_lines` still has 10 args (two adjacent bools); introduce a context object. `combos == null` silently falls back to `Defs.COMBOS`.
 - FSM boundary tests call `before_each()` mid-test and fold two scenarios in one; split them. DROP/hit-stop/pause-with-held-press have no FSM test.
+
+## Deferred from: code review of story-2-7-combat-resolver-damage-calc-and-practice-target (2026-11-07)
+
+- [design call] `DebugKeys.practice_requested` survives until another jump key, so any later FIGHT entry in a debug build (retry, new run after death) keeps the dummy; clear it on a TITLE flow change if that surprises (D-S27-3).
+- `DamageCalc.compute` returns 0 for negative input and does not enforce the 5 percent granularity (`to_pct` rounds silently); 64-bit overflow only with absurd bases. Add asserts when Epic 3 passes real multipliers.
+- `HitArc.overlaps` is exact for the tested geometries but has no test for the outer-corner case or a half-angle above 90 degrees (concave sector); add if an arc wider than 180 degrees is ever authored.
+- `CombatResolver`: `player` is injected but unused; `hit_landed` id is hard-coded `&"practice_target"` (take it from the target in Epic 3); `hits_for` does not dedupe a target listed twice; `Log.debug` formats even when logging is off.
+- `ResolveInput` is allocated every tick (RefCounted, cheap); reuse one instance if a profile on web shows GC churn. `PracticeTargetView._process` redraws every frame; drive from `hit_landed` if it matters.
+- Missing tests: several targets hit in one tick, facing up/down anchors, `DamageCalc` with non-multiple-of-5 multipliers, `FrameOverlay` target drawing.
 

@@ -30,6 +30,11 @@ func _used_codepoints() -> Dictionary[int, String]:
 	# Story 1.7 pause screen, both mute states.
 	texts.append_array(PauseScreen.lines_for(false))
 	texts.append_array(PauseScreen.lines_for(true))
+	# Story 2.7: the practice target label and readout (ASCII only).
+	texts.append(PracticeTargetView.LABEL)
+	texts.append("hits 0123456789")
+	for def: ActionDef in [Defs.SLASH_1, Defs.SLASH_2, Defs.SLASH_3, Defs.DASH_STRIKE]:
+		texts.append(PracticeTargetView.hit_line(1234567890, def.id, 99))
 	var used: Dictionary[int, String] = {}
 	for t: String in texts:
 		for i: int in t.length():

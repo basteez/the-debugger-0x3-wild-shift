@@ -9,3 +9,8 @@ signal pause_toggled(paused: bool)
 ## (two bit ids), the whole ring after the shift, and who shifted it (&"player"; boss effects later).
 @warning_ignore("unused_signal")
 signal register_shifted(direction: int, window: Vector2i, ring: PackedInt32Array, source: StringName)
+## A player hit landed (Story 2.7, NP-4): who was hit (&"practice_target"; &"boss" from Epic 3),
+## the DamageCalc result, the damage state (DamageCalc.STATE_BASE until Epic 3, D-S27-7), whether
+## the hitting action is a combo (D-S27-14) and the target's arena-local position.
+@warning_ignore("unused_signal")
+signal hit_landed(target: StringName, damage: int, state: int, is_combo: bool, pos: Vector2)

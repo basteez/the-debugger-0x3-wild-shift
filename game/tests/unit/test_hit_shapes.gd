@@ -68,3 +68,69 @@ func test_capsule_along_facing_with_round_ends() -> void:
 	assert_true(cap.contains(O, RIGHT, O + Vector2(-7, 0)), "round base")
 	assert_false(cap.contains(O, RIGHT, O + Vector2(-9, 0)))
 	assert_true(cap.contains(O, Vector2(0, 1), O + Vector2(0, 30)), "turns with facing")
+
+
+# --- Story 2.7: circle overlap (D-S27-1) ---
+
+func test_base_shape_overlaps_nothing() -> void:
+	assert_false(HitShape.new().overlaps(O, RIGHT, O, 100.0))
+
+
+func test_circle_overlap_and_tangent() -> void:
+	var c := HitCircle.new()
+	c.radius_tiles = 1.0
+	assert_true(c.overlaps(O, RIGHT, O + Vector2(30, 0), 14.0), "16 + 14 = 30: tangent counts")
+	assert_false(c.overlaps(O, RIGHT, O + Vector2(30.1, 0), 14.0))
+	assert_true(c.overlaps(O, Vector2.ZERO, O + Vector2(0, -20), 5.0), "facing ignored")
+
+
+func test_arc_overlap_in_front_with_edge_reach() -> void:
+	var arc: HitArc = _arc() # 24 px, 120 deg
+	assert_true(arc.overlaps(O, RIGHT, O + Vector2(48, 0), 24.0), "tangent at the tip")
+	assert_false(arc.overlaps(O, RIGHT, O + Vector2(48.1, 0), 24.0))
+	assert_false(arc.overlaps(O, RIGHT, O + Vector2(-30, 0), 24.0), "behind, out of reach")
+
+
+func test_arc_overlap_beside_the_sector_counts_through_the_edge() -> void:
+	var arc: HitArc = _arc()
+	# Centre at 90 deg (outside the 60-deg half-angle) 20 px away: its distance to the
+	# 60-deg edge is 20 * sin(30 deg) = 10 px.
+	var centre: Vector2 = _at_angle(90.0, 20.0)
+	assert_true(arc.overlaps(O, RIGHT, centre, 10.5))
+	assert_false(arc.overlaps(O, RIGHT, centre, 9.5))
+	assert_false(arc.contains(O, RIGHT, centre), "the centre itself is outside the sector")
+
+
+func test_arc_overlap_with_centre_inside_the_hurtbox_origin() -> void:
+	var arc: HitArc = _arc()
+	assert_true(arc.overlaps(O, RIGHT, O + Vector2(-10, 0), 12.0), "origin inside the hurtbox")
+	assert_true(arc.overlaps(O, RIGHT, O + Vector2(-20, 0), 100.0), "huge hurtbox behind")
+
+
+func test_arc_zero_facing_is_a_full_circle() -> void:
+	var arc: HitArc = _arc()
+	assert_true(arc.overlaps(O, Vector2.ZERO, O + Vector2(-40, 0), 16.0))
+	assert_false(arc.overlaps(O, Vector2.ZERO, O + Vector2(-40.1, 0), 16.0))
+	assert_true(arc.contains(O, Vector2.ZERO, O + Vector2(-20, 0)), "contains agrees (2.5 deferral closed)")
+	assert_false(arc.contains(O, Vector2.ZERO, O + Vector2(-25, 0)))
+
+
+func test_capsule_overlap_along_the_segment() -> void:
+	var cap := HitCapsule.new()
+	cap.length_tiles = 5.0
+	cap.radius_tiles = 0.75 # Dash Strike: 80 px, 12 px
+	assert_true(cap.overlaps(O, RIGHT, O + Vector2(64, 0), 24.0))
+	assert_true(cap.overlaps(O, RIGHT, O + Vector2(40, 36), 24.0), "side tangent: 12 + 24")
+	assert_false(cap.overlaps(O, RIGHT, O + Vector2(40, 36.1), 24.0))
+	assert_true(cap.overlaps(O, RIGHT, O + Vector2(116, 0), 24.0), "tip tangent: 80 + 36")
+	assert_false(cap.overlaps(O, RIGHT, O + Vector2(116.1, 0), 24.0))
+	assert_false(cap.overlaps(O, RIGHT, O + Vector2(-37, 0), 24.0), "behind the round base")
+	assert_true(cap.overlaps(O, RIGHT, O + Vector2(0, 0), 200.0), "centre on the shape, large radius")
+
+
+func test_capsule_zero_facing_is_a_circle() -> void:
+	var cap := HitCapsule.new()
+	cap.length_tiles = 5.0
+	cap.radius_tiles = 0.75
+	assert_true(cap.overlaps(O, Vector2.ZERO, O + Vector2(0, 36), 24.0))
+	assert_false(cap.overlaps(O, Vector2.ZERO, O + Vector2(64, 0), 24.0), "no length without a direction")

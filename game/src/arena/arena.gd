@@ -18,6 +18,8 @@ const LABEL_COL := 2
 const PLAYER_DEF: PlayerDef = preload("res://data/player/player_def.tres")
 ## Player spawn (D-S22-6): centre of the play area, arena-local pixels.
 const SPAWN_PX := Vector2(TILES * TILE_PX) / 2.0
+## Practice target centre (Story 2.7, D-S27-2): 4 tiles right of spawn.
+const PRACTICE_TARGET_PX := SPAWN_PX + Vector2(4 * TILE_PX, 0)
 ## Inset of the player's glyph centre from the play-area edge: half a tile, so the whole `@` cell
 ## stays inside the 32x18 play area (D-S22-2). One more tile inward makes the tree ring a wall.
 const PLAYER_EDGE_INSET_PX := TILE_PX / 2.0
@@ -51,12 +53,17 @@ var register: Register = Register.new(SimClock.buffer)
 ## The player's action state machine (Story 2.5). Declared after player and register, so both
 ## exist when it is built (members initialise in declaration order). Ticked in the ACTIONS phase.
 var actions: ActionStateMachine = ActionStateMachine.new(SimClock.buffer, player, register)
+## Hit resolution (Story 2.7, AD-04): shape math in the COMBAT phase, after ACTIONS and PLAYER.
+var combat: CombatResolver = CombatResolver.new(actions, player)
+## The `/* test */` dummy (Story 2.7): null unless a fight was entered with_practice (debug only).
+var practice_target: PracticeTarget = null
 
 
 func _enter_tree() -> void:
 	SimClock.register_system(register)
 	SimClock.register_system(actions)
 	SimClock.register_system(player)
+	SimClock.register_system(combat)
 
 
 ## Detach from the autoload clock so re-instancing Main (tests) never double-ticks (D-S22-10).
@@ -64,11 +71,13 @@ func _exit_tree() -> void:
 	SimClock.unregister_system(register)
 	SimClock.unregister_system(actions)
 	SimClock.unregister_system(player)
+	SimClock.unregister_system(combat)
 
 
 ## Every route into FIGHT (D-S22-5, Story 2.3 AC9): reset the player to spawn and the register to
-## `fight_start`, then start ticking both.
-func enter_fight(fight_start: PackedInt32Array) -> void:
+## `fight_start`, then start ticking both. `with_practice` (Story 2.7, debug Shift+F2 only) places
+## the practice target, reset; without it the fight has no target.
+func enter_fight(fight_start: PackedInt32Array, with_practice: bool = false) -> void:
 	player.reset_for_fight(SPAWN_PX)
 	player.set_active(true)
 	if not register.set_fight_start(fight_start):
@@ -77,13 +86,28 @@ func enter_fight(fight_start: PackedInt32Array) -> void:
 	register.set_active(true)
 	actions.reset_for_fight()
 	actions.set_active(true)
+	_set_practice(with_practice)
 	_redraw_player_view()
+
+
+## Places (reset) or removes the practice target and hands the resolver its target list.
+func _set_practice(on: bool) -> void:
+	if on:
+		if practice_target == null:
+			practice_target = PracticeTarget.new()
+		practice_target.position_px = PRACTICE_TARGET_PX
+		practice_target.reset()
+		combat.targets = [practice_target]
+	else:
+		practice_target = null
+		combat.targets = []
 
 
 func leave_fight() -> void:
 	player.set_active(false)
 	register.set_active(false)
 	actions.set_active(false)
+	_set_practice(false) # a stale target never outlives its fight (review 2.7)
 
 
 ## Drops the previous fight's cached frame so the view never shows the old position for a frame.

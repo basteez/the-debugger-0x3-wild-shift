@@ -16,13 +16,30 @@ func before_each() -> void:
 	_cd = Cooldowns.new()
 
 
+## Story 2.7 AC6: one ResolveInput per call, built here.
+func _req_input(frame: int, window: Vector2i, def: ActionDef = null, action_frame: int = 0, chain_key: StringName = &"", chain_serial: int = -1, shift_serial: int = 0, link: LinkState = null, combos: ComboTable = null) -> ResolveInput:
+	var input := ResolveInput.new()
+	input.buffer = _buf
+	input.frame = frame
+	input.window = window
+	input.action = def
+	input.action_frame = action_frame
+	input.chain_key = chain_key
+	input.chain_serial = chain_serial
+	input.shift_serial = shift_serial
+	input.cooldowns = _cd
+	input.link = link
+	input.combos = combos
+	return input
+
+
 ## Resolve with no running action.
 func _idle(frame: int, window: Vector2i) -> ActionRequest:
-	return ActionResolver.resolve(_buf, frame, window, null, 0, &"", -1, 0, _cd)
+	return ActionResolver.resolve(_req_input(frame, window))
 
 
 func _running(frame: int, window: Vector2i, def: ActionDef, action_frame: int, chain_key: StringName = &"", chain_serial: int = -1, shift_serial: int = 0) -> ActionRequest:
-	return ActionResolver.resolve(_buf, frame, window, def, action_frame, chain_key, chain_serial, shift_serial, _cd)
+	return ActionResolver.resolve(_req_input(frame, window, def, action_frame, chain_key, chain_serial, shift_serial))
 
 
 func test_solo_press_on_attack_and_dash() -> void:
@@ -179,7 +196,7 @@ func _open_link(pair: Vector2i, serial: int = 0) -> LinkState:
 
 
 func _linked(frame: int, window: Vector2i, def: ActionDef, action_frame: int, link: LinkState, shift_serial: int = 0) -> ActionRequest:
-	return ActionResolver.resolve(_buf, frame, window, def, action_frame, &"", -1, shift_serial, _cd, link, Defs.COMBOS)
+	return ActionResolver.resolve(_req_input(frame, window, def, action_frame, &"", -1, shift_serial, link, Defs.COMBOS))
 
 
 func test_combo_press_during_slash_active_is_held() -> void:
@@ -292,3 +309,28 @@ func test_j_still_resolves_while_the_link_owns_k() -> void:
 	var r: ActionRequest = _linked(30, Vector2i(D, A), null, 0, link)
 	assert_eq(r.key, J, "J's dash")
 	assert_eq(r.def, Defs.DASH)
+
+
+# --- Story 2.7 AC6: the ResolveInput parameter object ---
+
+func test_resolve_input_defaults_match_the_old_optional_arguments() -> void:
+	var input := ResolveInput.new()
+	assert_null(input.action)
+	assert_eq(input.action_frame, 0)
+	assert_eq(input.chain_key, &"")
+	assert_eq(input.chain_serial, -1)
+	assert_eq(input.shift_serial, 0)
+	assert_null(input.link)
+	assert_null(input.combos)
+
+
+func test_resolve_with_null_or_incomplete_input_is_null() -> void:
+	assert_null(ActionResolver.resolve(null))
+	var input := ResolveInput.new()
+	input.cooldowns = _cd
+	assert_null(ActionResolver.resolve(input), "no buffer")
+	input.buffer = _buf
+	input.cooldowns = null
+	_buf.push(J, 0)
+	assert_null(ActionResolver.resolve(input), "no cooldowns")
+	assert_eq(_buf.size(), 1, "nothing consumed")

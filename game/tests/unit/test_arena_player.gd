@@ -112,3 +112,13 @@ func test_main_registers_and_unregisters_register() -> void:
 	remove_child(main)
 	assert_false((SimClock.get(&"_systems") as Array).has(arena.register), "unregistered on exit")
 	main.free()
+
+
+func test_leave_fight_drops_the_practice_target() -> void:
+	var arena := Arena.new()
+	arena.enter_fight(Register.fight_start_for_boss(0), true)
+	assert_not_null(arena.practice_target)
+	arena.leave_fight()
+	assert_null(arena.practice_target)
+	assert_eq(arena.combat.targets.size(), 0)
+	arena.free()

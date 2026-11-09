@@ -101,3 +101,65 @@ func test_main_adds_debug_keys_only_when_enabled() -> void:
 func test_f9_without_overlay_is_not_consumed() -> void:
 	var keys: DebugKeys = autofree(DebugKeysScript.new())
 	assert_false(keys.handle_key(_key(KEY_F9)))
+
+
+# --- Story 2.7: Shift+F2 practice target (D-S27-3) ---
+
+func test_shift_f2_maps_to_fight_with_practice() -> void:
+	assert_eq(DebugKeysScript.shift_target_for_key(KEY_F2), {&"state": GameScript.FlowState.FIGHT, &"boss_index": 0, &"practice": true})
+	for code: Key in [KEY_F1, KEY_F3, KEY_F9, KEY_A]:
+		assert_true(DebugKeysScript.shift_target_for_key(code).is_empty(), "key %d" % code)
+	assert_false(DebugKeysScript.target_for_key(KEY_F2).has(&"practice"), "plain F2 has no practice")
+
+
+func test_shift_f2_requests_practice_and_plain_f2_clears_it() -> void:
+	Debug.enabled = true
+	var keys: DebugKeys = autofree(DebugKeysScript.new())
+	assert_true(keys.handle_key(_key(KEY_F2, true, false, true)))
+	assert_eq(Game.flow_state, GameScript.FlowState.FIGHT)
+	assert_eq(Game.run.boss_index, 0)
+	assert_true(keys.practice_requested)
+	assert_true(keys.handle_key(_key(KEY_F2)))
+	assert_false(keys.practice_requested, "plain F2 is unchanged: no target")
+	assert_true(keys.handle_key(_key(KEY_F2, true, false, true)))
+	assert_true(keys.handle_key(_key(KEY_F1)))
+	assert_false(keys.practice_requested, "any other jump clears it")
+
+
+func test_main_places_the_practice_target_only_on_shift_f2_and_keeps_it_on_retry() -> void:
+	Debug.enabled = true
+	var main: Node2D = (load("res://src/main/main.tscn") as PackedScene).instantiate()
+	add_child_autofree(main)
+	var keys: DebugKeys = main.get_node(^"DebugKeys")
+	var arena: Arena = main.arena
+	keys.handle_key(_key(KEY_F2, true, false, true))
+	assert_not_null(arena.practice_target)
+	assert_eq(arena.practice_target.position_px, Arena.PRACTICE_TARGET_PX)
+	assert_eq(arena.combat.targets.size(), 1)
+	assert_eq(arena.combat.targets[0], arena.practice_target)
+	assert_eq(main.practice_view.target, arena.practice_target)
+	assert_eq(main.frame_overlay.practice_target, arena.practice_target)
+	arena.practice_target.register_hit(1, 1, &"slash_1", 10)
+	main.apply_flow_state(GameScript.FlowState.FIGHT, 0) # a retry re-enters FIGHT
+	assert_not_null(arena.practice_target, "a retry keeps the target")
+	assert_eq(arena.practice_target.hits, 0, "and resets it")
+	keys.handle_key(_key(KEY_F2))
+	assert_null(arena.practice_target)
+	assert_true(arena.combat.targets.is_empty())
+	assert_null(main.practice_view.target)
+
+
+func test_release_gate_has_no_practice_target_or_key() -> void:
+	Debug.enabled = false
+	var main: Node2D = (load("res://src/main/main.tscn") as PackedScene).instantiate()
+	add_child_autofree(main)
+	assert_null(main.get_node_or_null(^"DebugKeys"))
+	assert_null(main.practice_view)
+	assert_false(main.wants_practice())
+	main.apply_flow_state(GameScript.FlowState.FIGHT, 0)
+	assert_null(main.arena.practice_target)
+	assert_true(main.arena.combat.targets.is_empty())
+	var before: int = Game.flow_state
+	var keys: DebugKeys = autofree(DebugKeysScript.new())
+	keys.handle_key(_key(KEY_F2, true, false, true))
+	assert_eq(Game.flow_state, before, "Game refuses debug jumps when the gate is closed")

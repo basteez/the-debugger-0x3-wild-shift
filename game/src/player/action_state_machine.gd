@@ -16,6 +16,12 @@ var action: ActionDef = null
 var action_frame: int = 0
 ## Facing captured when the action started; held for the whole action (D-S25-6).
 var facing: Vector2i = Player.DEFAULT_FACING
+## Hit-shape anchor (Story 2.7, D-S27-13): the player's position when the running action started,
+## held for the whole action, so Dash Strike's capsule covers the path it travels. Arena-local px.
+var action_origin_px: Vector2 = Vector2.ZERO
+## Incremented on every action start, never reset in a session (Story 2.7, D-S27-4): a target
+## remembers the serial of the action that last hit it, so each action hits it once.
+var action_serial: int = 0
 ## Chain record (D-S25-2): the key and slot that started the ATTACK chain and the register's
 ## shift serial at its start; chain_serial -1 = no chain.
 var chain_key: StringName = &""
@@ -57,7 +63,7 @@ func tick(ctx: SimContext) -> void:
 	var window: Vector2i = _register.active_window() if _register != null else Vector2i.ZERO
 	var serial: int = _register.shift_serial if _register != null else 0
 	_age_link(serial)
-	var request: ActionRequest = ActionResolver.resolve(_buffer, ctx.poll_frame, window, action, action_frame, chain_key, chain_serial, serial, cooldowns, link, combos)
+	var request: ActionRequest = ActionResolver.resolve(_resolve_input(ctx.poll_frame, window, serial))
 	if request != null and request.def == null:
 		_apply_link_op(request)
 		request = null
@@ -71,6 +77,23 @@ func tick(ctx: SimContext) -> void:
 	state = state_for(action, action_frame)
 	_update_link(window, serial)
 	_apply_movement()
+
+
+## The resolver's inputs for this tick (Story 2.7 AC6): one object instead of 11 arguments.
+func _resolve_input(poll_frame: int, window: Vector2i, serial: int) -> ResolveInput:
+	var input := ResolveInput.new()
+	input.buffer = _buffer
+	input.frame = poll_frame
+	input.window = window
+	input.action = action
+	input.action_frame = action_frame
+	input.chain_key = chain_key
+	input.chain_serial = chain_serial
+	input.shift_serial = serial
+	input.cooldowns = cooldowns
+	input.link = link
+	input.combos = combos
+	return input
 
 
 ## True while the executing frame is inside the running action's invulnerable range (FR11).
@@ -136,6 +159,8 @@ func _start(request: ActionRequest, serial: int) -> void:
 	combo = request.combo
 	link_second = request.link_second
 	facing = _player.facing if _player != null else Player.DEFAULT_FACING
+	action_origin_px = _player.position_px if _player != null else Vector2.ZERO
+	action_serial += 1
 	_start_serial = serial
 	var cooldown: int = request.def.cooldown_frames
 	if request.combo != null:
