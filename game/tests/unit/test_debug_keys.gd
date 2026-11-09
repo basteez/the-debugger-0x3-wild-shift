@@ -163,3 +163,21 @@ func test_release_gate_has_no_practice_target_or_key() -> void:
 	var keys: DebugKeys = autofree(DebugKeysScript.new())
 	keys.handle_key(_key(KEY_F2, true, false, true))
 	assert_eq(Game.flow_state, before, "Game refuses debug jumps when the gate is closed")
+
+
+# --- Story 2.8: F10 perf overlay (AC6) ---
+
+func test_f10_toggles_the_perf_overlay() -> void:
+	assert_eq(DebugKeysScript.PERF_KEY, KEY_F10)
+	var keys: DebugKeys = autofree(DebugKeysScript.new())
+	var overlay: PerfOverlay = autofree(PerfOverlay.new())
+	assert_false(keys.handle_key(_key(KEY_F10)), "not consumed without an overlay")
+	keys.perf_overlay = overlay
+	assert_true(keys.handle_key(_key(KEY_F10)))
+	assert_true(overlay.visible)
+	assert_false(keys.handle_key(_key(KEY_F10, true, true)), "echo ignored")
+	assert_false(keys.handle_key(_key(KEY_F10, true, false, true)), "Shift+F10 is not the overlay")
+	assert_true(overlay.visible)
+	assert_true(keys.handle_key(_key(KEY_F10)))
+	assert_false(overlay.visible)
+	assert_true(DebugKeysScript.target_for_key(KEY_F10).is_empty(), "F10 is not a jump key")

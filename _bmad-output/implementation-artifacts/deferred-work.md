@@ -136,7 +136,7 @@ Story 1.3 AC9 / I-6 ("mumble-speech web check, moved to 3.7") is UNBLOCKED. Tizi
 - Click is dropped while audio is locked (debug jump keys skip the title press); call `AudioManager.unlock()` from debug keys if QA needs the sound.
 - Click and inversion ignore the `register_shifted` source and `SimClock.paused`; gate on `&"player"` when boss shifts arrive (Epic 3).
 - `AudioManager.play_sfx` uses one shared player, so overlapping SFX cut each other; pool in Story 7.2.
-- Hit-stop test uses a synthetic frame counter and the AC5 source guard covers only two files; real hit-stop check is H4 (Story 2.8).
+- Hit-stop test uses a synthetic frame counter and the AC5 source guard covers only two files; ~~real hit-stop check is H4 (Story 2.8)~~ RESOLVED in code by Story 2.8 (real hit-stop on every hit; the in-browser feel check is Story 2.8 H4, which also closes this 2.4 H4).
 
 ## Deferred from: code review of story-2-5-action-state-machine-with-attack-and-dash (2026-11-07)
 
@@ -169,3 +169,14 @@ Story 1.3 AC9 / I-6 ("mumble-speech web check, moved to 3.7") is UNBLOCKED. Tizi
 - `ResolveInput` is allocated every tick (RefCounted, cheap); reuse one instance if a profile on web shows GC churn. `PracticeTargetView._process` redraws every frame; drive from `hit_landed` if it matters.
 - Missing tests: several targets hit in one tick, facing up/down anchors, `DamageCalc` with non-multiple-of-5 multipliers, `FrameOverlay` target drawing.
 
+## Deferred from: code review of story-2-8-hit-feedback-hit-stop-particles-and-log-lines (2026-11-09)
+
+- 2.7 temporary arena readout: RESOLVED in Story 2.8 (removed; LogPanel shows hits).
+- `JuiceDirector` effects run from `_process`: a 1-frame inversion or the 6-frame shake start can be skipped when one render frame spans 2+ physics ticks (web hitch); shake offset and inversion stay applied while paused mid-effect. Cosmetic; revisit if H1/H2 show it.
+- ScreenFX shader: dither checker assumes the viewport equals `Const.BASE_RES`; invert maps every non-palette pixel (red warning lines, Epic 3/4) to INK or BG. `JuiceDirector.reset()` clears dither on each fight entry; revisit with Breakpoint (Epic 4).
+- Solo hits ignore `ActionDef.hitstop_frames` by design (D-S28-1); generalise or document with crit/Patched states (Epic 3). "Max wins" resolver test cannot fail because one action per tick; pure `HitFeedback` test covers it.
+- Guards: hit-stop regex is evadable (`set`/`call`, `main/`); nothing enforces "only JuiceDirector calls ScreenFX setters" or "sim never reads ParticlePool".
+- Camera2D shake also jitters Particles and PerfOverlay; no explicit `make_current`/limits (boss camera, later). Burst particles read as a clump during hit-stop [design call: judge by feel in H1].
+- PerfOverlay: "frame" is `TIME_PROCESS` only; F10 may be captured by browser menus (Firefox/Linux); hidden outside FIGHT. Debug only.
+- Micro-costs: ParticlePool scans 300 slots without a free-list; `LogPanel.lines()` allocates per `_draw`. Test-only accessors on production nodes; `CameraShakeDriver` PREDELETE camera cleanup is brittle.
+- Missing tests: LogPanel/PerfOverlay `_draw`, AC8 through the director's `_process`. Hit-stop 6 plus queued input leaves 2 frames of buffer slack (see the 2.3 note above).

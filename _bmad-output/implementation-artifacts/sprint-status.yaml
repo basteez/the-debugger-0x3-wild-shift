@@ -1,5 +1,5 @@
 # generated: 2026-11-06
-# last_updated: 2026-11-07
+# last_updated: 2026-11-09
 # project: github-gameoff-2026
 # project_key: NOKEY
 # tracking_system: file-system
@@ -81,7 +81,7 @@
 #     basteez/mumble-speech#32 resolved in v0.3.0 (2026-11-07); fallback = pre-render backend.
 
 generated: 2026-11-06
-last_updated: 2026-11-07
+last_updated: 2026-11-09
 project: github-gameoff-2026
 project_key: NOKEY
 tracking_system: file-system
@@ -108,7 +108,7 @@ development_status:
   2-5-action-state-machine-with-attack-and-dash: done
   2-6-ordered-combo-engine-and-dash-strike: done # large; not split (design call)
   2-7-combat-resolver-damage-calc-and-practice-target: done
-  2-8-hit-feedback-hit-stop-particles-and-log-lines: backlog
+  2-8-hit-feedback-hit-stop-particles-and-log-lines: done
   2-9-player-damage-death-and-instant-retry: backlog
   epic-2-retrospective: optional
 

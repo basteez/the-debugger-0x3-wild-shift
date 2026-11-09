@@ -32,10 +32,16 @@ func before_each() -> void:
 	_fsm.set_active(true)
 	_combat = CombatResolver.new(_fsm, _player)
 	_t = 0
+	SimClock._pending_hitstop = 0
+	SimClock.hitstop_frames = 0
 	watch_signals(EventBus)
 
 
 func after_each() -> void:
+	for system: SimSystem in [_reg, _fsm, _player, _combat]:
+		SimClock.unregister_system(system)
+	SimClock._pending_hitstop = 0
+	SimClock.hitstop_frames = 0
 	_combat = null
 	_fsm = null
 	_player = null
@@ -231,3 +237,85 @@ func test_facing_left_hits_the_left_target_and_never_the_right() -> void:
 	_run_to(24)
 	assert_eq(left.hits, 1)
 	assert_eq(right.hits, 0)
+
+
+# --- Story 2.8: hit-stop requests (AC1) ---
+
+func test_slash_hit_requests_normal_hitstop_3() -> void:
+	_ring([A, D])
+	_target(SPAWN + Vector2(32, 0))
+	_buf.push(J, 0)
+	_run_to(6)
+	assert_eq(SimClock._pending_hitstop, 0, "no hit, no request")
+	_tick() # first ACTIVE frame: the hit
+	assert_eq(SimClock._pending_hitstop, HitFeedback.NORMAL_HITSTOP)
+
+
+func test_dash_strike_hit_requests_its_own_6() -> void:
+	_ring([A, D])
+	_target(SPAWN + Vector2(64, 0))
+	_buf.push(J, 0)
+	_run_to(3)
+	_buf.push(K, _t)
+	_run_to(11)
+	SimClock._pending_hitstop = 0 # nothing earlier hit (the arc does not reach 4 tiles)
+	_tick()
+	assert_eq(_fsm.action, Defs.DASH_STRIKE)
+	assert_eq(Defs.DASH_STRIKE.hitstop_frames, 6)
+	assert_eq(SimClock._pending_hitstop, 6)
+
+
+func test_a_tick_with_no_hit_requests_nothing() -> void:
+	_ring([A, D])
+	_target(SPAWN + Vector2(200, 0)) # out of reach
+	_buf.push(J, 0)
+	_run_to(22)
+	assert_eq(SimClock._pending_hitstop, 0)
+	assert_signal_emit_count(EventBus, "hit_landed", 0)
+
+
+func test_two_hits_in_one_tick_request_once_with_the_max() -> void:
+	_ring([A, D])
+	_target(SPAWN + Vector2(32, 0))
+	_target(SPAWN + Vector2(24, 8))
+	_buf.push(J, 0)
+	_run_to(7)
+	assert_signal_emit_count(EventBus, "hit_landed", 2)
+	assert_eq(SimClock._pending_hitstop, HitFeedback.NORMAL_HITSTOP)
+
+
+func test_through_simclock_slash_freezes_the_world_for_3_frames() -> void:
+	# Integration (G3): the real autoload SimClock ticks the systems; hit-stop lands after the tick.
+	_buf = SimClock.buffer
+	_buf.clear()
+	_reg = Register.new(_buf)
+	_reg.set_active(true)
+	_fsm = ActionStateMachine.new(_buf, _player, _reg)
+	_fsm.reset_for_fight()
+	_fsm.set_active(true)
+	_combat = CombatResolver.new(_fsm, _player)
+	_ring([A, D])
+	var t: PracticeTarget = _target(SPAWN + Vector2(32, 0))
+	var saved_source: InputSource = SimClock.input_source
+	var saved_paused: bool = SimClock.paused
+	SimClock.input_source = null
+	SimClock.paused = false
+	for system: SimSystem in [_reg, _fsm, _player, _combat]:
+		SimClock.register_system(system)
+	_buf.push(J, SimClock.poll_frame)
+	var guard: int = 0
+	while t.hits == 0 and guard < 30:
+		SimClock.tick()
+		guard += 1
+	assert_eq(t.hits, 1)
+	assert_eq(SimClock.hitstop_frames, 3, "the hit tick sets 3 frames of hit-stop")
+	var frame: int = SimClock.sim_frame
+	var action_frame: int = _fsm.action_frame
+	for i: int in 3:
+		SimClock.tick()
+		assert_eq(SimClock.sim_frame, frame, "frozen on hit-stop frame %d" % i)
+		assert_eq(_fsm.action_frame, action_frame)
+	SimClock.tick()
+	assert_eq(SimClock.sim_frame, frame + 1, "the world resumes")
+	SimClock.input_source = saved_source
+	SimClock.paused = saved_paused

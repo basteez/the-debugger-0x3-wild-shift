@@ -41,6 +41,17 @@ if [ ${#sim_paths[@]} -gt 0 ]; then
 		< <(grep -rnE --include='*.gd' '(^|[^.[:alnum:]_])Input\.' "${sim_paths[@]}" | grep -v '^game/src/input/live_input\.gd:' | grep -vE '^[^:]+:[0-9]+:[[:space:]]*#' || true)
 fi
 
+# Story 2.8 (AD-01, D-S28-12): hit-stop is simulation state; presentation never requests or writes it.
+PRESENTATION_DIRS=(presentation ui debug)
+pres_paths=()
+for d in "${PRESENTATION_DIRS[@]}"; do
+	[ -d "game/src/$d" ] && pres_paths+=("game/src/$d")
+done
+if [ ${#pres_paths[@]} -gt 0 ]; then
+	report "hit-stop requested or written from presentation (sim systems only, AD-01)" \
+		< <(grep -rnE --include='*.gd' '\brequest_hitstop[[:space:]]*\(|\bhitstop_frames[[:space:]]*([-+*/]?=[^=])' "${pres_paths[@]}" | grep -vE '^[^:]+:[0-9]+:[[:space:]]*#' || true)
+fi
+
 report "direct output call outside Log (use Log.info/debug/warn/error)" \
 	< <(grep -rnE --include='*.gd' '(^|[^.[:alnum:]_])(print|prints|printt|printraw|printerr|print_rich|print_debug|print_verbose|push_error|push_warning)[[:space:]]*\(' game/src | grep -v '^game/src/autoloads/log\.gd:' | grep -vE '^[^:]+:[0-9]+:[[:space:]]*#' || true)
 
