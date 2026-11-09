@@ -544,7 +544,7 @@ func _loop(at: Vector2, k: int = 0, open: bool = true, skip_phase: bool = false)
 	assert_true(b.setup(IL_DEF, null, ctx))
 	b.reset_for_fight()
 	var centre: Vector2 = b.body_center_px
-	ctx.player_source = func() -> Vector2: return centre # no drift (never capture b: a ref cycle)
+	ctx.contact_source = func() -> Vector2: return centre # no drift (never capture b: a ref cycle)
 	var sim := SimContext.new()
 	if skip_phase:
 		b.debug_skip_phase()

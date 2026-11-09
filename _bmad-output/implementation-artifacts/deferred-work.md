@@ -221,3 +221,13 @@ Story 1.3 AC9 / I-6 ("mumble-speech web check, moved to 3.7") is UNBLOCKED. Tizi
 - `Arena._set_boss`: null `load()` result and failed setup give no log; boss reuse keeps old `body_center_px`.
 - Patched tag/bar stack can overlap the ring top and the `;`; revisit with art.
 
+
+## Deferred from: code review of story-3.4 (2026-11-09)
+
+- Constrict is escapable by hugging a wall/corner: the ring centre is clamped inward (radius + inset), so a player at the edge can sit outside the disc; also the live chase can leave the tell outline (D-S34-21). Playtest (G1), then decide: clamp to play area only.
+- Constrict RECOVERY: radius snaps 2 -> 3.82 tiles and re-clamps the centre in one tick; segments can appear on a wall-hugging player without a tell. Ease or skip contact for the first recovery ticks.
+- Last tick of Head Rush (10000 mtiles) and Constrict (2000 mtiles) is never contact-checked (D-S34-25); effective reach 9750 / 2030. Tests assert the end value on state, not contact. Head Rush `step_mtiles` uses integer division; validate that charge*1000 % active == 0 if retuned.
+- Run seed from `Time.get_ticks_usec()` is low-entropy on web; `fight_seed_for` masks `p_run_seed & 0x7FFFFFFF` so 0x7FFFFFFF collides with 0 mod M; `fight_attempt` also counts debug-jump FIGHT entries.
+- Head Rush aim inside the ring flips direction (charges inward); aim == centre falls back inconsistently. Untested.
+- Test gaps: no positive control for dash-invulnerability tests; head-hit test does not watch hit_landed/Patched/hit-stop; `test_a_new_run_takes_a_new_run_seed` never asserts a nonzero new seed; Constrict ACTIVE positions not in `declared_positions` (AC 13); debug-jump FIGHT entry untested for seed; isolation guard is textual only (no Time/OS/shuffle bans, `#` in strings); hard-coded 7.9/8.5 px offsets and private `_pending` reads.
+- Float geometry (`normalized`, `move_toward`, `from_angle`) feeds hashed state; native vs wasm divergence not covered (same as 3.3).

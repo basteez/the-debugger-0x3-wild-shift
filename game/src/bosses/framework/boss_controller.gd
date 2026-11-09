@@ -80,6 +80,7 @@ func setup(p_def: BossDef, p_health: PlayerHealth, p_arena: ArenaContext) -> boo
 				at = _defs.size()
 				_defs.append(attack_def)
 				var attack: BossAttack = attack_def.attack_script.new()
+				attack.bind_boss(self) # Story 3.4 (D-S34-11): weak back-reference, no cycle
 				_attacks.append(attack)
 			pool.append(at)
 		_pools.append(pool)
@@ -133,12 +134,15 @@ func tick(ctx: SimContext) -> void:
 func _advance(rng: RandomNumberGenerator) -> void:
 	match state:
 		BossState.GAP:
-			if _pools[phase_index].is_empty(): # D-S33-9: no attacks yet, stay in GAP (no pick, no RNG)
+			# D-S33-9: no attacks yet; Story 3.4 (D-S34-23): or the body holds its attacks (the loop has
+			# not started). Stay in GAP: no pick, no RNG.
+			if _pools[phase_index].is_empty() or not _attacks_allowed():
 				_enter(BossState.GAP, def.phases[phase_index].gap_frames)
 				return
 			_current_index = pick_next(rng)
 			current = _defs[_current_index]
 			_enter(BossState.TELL, current.tell)
+			_on_attack_started()
 			_attacks[_current_index].on_tell(_arena)
 			EventBus.boss_tell_started.emit(current.id, current.tell_sfx)
 		BossState.TELL:
@@ -162,8 +166,11 @@ func _advance(rng: RandomNumberGenerator) -> void:
 func _cancel_attack() -> void:
 	if _current_index >= 0 and _arena != null:
 		_attacks[_current_index].on_cancel(_arena)
+	var had_attack: bool = _current_index >= 0
 	current = null
 	_current_index = -1
+	if had_attack:
+		_on_attack_cancelled() # Story 3.4 (D-S34-15): the body restores its own state
 
 
 func _end_attack() -> void:
@@ -181,11 +188,16 @@ func _enter(next: BossState, frames: int) -> void:
 
 ## Draws the next attack's cache index from the current phase's pool (D-S31-6): uniform, and when
 ## the draw would make three in a row, redrawn from the pool minus that attack. Records the pick.
+## Story 3.4 (D-S34-3): a one-attack pool has nothing to redraw from, so it repeats its attack.
 func pick_next(rng: RandomNumberGenerator) -> int:
 	var pool: PackedInt32Array = _pools[phase_index]
+	if pool.size() == 1: # nothing to choose: no RNG draw, by construction (review 3.4)
+		second_last_pick = last_pick
+		last_pick = pool[0]
+		return last_pick
 	var slot: int = rng.randi_range(0, pool.size() - 1)
 	var pick: int = pool[slot]
-	if pick == last_pick and pick == second_last_pick:
+	if pool.size() > 1 and pick == last_pick and pick == second_last_pick:
 		var other: int = rng.randi_range(0, pool.size() - 2)
 		if other >= slot:
 			other += 1
@@ -200,7 +212,7 @@ func pick_next(rng: RandomNumberGenerator) -> int:
 func _check_contact() -> void:
 	if _health == null or _arena == null or state == BossState.DEFEATED:
 		return
-	if touches_player(_arena.player_position()):
+	if touches_player(_arena.body_contact_position()):
 		_health.queue_hit()
 
 
@@ -224,6 +236,8 @@ func take_hit(damage: int) -> void:
 ## speed-ramp hook runs, then boss_roar_started and boss_phase_changed.
 func _change_phase(next: int) -> void:
 	phase_index = next
+	last_pick = -1 # the no-three-in-a-row history is per phase (review 3.4)
+	second_last_pick = -1
 	_cancel_attack()
 	_enter(BossState.ROAR, ROAR_FRAMES)
 	_on_phase_reset()
@@ -308,6 +322,23 @@ func _tick_body(_ctx: SimContext) -> void:
 	pass
 
 
+## Story 3.4 virtual hooks (D-S34-15, D-S34-22, D-S34-23). Defaults do nothing / allow attacks.
+
+## False holds the FSM in GAP at the end of each gap (no pick, no RNG). Default: true.
+func _attacks_allowed() -> bool:
+	return true
+
+
+## Right after TELL entry, before the attack's on_tell.
+func _on_attack_started() -> void:
+	pass
+
+
+## After a running attack was cut (phase change or defeat) and its on_cancel ran.
+func _on_attack_cancelled() -> void:
+	pass
+
+
 ## Debug F6 (AC 7): HP to 0 through take_hit.
 func debug_kill() -> void:
 	take_hit(hp)
@@ -326,6 +357,18 @@ func debug_skip_phase() -> bool:
 
 func jitter_level() -> int:
 	return jitter_for_hp(hp, def.max_hp) if def != null else 0
+
+
+## The running attack's script instance (TELL, ACTIVE, RECOVERY), or null (Story 3.4, D-S34-11).
+func current_attack() -> BossAttack:
+	return _attacks[_current_index] if _current_index >= 0 else null
+
+
+## True when the boss's own contact area should include the live attack's hazard: the attack's
+## hazard_hit while ACTIVE (Story 3.4, D-S34-9). Bodies call it from touches_player.
+func attack_hazard_hit(p: Vector2) -> bool:
+	var attack: BossAttack = current_attack()
+	return attack != null and state == BossState.ACTIVE and attack.hazard_hit(p)
 
 
 ## The script instance cached for `attack_def`, or null (tests, BossView).

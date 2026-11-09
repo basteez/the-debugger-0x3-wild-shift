@@ -194,7 +194,7 @@ func _remove_boss() -> void:
 func _make_arena_context() -> ArenaContext:
 	var ctx := ArenaContext.new()
 	ctx.target_source = func() -> Vector2: return player.position_px
-	ctx.player_source = func() -> Vector2: return player.position_px
+	ctx.contact_source = func() -> Vector2: return player.position_px
 	ctx.shift_count = func() -> int: return register.shift_serial # read-only (D-S33-6, NP-3)
 	return ctx
 

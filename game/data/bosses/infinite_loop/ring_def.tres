@@ -12,3 +12,6 @@ drift_tps = 2
 open_frames = 90
 contact_radius_tiles = 0.5
 hurt_radius_tiles = 0.5
+head_charge_tiles = 10
+constrict_chase_tps = 8
+constrict_radius_tiles = 2

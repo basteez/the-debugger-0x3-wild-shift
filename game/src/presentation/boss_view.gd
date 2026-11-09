@@ -12,6 +12,10 @@ extends Node2D
 ## positions (`{` / `}` alternating, the `;` at the junction: a lit, inverted cell while open, a
 ## plain `;` while closed, D-S33-24), and the `i = N` counter inside the ring above its centre
 ## (D-S33-23). The `// patched` stack is clamped to the arena's top edge (D3).
+## Story 3.4 (G1, D-S34-12): the running attack's presentation, read through the BossAttack getters:
+## a `!` one cell above each tell mark (Head Rush's origin, clamped into the arena), a `{` cell at each
+## live hazard (the head), and an INK circle outline (Constrict's tell outline at nominal size, then
+## the disc's edge while ACTIVE). INK/BG only. Reads only.
 
 const GLYPH_SCALE := 2
 const TELL_MARK := "!"
@@ -31,6 +35,9 @@ const SEMICOLON := ";"
 const COUNTER_SCALE := 1
 ## The `i = N` counter sits this many tiles inside the ring's top (D-S33-23).
 const COUNTER_INSET_TILES := 1.5
+## Story 3.4: the Head Rush head glyph and the outline's segment count.
+const HEAD_GLYPH := "{"
+const OUTLINE_POINTS := 48
 
 var boss: BossController
 
@@ -119,7 +126,24 @@ func _draw_ring(body: InfiniteLoopBody) -> void:
 	GlyphFont.draw_at(self, counter_left, counter, Palette.INK, COUNTER_SCALE)
 	if body.weak_window.is_patched() and not defeated:
 		_draw_patched(counter_left, counter_size, body.weak_window.frames_left)
+	if not defeated:
+		_draw_attack(body.current_attack(), cell)
 	_draw_number(Vector2(0, 0))
+
+
+## Story 3.4 (G1): the running attack's tell marks, hazard cells and outline. Reads only.
+func _draw_attack(attack: BossAttack, cell: Vector2) -> void:
+	if attack == null:
+		return
+	for p: Vector2 in attack.tell_marks():
+		GlyphFont.draw_at(self, line_top_left(tell_mark_centre(p), cell), TELL_MARK, Palette.INK, GLYPH_SCALE)
+	for p: Vector2 in attack.hazard_positions():
+		var top_left: Vector2 = line_top_left(p, cell)
+		draw_rect(Rect2(top_left, cell), Palette.BG)
+		GlyphFont.draw_at(self, top_left, HEAD_GLYPH, Palette.INK, GLYPH_SCALE)
+	var outline: Vector3 = attack.outline_circle()
+	if outline.z > 0.0:
+		draw_arc(Vector2(outline.x, outline.y), outline.z, 0.0, TAU, OUTLINE_POINTS, Palette.INK, 1.0)
 
 
 func _draw_number(size: Vector2) -> void:
@@ -169,6 +193,15 @@ static func ring_glyph(k: int) -> String:
 	if k == 0:
 		return SEMICOLON
 	return CLOSE_BRACE if k % 2 == 1 else OPEN_BRACE
+
+
+## Centre of a tell `!` (Story 3.4, D-S34-12): one cell above `anchor`, clamped so the whole cell
+## stays inside the play area. Pure.
+static func tell_mark_centre(anchor: Vector2) -> Vector2:
+	var half: float = GlyphFont.CELL * GLYPH_SCALE / 2.0
+	var area: Rect2 = Arena.play_area()
+	var p: Vector2 = anchor - Vector2(0.0, Const.TILE_PX)
+	return Vector2(clampf(p.x, area.position.x + half, area.end.x - half), clampf(p.y, area.position.y + half, area.end.y - half))
 
 
 ## The loop counter text (AC 1). Pure.

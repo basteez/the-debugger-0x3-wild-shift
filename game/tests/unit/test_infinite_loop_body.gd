@@ -3,6 +3,8 @@ extends GutTest
 ## (180 ticks per lap at 8 tiles/s), the +5% ramp and its cap, the `;` open 90 ticks per lap, `i`,
 ## drift and clamp, per-segment contact, the `;`-only hurtbox, ROAR, defeat, phases, zero RNG. No
 ## scene tree: the body is ticked directly with an ArenaContext whose shift count the test drives.
+## Story 3.4: the real def now has attack pools; these ring tests run on a copy with empty pools
+## (the 3.3 ring alone, D-S33-9). The attacks are covered by test_infinite_loop_attacks.gd.
 
 const GameScript := preload("res://src/autoloads/game.gd")
 const PLAYER_DEF: PlayerDef = preload("res://data/player/player_def.tres")
@@ -21,10 +23,28 @@ class FakeActions:
 
 
 var _ctx: SimContext
+## IL_DEF with every attack pool emptied (the 3.3 ring alone).
+var _ring_only: BossDef
 var _arena: ArenaContext
 var _player_px: Vector2
 var _shifts: int = 0
 var _saved_state: int
+
+
+func before_all() -> void:
+	_ring_only = ring_only_def()
+
+
+## A deep copy of the Infinite Loop def with empty attack pools.
+static func ring_only_def() -> BossDef:
+	var def: BossDef = IL_DEF.duplicate(true)
+	var phases: Array[PhaseDef] = []
+	for p: PhaseDef in def.phases:
+		var copy: PhaseDef = p.duplicate()
+		copy.attack_pool = []
+		phases.append(copy)
+	def.phases = phases
+	return def
 
 
 func before_each() -> void:
@@ -35,7 +55,7 @@ func before_each() -> void:
 	_shifts = 0
 	_player_px = Vector2(16, 4) * TILE + Vector2(0, 0.5 * TILE) # close to the ring centre
 	_arena = ArenaContext.new()
-	_arena.player_source = func() -> Vector2: return _player_px
+	_arena.contact_source = func() -> Vector2: return _player_px
 	_arena.shift_count = func() -> int: return _shifts
 	SimClock.set(&"_pending_hitstop", 0)
 
@@ -55,7 +75,7 @@ func _health() -> PlayerHealth:
 ## A reset body; with `still_player` the player stands on the ring centre, so nothing drifts.
 func _body(health: PlayerHealth = null, still_player: bool = true) -> InfiniteLoopBody:
 	var b := InfiniteLoopBody.new()
-	assert_true(b.setup(IL_DEF, health, _arena), "setup accepts the Infinite Loop def")
+	assert_true(b.setup(_ring_only, health, _arena), "setup accepts the Infinite Loop def (ring only)")
 	b.reset_for_fight()
 	if still_player:
 		_player_px = b.body_center_px

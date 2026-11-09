@@ -65,7 +65,7 @@ func before_each() -> void:
 	_ctx.reseed(1234)
 	_player_px = FAR_PX
 	_arena = ArenaContext.new()
-	_arena.player_source = func() -> Vector2: return _player_px
+	_arena.contact_source = func() -> Vector2: return _player_px
 	SimClock.set(&"_pending_hitstop", 0)
 
 
@@ -480,10 +480,9 @@ func test_phase_def_rules() -> void:
 	var a: AttackDef = _attack(&"a", 20, 1, 0)
 	var b: AttackDef = _attack(&"b", 20, 1, 0)
 	assert_eq(_phase(100, 1, [a, b]).validate().size(), 0)
-	assert_true(_has_message(_phase(100, 1, [a]).validate(), "at least 2"), "pool of one")
+	assert_eq(_phase(100, 1, [a]).validate().size(), 0, "Story 3.4 (D-S34-4): a pool of one is valid")
 	assert_eq(_phase(100, 1, []).validate().size(), 0, "Story 3.3 (D-S33-9): an empty pool is valid")
 	assert_true(_has_message(_phase(100, 1, [a, a]).validate(), "twice"), "same attack twice")
-	assert_true(_has_message(_phase(100, 1, [a, a]).validate(), "at least 2"))
 	assert_true(_has_message(_phase(100, 0, [a, b]).validate(), "gap_frames"))
 	assert_true(_has_message(_phase(0, 1, [a, b]).validate(), "hp_threshold"))
 	assert_true(_has_message(_phase(101, 1, [a, b]).validate(), "hp_threshold"))
@@ -508,7 +507,7 @@ func test_boss_def_rules() -> void:
 	var messages: PackedStringArray = bad.validate()
 	for needle: String in ["max_hp", "boss_id", "name_signature", "body_radius_tiles"]:
 		assert_true(_has_message(messages, needle), needle)
-	assert_true(_has_message(_boss_def([_phase(100, 1, [a])]).validate(), "phases[0]: phase attack_pool needs at least 2"), "phase rules surface")
+	assert_true(_has_message(_boss_def([_phase(100, 1, [a, a])]).validate(), "phases[0]: phase attack_pool lists a twice"), "phase rules surface")
 
 
 # --- AC 5: target injection and play-area bounds (D-S31-10) ---
@@ -522,7 +521,7 @@ func test_attacks_aim_at_the_injected_target() -> void:
 	var attack := c.attack_for(c.current) as RecordingAttack
 	assert_eq(attack.aim, fixed, "aims at the injected target, not the player")
 	assert_eq(_arena.target_position(), fixed)
-	assert_eq(_arena.player_position(), Vector2(400, 200))
+	assert_eq(_arena.body_contact_position(), Vector2(400, 200))
 
 
 func test_test_boss_attacks_aim_at_the_target() -> void:
@@ -541,7 +540,7 @@ func test_arena_default_target_is_the_player() -> void:
 	var arena := Arena.new()
 	arena.player.position_px = Vector2(77, 88)
 	assert_eq(arena.arena_context.target_position(), Vector2(77, 88))
-	assert_eq(arena.arena_context.player_position(), Vector2(77, 88))
+	assert_eq(arena.arena_context.body_contact_position(), Vector2(77, 88))
 	arena.free()
 
 

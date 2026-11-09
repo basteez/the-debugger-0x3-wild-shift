@@ -206,6 +206,57 @@ func test_debug_jump_into_fight_seeds_the_fight() -> void:
 	_assert_clock_seeded_with(game.run.fight_seed)
 
 
+# --- Story 3.4 AC 11 (B4, D-S34-2): per-run seed, fight_seed_for(run_seed, fight_attempt) ---
+
+func test_fight_seed_for_is_a_pure_function_of_run_and_attempt() -> void:
+	for run_seed: int in [1, 12345, 9876543210123, 0x7FFFFFFFFFFFFFFF]:
+		var seen: Dictionary[int, bool] = {}
+		for attempt: int in range(1, 50):
+			var a: int = RunState.fight_seed_for(run_seed, attempt)
+			assert_eq(RunState.fight_seed_for(run_seed, attempt), a, "same (run, attempt), same seed")
+			assert_gt(a, 0, "positive and nonzero")
+			assert_false(seen.has(a), "attempt %d differs from the earlier ones (run %d)" % [attempt, run_seed])
+			seen[a] = true
+	assert_ne(RunState.fight_seed_for(1, 1), RunState.fight_seed_for(2, 1), "the run seed matters")
+	assert_eq(RunState.fight_seed_for(424242, 3), RunState.fight_seed_for(424242, 3))
+
+
+func test_run_seed_is_taken_once_and_each_entry_counts_an_attempt() -> void:
+	var game: Node = _game()
+	game.start_run_from_title(0)
+	assert_eq(game.run.run_seed, 0)
+	assert_eq(game.run.fight_attempt, 0)
+	game.advance() # FIGHT 1
+	var run_seed: int = game.run.run_seed
+	assert_gt(run_seed, 0)
+	assert_eq(game.run.fight_attempt, 1)
+	assert_eq(game.run.fight_seed, RunState.fight_seed_for(run_seed, 1))
+	game.record_death(100)
+	assert_true(game.retry(200))
+	assert_eq(game.run.run_seed, run_seed, "a retry keeps the run seed")
+	assert_eq(game.run.fight_attempt, 2)
+	assert_eq(game.run.fight_seed, RunState.fight_seed_for(run_seed, 2), "the retry takes a new, reproducible seed")
+	_assert_clock_seeded_with(game.run.fight_seed)
+	game.advance() # HARVEST
+	game.advance() # FIGHT 2
+	assert_eq(game.run.run_seed, run_seed, "harvest keeps the run seed")
+	assert_eq(game.run.fight_seed, RunState.fight_seed_for(run_seed, 3))
+
+
+func test_a_new_run_takes_a_new_run_seed() -> void:
+	var game: Node = _game()
+	game.start_run_from_title(0)
+	game.advance()
+	game.advance() # HARVEST
+	game.advance() # FIGHT 2
+	game.advance() # HARVEST
+	game.advance() # FIGHT 3
+	game.advance() # ENDING
+	game.advance() # TITLE: a new RunState
+	assert_eq(game.run.run_seed, 0, "reset on the title")
+	assert_eq(game.run.fight_attempt, 0)
+
+
 # --- Story 2.9: death, retry gate, deaths_on_boss and the fight-start snapshot ---
 
 func _fight(game: Node, boss: int = 0) -> void:

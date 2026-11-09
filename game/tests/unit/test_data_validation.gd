@@ -145,7 +145,7 @@ func test_boss_def_name_signature_rules() -> void:
 
 func test_infinite_loop_boss_def_matches_the_gdd() -> void:
 	var def: BossDef = load("res://data/bosses/infinite_loop/boss_def.tres")
-	assert_eq(def.validate(), PackedStringArray(), "valid with empty pools (D-S33-9)")
+	assert_eq(def.validate(), PackedStringArray(), "valid with the 3.4 pools")
 	assert_eq(def.boss_id, &"infinite_loop")
 	assert_eq(def.boss_id, Game.BOSS_IDS[0])
 	assert_eq(def.name_signature, "infiniteLoop")
@@ -161,7 +161,13 @@ func test_infinite_loop_boss_def_matches_the_gdd() -> void:
 	for i: int in 3:
 		var p: PhaseDef = def.phases[i]
 		assert_eq([p.hp_threshold, p.weak_window, p.gap_frames], expected[i], "phase %d" % (i + 1))
-		assert_eq(p.attack_pool.size(), 0, "no attacks until 3.4")
+	var ids: Array = []
+	for p: PhaseDef in def.phases:
+		var phase_ids: Array[StringName] = []
+		for a_def: AttackDef in p.attack_pool:
+			phase_ids.append(a_def.id)
+		ids.append(phase_ids)
+	assert_eq(ids, [[&"head_rush"], [&"head_rush", &"constrict"], [&"head_rush", &"constrict"]], "Story 3.4 AC 1 pools (Spit, Nested Loop in 3.5)")
 
 
 func test_infinite_loop_ring_def_matches_the_gdd() -> void:
@@ -186,3 +192,30 @@ func test_ring_def_reports_each_bad_value() -> void:
 		for m: String in messages:
 			found = found or m.begins_with(String(field))
 		assert_true(found, "%s flagged (%s)" % [field, messages])
+
+
+# --- Story 3.4 AC 1 (A1, A4): the attack numbers on the ring ---
+
+func test_ring_def_carries_the_attack_numbers() -> void:
+	var ring: RingDef = load("res://data/bosses/infinite_loop/ring_def.tres")
+	assert_eq([ring.head_charge_tiles, ring.constrict_chase_tps, ring.constrict_radius_tiles], [10, 8, 2], "D-S34-8")
+	var player: PlayerDef = load("res://data/player/player_def.tres")
+	assert_gt(float(ring.constrict_chase_tps), player.speed_tiles_s, "Constrict's chase beats the walk (D-S34-16)")
+
+
+func test_ring_def_rejects_bad_attack_numbers() -> void:
+	var cases: Array = [
+		[&"head_charge_tiles", 0, "head_charge_tiles"],
+		[&"constrict_chase_tps", 0, "constrict_chase_tps"],
+		[&"constrict_radius_tiles", 0, "constrict_radius_tiles"],
+		[&"constrict_radius_tiles", 4, "constrict_radius_tiles"], # >= the 3.82-tile ring radius
+	]
+	for c: Array in cases:
+		var ring := RingDef.new()
+		ring.set(c[0], c[1])
+		var messages: PackedStringArray = ring.validate()
+		assert_eq(messages.size(), 1, "%s = %d" % [c[0], c[1]])
+		assert_true(messages.size() == 1 and messages[0].contains(c[2]))
+	var ok := RingDef.new()
+	ok.constrict_radius_tiles = 3
+	assert_eq(ok.validate(), PackedStringArray(), "3 < 3.82")
