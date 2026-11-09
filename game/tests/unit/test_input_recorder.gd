@@ -22,11 +22,12 @@ func test_stop_returns_version_seed_frames() -> void:
 	var rec := InputRecorder.new()
 	rec.start(77)
 	rec.record(_presses([&"action_1"]))
-	rec.record(_presses([]))
+	rec.record(_presses([]), Vector2i(-1, 1))
 	var data: Dictionary = rec.stop()
-	assert_eq(data["version"], 1)
+	assert_eq(data["version"], 2)
 	assert_eq(data["seed"], 77)
 	assert_eq(data["frames"], [["action_1"], []])
+	assert_eq(data["moves"], [[0, 0], [-1, 1]], "default move is zero")
 	assert_false(rec.is_recording())
 
 
@@ -40,11 +41,18 @@ func test_record_ignored_when_not_started() -> void:
 func test_json_round_trip_through_replay_input() -> void:
 	var rec := InputRecorder.new()
 	rec.start(123456789)
-	rec.record(_presses([&"shift_left", &"action_2"]))
-	rec.record(_presses([]))
+	rec.record(_presses([&"shift_left", &"action_2"]), Vector2i(1, 0))
+	rec.record(_presses([]), Vector2i(-1, -1))
 	rec.record(_presses([&"watch"]))
 	assert_true(InputRecorder.save(rec.stop(), TMP_PATH))
+	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(TMP_PATH))
+	assert_eq(int(parsed["version"]), 2)
+	assert_eq((parsed["moves"] as Array).size(), 3)
 	var replay := ReplayInput.from_file(TMP_PATH)
+	assert_eq(replay.move_for_frame(), Vector2i(1, 0))
+	assert_eq(replay.move_for_frame(), Vector2i(-1, -1))
+	assert_eq(replay.move_for_frame(), Vector2i.ZERO)
+	assert_eq(replay.move_for_frame(), Vector2i.ZERO, "zero once exhausted")
 	assert_eq(replay.seed_value, 123456789)
 	assert_eq(replay.frame_count(), 3)
 	assert_eq(replay.presses_for_frame(), _presses([&"shift_left", &"action_2"]))
@@ -113,3 +121,28 @@ func test_replay_path_format() -> void:
 func test_f11_is_the_record_key_not_a_jump() -> void:
 	assert_eq(DebugKeysScript.RECORD_KEY, KEY_F11)
 	assert_true(DebugKeysScript.target_for_key(KEY_F11).is_empty())
+
+
+func test_v1_recording_replays_with_zero_moves() -> void:
+	var replay := ReplayInput.from_data({"version": 1, "seed": 4, "frames": [["action_1"], []]})
+	assert_eq(replay.frame_count(), 2)
+	assert_eq(replay.presses_for_frame(), _presses([&"action_1"]))
+	assert_eq(replay.move_for_frame(), Vector2i.ZERO)
+	assert_eq(replay.move_for_frame(), Vector2i.ZERO)
+
+
+func test_bad_move_entries_are_zero_and_logged() -> void:
+	var replay := ReplayInput.from_data({"seed": 1, "frames": [[], [], [], []],
+		"moves": [[1, 0], "x", [2, 0], [0.5, 0]]})
+	assert_eq(replay.move_for_frame(), Vector2i(1, 0))
+	assert_eq(replay.move_for_frame(), Vector2i.ZERO)
+	assert_eq(replay.move_for_frame(), Vector2i.ZERO)
+	assert_eq(replay.move_for_frame(), Vector2i.ZERO)
+	assert_push_error("bad move entries")
+
+
+func test_moves_not_an_array_is_logged() -> void:
+	var replay := ReplayInput.from_data({"seed": 1, "frames": [[]], "moves": 3})
+	assert_eq(replay.frame_count(), 1)
+	assert_eq(replay.move_for_frame(), Vector2i.ZERO)
+	assert_push_error("moves is not an array")

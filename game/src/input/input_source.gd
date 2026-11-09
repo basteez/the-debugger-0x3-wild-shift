@@ -7,3 +7,9 @@ extends RefCounted
 ## Fresh presses of buffered actions this physics frame. Called once per polled frame by SimClock.
 func presses_for_frame() -> Array[StringName]:
 	return []
+
+
+## Held movement direction this physics frame (Story 2.2, D-S22-3): one value per polled frame,
+## each component in {-1, 0, 1}. Called once per polled frame by SimClock, after presses_for_frame.
+func move_for_frame() -> Vector2i:
+	return Vector2i.ZERO

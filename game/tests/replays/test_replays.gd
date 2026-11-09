@@ -32,10 +32,21 @@ class HashSystem:
 		hash_value = (hash_value * 31 + int(ctx.rng.randi() & 0xFFFF)) & 0x7FFFFFFF
 
 
-## Scripted "player": a fixed pattern of presses, independent of the clock.
+## Scripted "player": a fixed pattern of presses and held directions, independent of the clock.
 class ScriptedInput:
 	extends InputSource
 	var polls: int = 0
+	var move_polls: int = 0
+
+	## Changes direction every 37 polls, cycling through 8 directions and an idle stretch.
+	func move_for_frame() -> Vector2i:
+		var dirs: Array[Vector2i] = [
+			Vector2i(1, 0), Vector2i(1, 1), Vector2i.ZERO, Vector2i(0, -1), Vector2i(-1, -1),
+			Vector2i(-1, 0), Vector2i(-1, 1), Vector2i(0, 1), Vector2i(1, -1),
+		]
+		var out: Vector2i = dirs[(move_polls / 37) % dirs.size()]
+		move_polls += 1
+		return out
 
 	func presses_for_frame() -> Array[StringName]:
 		var out: Array[StringName] = []
@@ -100,3 +111,39 @@ func test_different_seed_diverges() -> void:
 	assert_ne(sa.hash_value, sb.hash_value, "the hash depends on the seeded RNG")
 	a.free()
 	b.free()
+
+
+func _run_player(clock: SimClockScript, source: InputSource, polls: int) -> Player:
+	clock.input_source = source
+	var player := Player.new(load("res://data/player/player_def.tres") as PlayerDef, Arena.player_bounds())
+	player.reset_for_fight(Arena.SPAWN_PX)
+	player.set_active(true)
+	clock.register_system(player)
+	clock.register_system(HashSystem.new(clock)) # hit-stop gates on the same path
+	for i: int in polls:
+		clock.tick()
+	return player
+
+
+## Story 2.2 E4: movement is recorded (format v2) and replays to the bit-identical position.
+func test_recorded_movement_replays_bit_identically() -> void:
+	var live: SimClockScript = SimClockScript.new()
+	live.begin_fight(SEED)
+	var rec := InputRecorder.new()
+	rec.start(SEED)
+	live.recorder = rec
+	var live_player: Player = _run_player(live, ScriptedInput.new(), FRAMES)
+	assert_true(InputRecorder.save(rec.stop(), TMP_PATH))
+
+	var replay := ReplayInput.from_file(TMP_PATH)
+	var again: SimClockScript = SimClockScript.new()
+	again.begin_fight(replay.seed_value)
+	var replay_player: Player = _run_player(again, replay, FRAMES)
+
+	assert_ne(live_player.position_px, Arena.SPAWN_PX, "the player moved")
+	assert_eq(again.sim_frame, live.sim_frame)
+	assert_eq(replay_player.position_px, live_player.position_px)
+	assert_eq(replay_player.velocity_px, live_player.velocity_px)
+	assert_eq(replay_player.facing, live_player.facing)
+	live.free()
+	again.free()

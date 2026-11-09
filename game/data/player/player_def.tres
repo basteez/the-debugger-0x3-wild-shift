@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="PlayerDef" load_steps=2 format=3]
+
+[ext_resource type="Script" uid="uid://b6c6w5w1keys0" path="res://src/player/player_def.gd" id="1_pdef"]
+
+[resource]
+script = ExtResource("1_pdef")
+speed_tiles_s = 7.0
+accel_frames = 4
+decel_frames = 3
+max_hp = 5
+invuln_frames = 60
+hurtbox_tiles = 0.6

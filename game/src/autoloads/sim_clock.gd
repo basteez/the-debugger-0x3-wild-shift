@@ -1,7 +1,8 @@
 extends Node
 ## Fixed 60 Hz simulation clock (AD-01, NP-2). Each physics frame: gate on pause, poll the
-## InputSource into the InputBuffer, gate on Breakpoint then hit-stop, else tick the registered
-## SimSystems by phase and advance sim_frame. Only SimClock calls tick().
+## InputSource (presses into the InputBuffer, held direction into ctx.move_dir), gate on
+## Breakpoint then hit-stop, else tick the registered SimSystems by phase and advance
+## sim_frame. Only SimClock calls tick().
 
 ## World ticks since the session started (not paused or gated frames, D-S21-2). Monotonic.
 var sim_frame: int = 0
@@ -40,8 +41,9 @@ func tick() -> void:
 		presses = input_source.presses_for_frame()
 	for action: StringName in presses:
 		buffer.push(action, sim_frame)
+	ctx.move_dir = input_source.move_for_frame() if input_source != null else Vector2i.ZERO
 	if recorder != null:
-		recorder.record(presses)
+		recorder.record(presses, ctx.move_dir)
 	if breakpoint_gate_active: # world frozen, hit-stop counter untouched (NP-2, D-S21-11)
 		return
 	if hitstop_frames > 0:
@@ -58,12 +60,21 @@ func tick() -> void:
 
 ## Adds a system to the tick. Stable: after every system of the same or an earlier phase.
 func register_system(system: SimSystem) -> void:
+	if _systems.has(system): # never tick a system twice (double speed)
+		return
 	var at: int = _systems.size()
 	for i: int in _systems.size():
 		if _systems[i].phase > system.phase:
 			at = i
 			break
 	_systems.insert(at, system)
+
+
+## Removes a system from the tick (by identity). No-op when it is not registered (D-S22-10).
+func unregister_system(system: SimSystem) -> void:
+	var at: int = _systems.find(system)
+	if at >= 0:
+		_systems.remove_at(at)
 
 
 ## Requests a hit-stop from inside a world tick. The maximum request of the tick wins (AD-01).

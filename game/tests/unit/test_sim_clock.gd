@@ -24,11 +24,20 @@ class LogSystem:
 			clock.call(&"request_hitstop", hitstop_request)
 
 
-## Test-only source: returns the scripted presses per poll, empty after.
+## Test-only source: returns the scripted presses (and moves) per poll, empty/zero after.
 class ScriptedInput:
 	extends InputSource
 	var frames: Array[Array] = []
+	var moves: Array[Vector2i] = []
 	var polls: int = 0
+	var move_polls: int = 0
+
+	func move_for_frame() -> Vector2i:
+		var out: Vector2i = Vector2i.ZERO
+		if move_polls < moves.size():
+			out = moves[move_polls]
+		move_polls += 1
+		return out
 
 	func presses_for_frame() -> Array[StringName]:
 		var out: Array[StringName] = []
@@ -268,3 +277,77 @@ func test_recorder_records_every_polled_frame() -> void:
 	_tick(2) # paused frames are not recorded
 	var data: Dictionary = rec.stop()
 	assert_eq(data["frames"], [["action_1"], [], ["action_2", "shift_left"]])
+
+
+# --- Held direction and unregister (Story 2.2 E3) ---
+
+## Records ctx.move_dir on each world tick.
+class MoveProbe:
+	extends SimSystem
+	var seen: Array[Vector2i] = []
+
+	func tick(ctx: SimContext) -> void:
+		seen.append(ctx.move_dir)
+
+
+func test_move_dir_set_from_source_each_polled_frame() -> void:
+	var src := ScriptedInput.new()
+	src.moves = [Vector2i(1, 0), Vector2i(-1, 1), Vector2i(0, -1)]
+	_clock.input_source = src
+	var probe := MoveProbe.new()
+	_clock.register_system(probe)
+	_tick(4)
+	assert_eq(probe.seen, [Vector2i(1, 0), Vector2i(-1, 1), Vector2i(0, -1), Vector2i.ZERO] as Array[Vector2i])
+	assert_eq(src.move_polls, 4)
+
+
+func test_move_dir_zero_without_input_source() -> void:
+	_clock.ctx.move_dir = Vector2i(1, 1)
+	_tick(1)
+	assert_eq(_clock.ctx.move_dir, Vector2i.ZERO)
+
+
+func test_move_dir_not_updated_while_paused() -> void:
+	var src := ScriptedInput.new()
+	src.moves = [Vector2i(1, 0), Vector2i(0, 1)]
+	_clock.input_source = src
+	_tick(1)
+	_clock.paused = true
+	_tick(3)
+	assert_eq(_clock.ctx.move_dir, Vector2i(1, 0))
+	assert_eq(src.move_polls, 1)
+
+
+func test_move_polled_during_hitstop() -> void:
+	var src := ScriptedInput.new()
+	src.moves = [Vector2i(0, 1)]
+	_clock.input_source = src
+	_clock.hitstop_frames = 2
+	_tick(1)
+	assert_eq(_clock.ctx.move_dir, Vector2i(0, 1))
+	assert_eq(_clock.sim_frame, 0)
+
+
+func test_unregister_system_stops_ticking() -> void:
+	var log: Array[String] = []
+	var a := LogSystem.new(SimSystem.SimPhase.PLAYER, "a", log)
+	var b := LogSystem.new(SimSystem.SimPhase.PLAYER, "b", log)
+	_clock.register_system(a)
+	_clock.register_system(b)
+	_clock.unregister_system(a)
+	_clock.unregister_system(a) # no-op when absent
+	_clock.unregister_system(LogSystem.new(SimSystem.SimPhase.PLAYER, "never", log))
+	_tick(1)
+	assert_eq(log, ["b"] as Array[String])
+
+
+func test_recorder_records_moves() -> void:
+	var src := ScriptedInput.new()
+	src.frames = [[&"action_1"], []]
+	src.moves = [Vector2i(1, -1), Vector2i(0, 1)]
+	_clock.input_source = src
+	var rec := InputRecorder.new()
+	rec.start(1)
+	_clock.recorder = rec
+	_tick(2)
+	assert_eq(rec.stop()["moves"], [[1, -1], [0, 1]])
