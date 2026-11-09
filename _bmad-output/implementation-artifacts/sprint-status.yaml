@@ -109,7 +109,7 @@ development_status:
   2-6-ordered-combo-engine-and-dash-strike: done # large; not split (design call)
   2-7-combat-resolver-damage-calc-and-practice-target: done
   2-8-hit-feedback-hit-stop-particles-and-log-lines: done
-  2-9-player-damage-death-and-instant-retry: backlog
+  2-9-player-damage-death-and-instant-retry: done
   epic-2-retrospective: optional
 
   # Epic 3: Infinite Loop (MVP) — window Nov 11–14; MVP GATE Nov 14 (>= 3 playtesters)

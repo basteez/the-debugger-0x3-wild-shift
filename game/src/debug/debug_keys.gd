@@ -1,7 +1,7 @@
 class_name DebugKeys
 extends Node
 ## F1-F5 debug jump keys (Story 1.6 AC4, DC6, DC7), Shift+F2 practice target (Story 2.7), the F9 frame overlay (Story 2.5 AC7),
-## the F10 perf overlay (Story 2.8 AC6) and the F11 input recorder (Story 2.1 AC5).
+## the F10 perf overlay (Story 2.8 AC6), the F11 input recorder (Story 2.1 AC5) and the F6 debug damage key (Story 2.9 AC8).
 ## Main adds this node only when Debug.enabled, so release builds without `?debug` never see it. Keys are consumed in _input, before any screen.
 
 const GameFlow := preload("res://src/autoloads/game.gd")
@@ -12,6 +12,8 @@ const RECORD_KEY := KEY_F11
 const OVERLAY_KEY := KEY_F9
 ## F10 (no modifiers) toggles the perf overlay (Story 2.8 AC6).
 const PERF_KEY := KEY_F10
+## F6 (no modifiers, FIGHT only) queues one hit on the player (Story 2.9, D-S29-11).
+const DAMAGE_KEY := KEY_F6
 ## Shift+F2 (Story 2.7, D-S27-3): FIGHT boss 0 with the practice target. Plain F2 is unchanged.
 const PRACTICE_KEY := KEY_F2
 ## Physical keycode -> jump target. Matched by keycode (debug only, not an InputMap action).
@@ -27,6 +29,8 @@ const JUMPS: Dictionary[Key, Array] = {
 var frame_overlay: FrameOverlay
 ## The perf overlay (Story 2.8), set by Main. Null = F10 does nothing.
 var perf_overlay: PerfOverlay
+## The arena's PlayerHealth (Story 2.9), set by Main. Null = F6 does nothing.
+var player_health: PlayerHealth
 ## True after Shift+F2 until another jump key (Story 2.7): Main reads it on every FIGHT entry, so a
 ## retry keeps the practice target. Lives on this debug-only node, so release code never sees it.
 var practice_requested: bool = false
@@ -69,6 +73,10 @@ func handle_key(event: InputEvent) -> bool:
 			return false
 		perf_overlay.toggle()
 		return true
+	if code == DAMAGE_KEY:
+		if key.shift_pressed or key.ctrl_pressed or key.alt_pressed or key.meta_pressed:
+			return false
+		return queue_debug_hit()
 	var target: Dictionary = {}
 	if key.shift_pressed:
 		target = shift_target_for_key(code)
@@ -79,6 +87,15 @@ func handle_key(event: InputEvent) -> bool:
 	# Set before the jump: Main reads it while handling the flow change.
 	practice_requested = target.get(&"practice", false)
 	Game.debug_jump(target[&"state"], target[&"boss_index"])
+	return true
+
+
+## F6: one hit request on the player, only in FIGHT and not while paused (D-S29-7). True when queued.
+func queue_debug_hit() -> bool:
+	if player_health == null or Game.flow_state != GameFlow.FlowState.FIGHT or SimClock.paused:
+		return false
+	player_health.queue_hit()
+	Log.debug(&"debug", "F6 player hit queued")
 	return true
 
 

@@ -68,3 +68,19 @@ func test_exit_tree_disconnects() -> void:
 
 func test_negative_damage_never_prints_a_double_minus() -> void:
 	assert_eq(LogPanel.line_for_damage(-5), "console.log(\"-0\")")
+
+
+# --- Story 2.9: the player hit line (D-S29-9) ---
+
+func test_player_damaged_appends_warn_line() -> void:
+	assert_eq(LogPanel.line_for_player_hit(), "WARN: hp--")
+	EventBus.player_damaged.emit(4)
+	EventBus.player_damaged.emit(3)
+	assert_eq(_panel.lines(), PackedStringArray(["WARN: hp--", "WARN: hp--"]))
+
+
+func test_exit_tree_disconnects_player_damaged() -> void:
+	remove_child(_panel)
+	assert_false(EventBus.player_damaged.is_connected(_panel._on_player_damaged))
+	add_child(_panel)
+	assert_true(EventBus.player_damaged.is_connected(_panel._on_player_damaged))

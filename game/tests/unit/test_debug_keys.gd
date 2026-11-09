@@ -181,3 +181,38 @@ func test_f10_toggles_the_perf_overlay() -> void:
 	assert_true(keys.handle_key(_key(KEY_F10)))
 	assert_false(overlay.visible)
 	assert_true(DebugKeysScript.target_for_key(KEY_F10).is_empty(), "F10 is not a jump key")
+
+
+# --- Story 2.9: F6 debug damage key (AC8, D-S29-11) ---
+
+func test_f6_queues_a_hit_only_in_fight() -> void:
+	Debug.enabled = true
+	var main: Node2D = (load("res://src/main/main.tscn") as PackedScene).instantiate()
+	add_child_autofree(main)
+	var keys: DebugKeys = main.get_node(^"DebugKeys")
+	var health: PlayerHealth = main.arena.health
+	assert_eq(keys.player_health, health, "Main injects the arena's health")
+	Game.flow_state = GameScript.FlowState.TITLE
+	assert_false(keys.handle_key(_key(KEY_F6)), "F6 does nothing outside FIGHT")
+	assert_false(health.get(&"_pending"))
+	keys.handle_key(_key(KEY_F2))
+	assert_eq(Game.flow_state, GameScript.FlowState.FIGHT)
+	assert_false(keys.handle_key(_key(KEY_F6, true, false, true)), "Shift+F6 is not the damage key")
+	assert_false(keys.handle_key(_key(KEY_F6, true, true)), "echo ignored")
+	assert_true(keys.handle_key(_key(KEY_F6)))
+	assert_true(health.get(&"_pending"), "one hit queued (a request, not a state write)")
+	assert_eq(health.hp, 5, "HP changes only on the sim tick")
+	health.set_active(false)
+
+
+func test_f6_without_health_does_nothing() -> void:
+	var keys: DebugKeys = autofree(DebugKeysScript.new())
+	Game.flow_state = GameScript.FlowState.FIGHT
+	assert_false(keys.handle_key(_key(KEY_F6)))
+
+
+func test_release_build_has_no_f6() -> void:
+	Debug.enabled = false
+	var main: Node2D = (load("res://src/main/main.tscn") as PackedScene).instantiate()
+	add_child_autofree(main)
+	assert_null(main.get_node_or_null(^"DebugKeys"), "no DebugKeys, so no F6 in release")

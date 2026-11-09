@@ -55,6 +55,8 @@ var register: Register = Register.new(SimClock.buffer)
 var actions: ActionStateMachine = ActionStateMachine.new(SimClock.buffer, player, register)
 ## Hit resolution (Story 2.7, AD-04): shape math in the COMBAT phase, after ACTIONS and PLAYER.
 var combat: CombatResolver = CombatResolver.new(actions, player)
+## Player HP and post-hit invulnerability (Story 2.9): COMBAT phase, registered after `combat`.
+var health: PlayerHealth = PlayerHealth.new(PLAYER_DEF, actions)
 ## The `/* test */` dummy (Story 2.7): null unless a fight was entered with_practice (debug only).
 var practice_target: PracticeTarget = null
 
@@ -64,6 +66,7 @@ func _enter_tree() -> void:
 	SimClock.register_system(actions)
 	SimClock.register_system(player)
 	SimClock.register_system(combat)
+	SimClock.register_system(health)
 
 
 ## Detach from the autoload clock so re-instancing Main (tests) never double-ticks (D-S22-10).
@@ -72,11 +75,14 @@ func _exit_tree() -> void:
 	SimClock.unregister_system(actions)
 	SimClock.unregister_system(player)
 	SimClock.unregister_system(combat)
+	SimClock.unregister_system(health)
 
 
 ## Every route into FIGHT (D-S22-5, Story 2.3 AC9): reset the player to spawn and the register to
 ## `fight_start`, then start ticking both. `with_practice` (Story 2.7, debug Shift+F2 only) places
-## the practice target, reset; without it the fight has no target.
+## the practice target, reset; without it the fight has no target. Story 2.9: the caller passes the
+## RunState snapshot ring (a retry restores it), and the player is back to full HP. Hooks for later
+## stories: boss fight-start state (Epic 3) and the Echo memory clear (Epic 4) belong here.
 func enter_fight(fight_start: PackedInt32Array, with_practice: bool = false) -> void:
 	player.reset_for_fight(SPAWN_PX)
 	player.set_active(true)
@@ -86,6 +92,8 @@ func enter_fight(fight_start: PackedInt32Array, with_practice: bool = false) -> 
 	register.set_active(true)
 	actions.reset_for_fight()
 	actions.set_active(true)
+	health.reset_for_fight()
+	health.set_active(true)
 	_set_practice(with_practice)
 	_redraw_player_view()
 
@@ -107,6 +115,7 @@ func leave_fight() -> void:
 	player.set_active(false)
 	register.set_active(false)
 	actions.set_active(false)
+	health.set_active(false)
 	_set_practice(false) # a stale target never outlives its fight (review 2.7)
 
 

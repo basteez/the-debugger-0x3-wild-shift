@@ -396,3 +396,31 @@ func test_press_during_long_hitstop_expires() -> void:
 	_clock.hitstop_frames = 9
 	_tick(10) # poll 0 holds the press; polls 0-8 are hit-stop; poll 9 is the first world tick
 	assert_false(_clock.buffer.consume(&"shift_left", _clock.ctx.poll_frame), "expired after 9 frames")
+
+
+# --- Story 2.9: the retry press is swallowed for one poll (D-S29-12) ---
+
+func test_swallow_presses_drops_one_poll_only() -> void:
+	var src := ScriptedInput.new()
+	src.frames = [[&"action_1"], [&"action_2"]]
+	src.moves = [Vector2i(1, 0), Vector2i(0, 1)]
+	_clock.input_source = src
+	_clock.swallow_presses_next_poll()
+	_tick(1)
+	assert_eq(_clock.buffer.size(), 0, "the swallowed poll buffers nothing")
+	assert_eq(_clock.ctx.move_dir, Vector2i(1, 0), "movement is still read")
+	_tick(1)
+	assert_eq(_clock.buffer.size(), 1, "the next poll is normal")
+
+
+func test_swallow_survives_pause_and_begin_fight() -> void:
+	var src := ScriptedInput.new()
+	src.frames = [[&"action_1"], [&"action_2"]]
+	_clock.input_source = src
+	_clock.swallow_presses_next_poll()
+	_clock.begin_fight(7)
+	_clock.paused = true
+	_tick(1)
+	_clock.paused = false
+	_tick(1)
+	assert_eq(_clock.buffer.size(), 0, "the first polled tick after the pause is swallowed")

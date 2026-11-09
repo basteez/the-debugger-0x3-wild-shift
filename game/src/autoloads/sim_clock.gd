@@ -25,6 +25,8 @@ var hitstop_frames: int = 0
 var recorder: InputRecorder = null
 
 var _pending_hitstop: int = 0
+## Story 2.9 (D-S29-12): the next polled tick drops its presses (the retry press never fires).
+var _swallow_presses: bool = false
 ## Registered systems, kept sorted by phase, registration order within a phase.
 var _systems: Array[SimSystem] = []
 
@@ -44,6 +46,9 @@ func tick() -> void:
 	var presses: Array[StringName] = []
 	if input_source != null:
 		presses = input_source.presses_for_frame()
+	if _swallow_presses:
+		_swallow_presses = false
+		presses = [] # never clear(): the source may hand back its own backing array
 	for action: StringName in presses:
 		buffer.push(action, poll_frame)
 	ctx.move_dir = input_source.move_for_frame() if input_source != null else Vector2i.ZERO
@@ -87,6 +92,11 @@ func unregister_system(system: SimSystem) -> void:
 ## Requests a hit-stop from inside a world tick. The maximum request of the tick wins (AD-01).
 func request_hitstop(frames: int) -> void:
 	_pending_hitstop = maxi(_pending_hitstop, frames)
+
+
+## Retry only (D-S29-12): the next polled tick drops that tick's presses; movement is still read.
+func swallow_presses_next_poll() -> void:
+	_swallow_presses = true
 
 
 ## Fight start / retry: reseed the RNG, drop buffered presses and any hit-stop.

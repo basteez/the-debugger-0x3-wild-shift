@@ -8,6 +8,11 @@ enum FlowState { TITLE, INTRO, FIGHT, DEAD, HARVEST, ENDING }
 ## Intro cap (D-040): 8 s at 60 Hz, counted in sim frames so it stops with pause (DC5).
 const INTRO_MAX_FRAMES := 480
 const LAST_BOSS_INDEX := 2
+## Story 2.9 (D-049 c, D-S29-3): the DEAD screen accepts a new press only this many sim frames
+## after the death frame.
+const RETRY_DELAY_FRAMES := 20
+## Boss ids by boss_index (I-5): the `player_died` payload and the boss signatures.
+const BOSS_IDS: Array[StringName] = [&"infinite_loop", &"null_pointer", &"segfault"]
 ## States where Esc and focus loss pause (Story 1.7 DC1): the 60 Hz clock drives the Intro cap and the fight.
 const PAUSABLE_STATES: Array[FlowState] = [FlowState.INTRO, FlowState.FIGHT]
 
@@ -17,6 +22,10 @@ var first_input_frame: int = -1
 ## Sim frame on which INTRO was entered; -1 outside a run.
 var intro_start_frame: int = -1
 var run: RunState = RunState.new()
+## Sim frame of the last death (Story 2.9); -1 when not dead.
+var death_frame: int = -1
+## True only while retry() re-enters FIGHT: the snapshot is restored, not re-captured (D-S29-4).
+var _retrying: bool = false
 ## Web only: the JS focus callback, kept alive for the session (a freed callback is never called).
 var _web_focus_cb: JavaScriptObject = null
 ## True from a focus loss until focus returns or the player presses Esc: a blur seen in a
@@ -27,6 +36,7 @@ var _focus_lost: bool = false
 func _ready() -> void:
 	if OS.has_feature("web"):
 		_listen_web_focus()
+	EventBus.player_damaged.connect(on_player_damaged)
 
 
 func _input(event: InputEvent) -> void:
@@ -36,6 +46,8 @@ func _input(event: InputEvent) -> void:
 
 func _exit_tree() -> void:
 	_unlisten_web_focus()
+	if EventBus.player_damaged.is_connected(on_player_damaged):
+		EventBus.player_damaged.disconnect(on_player_damaged)
 
 
 func _notification(what: int) -> void:
@@ -123,7 +135,7 @@ func finish_intro(frame: int, skip_requested: bool = false) -> bool:
 		return false
 	if not ((skip_requested and can_skip_intro(frame)) or intro_timed_out(frame)):
 		return false
-	run.boss_index = 0
+	run.start_boss(0)
 	Log.info(&"flow", "intro -> fight 1 at f=%d" % frame)
 	_set_flow_state(FlowState.FIGHT)
 	return true
@@ -137,12 +149,12 @@ func advance() -> void:
 		FlowState.TITLE:
 			pass # the title's own input starts the run (start_run_from_title)
 		FlowState.INTRO:
-			run.boss_index = 0
+			run.start_boss(0)
 			_set_flow_state(FlowState.FIGHT)
 		FlowState.FIGHT:
 			_set_flow_state(FlowState.ENDING if run.boss_index >= LAST_BOSS_INDEX else FlowState.HARVEST)
 		FlowState.HARVEST:
-			run.boss_index += 1
+			run.start_boss(run.boss_index + 1)
 			_set_flow_state(FlowState.FIGHT)
 		FlowState.ENDING:
 			run = RunState.new()
@@ -167,7 +179,10 @@ func debug_jump(target: FlowState, boss_index: int) -> void:
 		first_input_frame = -1
 		intro_start_frame = -1
 	else:
-		run.boss_index = boss_index
+		if target == FlowState.FIGHT:
+			run.start_boss(boss_index) # D-S29-14: a debug jump into a fight is a new boss
+		else:
+			run.boss_index = boss_index
 		intro_start_frame = -1
 		if first_input_frame < 0:
 			first_input_frame = SimClock.sim_frame # a debug-entered run still starts the clock
@@ -183,11 +198,58 @@ func _set_flow_state(to: FlowState) -> void:
 		SimClock.paused = false
 		Log.info(&"flow", "pause off")
 		EventBus.pause_toggled.emit(false)
+	if to != FlowState.DEAD:
+		death_frame = -1
 	if to == FlowState.FIGHT:
+		if not _retrying: # D-S29-4: every FIGHT entry but a retry captures the snapshot
+			run.fight_start_ring = Register.fight_start_for_boss(run.boss_index)
 		_begin_fight()
 	EventBus.flow_state_changed.emit(from, to)
 	if _focus_lost and to in PAUSABLE_STATES:
 		set_paused(true, &"focus")
+
+
+## Story 2.9 (D-S29-2): PlayerHealth reports every landed hit; the lethal one (hp 0) is a death.
+func on_player_damaged(hp: int) -> void:
+	if hp <= 0:
+		record_death(SimClock.sim_frame)
+
+
+## The player died in FIGHT (AC 3): count it on this boss, enter DEAD, tell the listeners.
+## Ignored outside FIGHT. True when the death was recorded.
+func record_death(frame: int) -> bool:
+	if flow_state != FlowState.FIGHT:
+		return false
+	run.deaths_on_boss += 1
+	Log.info(&"flow", "player died at f=%d (deaths on boss %d)" % [frame, run.deaths_on_boss])
+	death_frame = frame # before the state change: listeners of flow_state_changed read it
+	_set_flow_state(FlowState.DEAD)
+	EventBus.player_died.emit(boss_id(run.boss_index), run.deaths_on_boss)
+	return true
+
+
+## Pure: true once the DEAD screen accepts a retry press (D-049 c, D-S29-3).
+static func retry_open(p_death_frame: int, frame: int) -> bool:
+	return p_death_frame >= 0 and frame - p_death_frame >= RETRY_DELAY_FRAMES
+
+
+## DEAD -> FIGHT from the fight-start snapshot (AC 4-6). Refused outside DEAD and before the gate.
+## The press that retried never fires an action in the new fight (D-S29-12). True if it moved.
+func retry(frame: int) -> bool:
+	if flow_state != FlowState.DEAD or not retry_open(death_frame, frame):
+		return false
+	Log.info(&"flow", "retry at f=%d" % frame)
+	_retrying = true
+	_set_flow_state(FlowState.FIGHT)
+	_retrying = false
+	if not SimClock.paused: # a paused tick never polls, so the flag would go stale
+		SimClock.swallow_presses_next_poll()
+	return true
+
+
+## Pure: the boss id for a boss index (&"" outside 0..2).
+static func boss_id(index: int) -> StringName:
+	return BOSS_IDS[index] if index >= 0 and index < BOSS_IDS.size() else &""
 
 
 ## Every route into FIGHT (intro, harvest, retry, debug jump) seeds the fight here (D-S21-6).
