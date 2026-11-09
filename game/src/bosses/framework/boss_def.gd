@@ -17,6 +17,9 @@ extends Def
 ## Radius of the single body hurtbox circle in tiles (D-S31-12).
 @export var body_radius_tiles: float = 1.0
 
+## Longest name_signature, so `void <name>() // hp <hp>` fits the top bar (Story 3.2, D-S32-16).
+const NAME_SIGNATURE_MAX := 16
+
 
 func validate() -> PackedStringArray:
 	var out := PackedStringArray()
@@ -24,6 +27,8 @@ func validate() -> PackedStringArray:
 		out.append("boss_id must not be empty")
 	if name_signature.strip_edges() == "":
 		out.append("name_signature must not be empty")
+	elif name_signature.length() > NAME_SIGNATURE_MAX or not name_signature.is_valid_ascii_identifier():
+		out.append("name_signature must be an identifier of at most %d characters (got \"%s\")" % [NAME_SIGNATURE_MAX, name_signature])
 	if max_hp < 1:
 		out.append("max_hp must be >= 1 (got %d)" % max_hp)
 	if drop_bit < 0:
@@ -44,6 +49,8 @@ func validate() -> PackedStringArray:
 		if phase.hp_threshold >= previous:
 			out.append("phases[%d] hp_threshold must be lower than the previous phase (%d >= %d)" % [i, phase.hp_threshold, previous])
 		previous = phase.hp_threshold
+		if not is_valid_weak_window(phase.weak_window):
+			out.append("phases[%d] weak_window must be two distinct bits (got %s)" % [i, phase.weak_window])
 		for message: String in phase.validate():
 			out.append("phases[%d]: %s" % [i, message])
 		for attack: AttackDef in phase.attack_pool:
@@ -53,3 +60,8 @@ func validate() -> PackedStringArray:
 				out.append("attack id %s is used by two different attacks" % attack.id)
 			ids[attack.id] = attack
 	return out
+
+
+## A weak window is two distinct valid register bits (Story 3.2, D-S32-16). Pure.
+static func is_valid_weak_window(w: Vector2i) -> bool:
+	return Register.is_bit(w.x) and Register.is_bit(w.y) and w.x != w.y

@@ -8,9 +8,12 @@ extends Node
 ## Story 2.8: the only writer of the ScreenFX uniforms (AD-07): request_invert (full-screen
 ## inversion for N physics frames) and set_dither. Gameplay in 2.8 requests neither (crit inversion
 ## is Epic 3, Breakpoint dither Epic 4). Presentation never requests hit-stop (D-S28-12).
+## Story 3.2 (AC 4, D-S32-18): a Patched (crit) hit inverts the screen for 1 frame.
 
 const CLICK_LEFT: AudioStream = preload(ShiftJuice.CLICK_LEFT)
 const CLICK_RIGHT: AudioStream = preload(ShiftJuice.CLICK_RIGHT)
+## Full-screen inversion frames of a crit (FR27, D-S32-18).
+const CRIT_INVERT_FRAMES := 1
 
 ## Injected by Main. Either may be null (nothing is applied to a missing node).
 var register_panel: RegisterPanel
@@ -30,11 +33,15 @@ var _dither: float = 0.0
 func _enter_tree() -> void:
 	if not EventBus.register_shifted.is_connected(_on_register_shifted):
 		EventBus.register_shifted.connect(_on_register_shifted)
+	if not EventBus.hit_landed.is_connected(_on_hit_landed):
+		EventBus.hit_landed.connect(_on_hit_landed)
 
 
 func _exit_tree() -> void:
 	if EventBus.register_shifted.is_connected(_on_register_shifted):
 		EventBus.register_shifted.disconnect(_on_register_shifted)
+	if EventBus.hit_landed.is_connected(_on_hit_landed):
+		EventBus.hit_landed.disconnect(_on_hit_landed)
 
 
 func _process(_delta: float) -> void:
@@ -89,6 +96,12 @@ func _on_register_shifted(direction: int, _window: Vector2i, _ring: PackedInt32A
 	AudioManager.play_sfx(click_stream(direction))
 	Log.debug(&"juice", "shift %d" % direction)
 	_apply()
+
+
+## Story 3.2 (AC 4): a Patched hit inverts the full screen for CRIT_INVERT_FRAMES.
+func _on_hit_landed(_target: StringName, _damage: int, state: int, _is_combo: bool, _pos: Vector2) -> void:
+	if state == DamageState.Kind.PATCHED:
+		request_invert(CRIT_INVERT_FRAMES)
 
 
 ## The preloaded click for a direction, matching ShiftJuice.click_path (AC2). No load() per shift.

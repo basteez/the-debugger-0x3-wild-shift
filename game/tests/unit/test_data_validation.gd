@@ -88,3 +88,54 @@ func test_action_def_chain_cycle_is_invalid() -> void:
 	assert_false(a.validate().is_empty(), "cycle must be flagged")
 	b.chain_next = null
 	assert_true(a.validate().is_empty())
+
+
+# --- Story 3.2 (C7, D-S32-16): weak windows and name_signature rules ---
+
+func _valid_boss() -> BossDef:
+	var pulse: AttackDef = load("res://data/bosses/test_boss/attack_pulse.tres")
+	var sweep: AttackDef = load("res://data/bosses/test_boss/attack_sweep.tres")
+	var p := PhaseDef.new()
+	p.hp_threshold = 100
+	p.weak_window = Vector2i(Register.Bit.ATTACK, Register.Bit.DASH)
+	p.attack_pool = [pulse, sweep]
+	var d := BossDef.new()
+	d.boss_id = &"unit_boss"
+	d.name_signature = "unitBoss"
+	d.max_hp = 10
+	d.phases = [p]
+	return d
+
+
+func _boss_messages_contain(d: BossDef, needle: String) -> bool:
+	for m: String in d.validate():
+		if m.contains(needle):
+			return true
+	return false
+
+
+func test_test_boss_weak_windows() -> void:
+	var def: BossDef = load("res://data/bosses/test_boss/boss_def.tres")
+	assert_eq(def.phases[0].weak_window, Vector2i(Register.Bit.ATTACK, Register.Bit.DASH), "phase 1 A>D")
+	assert_eq(def.phases[1].weak_window, Vector2i(Register.Bit.DASH, Register.Bit.ATTACK), "phase 2 D>A")
+	assert_eq(def.max_hp, 20)
+	assert_eq(def.validate(), PackedStringArray())
+
+
+func test_boss_def_weak_window_rules() -> void:
+	assert_eq(_valid_boss().validate(), PackedStringArray())
+	for bad: Vector2i in [Vector2i.ZERO, Vector2i(1, 1), Vector2i(1, 0), Vector2i(9, 2), Vector2i(2, -1)]:
+		var d: BossDef = _valid_boss()
+		d.phases[0].weak_window = bad
+		assert_true(_boss_messages_contain(d, "weak_window"), "rejects %s" % bad)
+	assert_true(BossDef.is_valid_weak_window(Vector2i(Register.Bit.LOOP, Register.Bit.NULL_BIT)))
+
+
+func test_boss_def_name_signature_rules() -> void:
+	var ok: BossDef = _valid_boss()
+	ok.name_signature = "abcdefghijklmnop" # 16
+	assert_eq(ok.validate(), PackedStringArray())
+	for bad: String in ["abcdefghijklmnopq", "infinite loop", "9lives", "loop()"]:
+		var d: BossDef = _valid_boss()
+		d.name_signature = bad
+		assert_true(_boss_messages_contain(d, "name_signature"), "rejects \"%s\"" % bad)

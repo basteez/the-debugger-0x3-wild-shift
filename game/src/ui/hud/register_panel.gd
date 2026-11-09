@@ -103,7 +103,7 @@ func _draw_content() -> void:
 			continue
 		GlyphFont.draw_cell(content, c.cell, c.text, Palette.INK, SCALE)
 		if c.style == GREYED or c.style == FADED:
-			content.draw_texture_rect(_checker_texture(), rect, true)
+			content.draw_texture_rect(checker_texture(), rect, true)
 
 
 ## Every cell of the panel for a ring of owned bits (window first), in draw order. Pure: no node,
@@ -176,8 +176,8 @@ static func _pair_text(window: Vector2i) -> String:
 
 
 ## The dither (D-S23-7, NFR8): BG on pixels where x + y is even, transparent elsewhere. Built from
-## Palette.BG only, so the panel draws no colour outside INK and BG.
-static func _checker_texture() -> ImageTexture:
+## Palette.BG only, so the panel draws no colour outside INK and BG. Shared with LogPanel (3.2).
+static func checker_texture() -> ImageTexture:
 	if _checker == null:
 		var img: Image = Image.create_empty(GlyphFont.CELL, GlyphFont.CELL, false, Image.FORMAT_RGBA8)
 		for y: int in GlyphFont.CELL:

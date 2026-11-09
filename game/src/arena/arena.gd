@@ -138,6 +138,7 @@ func leave_fight() -> void:
 	actions.set_active(false)
 	health.set_active(false)
 	_set_practice(false) # a stale target never outlives its fight (review 2.7)
+	combat.boss = null # D-S32-23
 	if boss != null:
 		boss.set_active(false)
 
@@ -157,10 +158,12 @@ func _set_test_boss(on: bool) -> void:
 		boss.body_center_px = TEST_BOSS_PX
 		if is_inside_tree():
 			SimClock.register_system(boss)
-	boss.reset_for_fight()
+	boss.reset_for_fight() # also clears Patched (D-S32-23)
+	combat.boss = boss
 
 
 func _remove_boss() -> void:
+	combat.boss = null
 	if boss == null:
 		return
 	SimClock.unregister_system(boss)

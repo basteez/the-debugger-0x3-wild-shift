@@ -84,3 +84,29 @@ func test_exit_tree_disconnects_player_damaged() -> void:
 	assert_false(EventBus.player_damaged.is_connected(_panel._on_player_damaged))
 	add_child(_panel)
 	assert_true(EventBus.player_damaged.is_connected(_panel._on_player_damaged))
+
+
+# --- Story 3.2 (AC 3, 4; D-S32-18): the line per damage state ---
+
+func test_line_for_damage_per_state() -> void:
+	assert_eq(LogPanel.line_for_damage(10, DamageState.Kind.BASE), "console.log(\"-10\")")
+	assert_eq(LogPanel.line_for_damage(8, DamageState.Kind.UNPATCHED), "console.log(\"-8\") // resisted")
+	assert_eq(LogPanel.line_for_damage(15, DamageState.Kind.PATCHED), "CRITICAL: 15 dmg")
+	for kind: int in [DamageState.Kind.UNPATCHED, DamageState.Kind.PATCHED]:
+		var line: String = LogPanel.line_for_damage(999999, kind)
+		assert_lte(line.length(), Hud.LOG.size.x, "fits the log width")
+		for i: int in line.length():
+			assert_lt(line.unicode_at(i), 128, "ASCII only")
+
+
+func test_resisted_lines_are_dithered() -> void:
+	EventBus.hit_landed.emit(&"boss", 8, DamageState.Kind.UNPATCHED, false, Vector2.ZERO)
+	EventBus.hit_landed.emit(&"boss", 15, DamageState.Kind.PATCHED, false, Vector2.ZERO)
+	EventBus.hit_landed.emit(&"practice_target", 10, DamageState.Kind.BASE, false, Vector2.ZERO)
+	assert_eq(_panel.lines(), PackedStringArray(["console.log(\"-8\") // resisted", "CRITICAL: 15 dmg", "console.log(\"-10\")"]))
+	var expected: Array[bool] = [true, false, false]
+	assert_eq(_panel.dithered_lines(), expected)
+	for i: int in Hud.LOG_LINES:
+		_panel.append_line("x")
+	var none: Array[bool] = [false, false, false, false, false, false]
+	assert_eq(_panel.dithered_lines(), none, "the flag scrolls off with its line")

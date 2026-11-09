@@ -9,12 +9,14 @@
 [sub_resource type="Resource" id="Resource_phase1"]
 script = ExtResource("2_pdef")
 hp_threshold = 100
+weak_window = Vector2i(1, 2)
 gap_frames = 40
 attack_pool = Array[ExtResource("3_adef")]([ExtResource("4_pulse"), ExtResource("5_sweep")])
 
 [sub_resource type="Resource" id="Resource_phase2"]
 script = ExtResource("2_pdef")
 hp_threshold = 50
+weak_window = Vector2i(2, 1)
 gap_frames = 30
 attack_pool = Array[ExtResource("3_adef")]([ExtResource("4_pulse"), ExtResource("5_sweep")])
 
