@@ -4,7 +4,7 @@ baseline_commit: 9a67470
 
 # Story 3.2: Weak Window, Patched and Damage States
 
-Status: review
+Status: done
 
 <!-- Created unattended by gds-create-story. Open design questions are marked [design call] with the chosen default (D-S32-n); the implementer follows them or records a change in Completion Notes. Scope is ordered into task groups A-H; ship groups in order and stop at a green build after each group if time runs short. -->
 
@@ -304,3 +304,15 @@ claude opus (Claude Code, unattended epic pipeline, gds-dev-story)
 - 2026-11-09: Story 3.2 implemented (weak window per phase, Patched tracker, Unpatched/Patched damage on bosses, BossInteraction, per-state feedback, 3.1/2.7 deferred guards). GUT 689/689, check_guards OK. Status -> review.
 
 ### Review Findings
+
+### Review Findings
+
+Code review (Blind Hunter, Edge Case Hunter, Acceptance Auditor in parallel), 2026-11-09. GUT 690 tests all passing (57 scripts, replays included); check_guards OK.
+
+- [x] [Review][Patch] Killing blow's damage number never drawn (BossView `_draw` returned early on DEFEATED) [game/src/presentation/boss_view.gd] — fixed: number drawn in the DEFEATED branch.
+- [x] [Review][Patch] Stale damage number carried into a restarted fight [game/src/presentation/boss_view.gd] — fixed: cleared on `boss_hp_changed` at full HP; test added.
+- [x] [Review][Patch] `reset_for_fight` with null def skipped clearing `last_hit_serial`/`weak_window` [game/src/bosses/framework/boss_controller.gd] — fixed.
+- [x] [Review][Defer] Hit/patch cues share the single ShiftSfx player, so overlapping cues truncate each other [game/src/autoloads/audio_manager.gd] — deferred.
+- [x] [Review][Defer] Patched tag/bar and TELL mark can overlap; no top-edge clamp [game/src/presentation/boss_view.gd] — deferred to art pass (3.3).
+- [x] [Review][Defer] Low-impact items: presentation-frame number lifetime, missing `_exit_tree` disconnects, `_dithered` not reset on clear, brittle hard-coded test ticks, silent BASE fallback in `DamageState.multiplier`, action overlapping boss during ROAR can land late.
+- Dismissed (noise / intended): chime on every refresh (D-S32-33, deliberate); patching hit hit-stop 4 (D-S32-25); signal order (consistent); solo slash test 5 vs spec 8 (D-S32-30); phase change eating Patched frames (D-S32-14); nits.
