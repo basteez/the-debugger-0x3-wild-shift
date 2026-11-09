@@ -1,7 +1,8 @@
 class_name FrameOverlay
 extends Node2D
 ## F9 frame overlay (Story 2.5 AC7): sim frame, player FSM state, frame in state, J/K cooldowns,
-## invulnerability, the player hurtbox and the active hit shape. A child of the Arena (arena-local
+## invulnerability, the player hurtbox and the active hit shape. Story 2.6: the combo link (open or
+## closed, window pair, frames left in the 18-tick count, held K press). A child of the Arena (arena-local
 ## pixels), added by Main only when Debug.enabled; hidden by default. Read-only: never writes sim state.
 
 const TEXT_ORIGIN := Vector2(4, 4)
@@ -37,7 +38,8 @@ func _draw() -> void:
 	if actions.state == ActionStateMachine.ActionState.ACTIVE and actions.action != null:
 		_draw_shape(actions.action.hit_shape, centre, Vector2(actions.facing).normalized())
 	var window: Vector2i = register.active_window() if register != null else Vector2i.ZERO
-	var lines: PackedStringArray = format_lines(SimClock.sim_frame, actions.state, actions.frame_in_state(), actions.cooldowns.remaining(window.x), actions.cooldowns.remaining(window.y), actions.invulnerable())
+	var link: LinkState = actions.link
+	var lines: PackedStringArray = format_lines(SimClock.sim_frame, actions.state, actions.frame_in_state(), actions.cooldowns.remaining(window.x), actions.cooldowns.remaining(window.y), actions.invulnerable(), link.is_open(), link.pair, link.frames_left, link.held)
 	for i: int in lines.size():
 		GlyphFont.draw_at(self, TEXT_ORIGIN + Vector2(0, i * LINE_STEP), lines[i], Palette.INK, 1)
 
@@ -64,11 +66,16 @@ func _draw_shape(shape: HitShape, origin: Vector2, dir: Vector2) -> void:
 		draw_arc(tip, r, 0.0, TAU, SEGMENTS, Palette.INK, 1.0)
 
 
-## The overlay's text lines (ASCII only, so the 8x8 font covers them). Pure.
-static func format_lines(sim_frame: int, state: ActionStateMachine.ActionState, frame_in_state: int, cooldown_j: int, cooldown_k: int, invulnerable: bool) -> PackedStringArray:
+## The overlay's text lines (ASCII only, so the 8x8 font covers them). Pure. The link lines show
+## the pair and count only while the link is open.
+static func format_lines(sim_frame: int, state: ActionStateMachine.ActionState, frame_in_state: int, cooldown_j: int, cooldown_k: int, invulnerable: bool, link_open: bool, link_pair: Vector2i, link_left: int, link_held: bool) -> PackedStringArray:
 	return PackedStringArray([
 		"frame %d" % sim_frame,
 		"%s %d" % [ActionStateMachine.state_name(state), frame_in_state],
 		"cd J %d K %d" % [cooldown_j, cooldown_k],
 		"invuln %s" % ("yes" if invulnerable else "no"),
+		"link %s" % ("open" if link_open else "closed"),
+		"pair %s %s" % ([Register.glyph_of(link_pair.x), Register.glyph_of(link_pair.y)] if link_open else ["-", "-"]),
+		"left %d" % (link_left if link_open else 0),
+		"held %s" % ("K" if link_held else "-"),
 	])

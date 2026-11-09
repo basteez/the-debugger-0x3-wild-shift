@@ -19,6 +19,10 @@ func _used_codepoints() -> Dictionary[int, String]:
 	texts.append_array(Hud.box_rows(Hud.DUCK))
 	texts.append_array([TitleScreen.TITLE_TEXT, TitleScreen.PROMPT_TEXT])
 	texts.append(FRAME_GLYPHS)
+	# Story 2.6: the register panel's J→K label and every combo name (D3).
+	texts.append(RegisterPanel.JK_LABEL)
+	for combo: ComboDef in Defs.COMBOS.combos:
+		texts.append(combo.display_name)
 	# Story 1.6 placeholder screens: every state and boss index they can show.
 	for state: int in [Game.FlowState.INTRO, Game.FlowState.FIGHT, Game.FlowState.HARVEST, Game.FlowState.ENDING]:
 		for boss: int in 3:

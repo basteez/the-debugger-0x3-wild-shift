@@ -136,3 +136,15 @@ func test_consume_oldest_ignores_future_press() -> void:
 	_buf.push(&"shift_left", 5)
 	assert_eq(_buf.consume_oldest(SHIFTS, 4), &"")
 	assert_eq(_buf.consume_oldest(SHIFTS, 5), &"shift_left")
+
+
+## Story 2.6 (D-S26-5): the push frame of the consumed press, oldest first; -1 when none is live.
+func test_consume_pushed_frame() -> void:
+	var buf := InputBuffer.new()
+	buf.push(&"action_2", 3)
+	buf.push(&"action_2", 5)
+	assert_eq(buf.consume_pushed_frame(&"action_2", 9), 3)
+	assert_eq(buf.consume_pushed_frame(&"action_2", 9), 5)
+	assert_eq(buf.consume_pushed_frame(&"action_2", 9), -1)
+	buf.push(&"action_1", 0)
+	assert_eq(buf.consume_pushed_frame(&"action_1", 9), -1, "expired after 8 frames")

@@ -4,6 +4,7 @@ extends SimSystem
 ## frame per world tick (D-S25-1). Ticked by SimClock in the ACTIONS phase (after SHIFTS, before
 ## PLAYER). The only writer of action state; ActionResolver is the only path from J/K to an action.
 ## Holds the Player and Register; neither holds this (no script cycle, 2.2 lesson).
+## Story 2.6: owns the combo LinkState (D-S26-4) and starts combos and link follow-ups.
 
 ## STUNNED and WATCHING are declared for Epics 4-6 and never entered in Story 2.5.
 enum ActionState { IDLE_MOVE, STARTUP, ACTIVE, RECOVERY, STUNNED, WATCHING }
@@ -21,8 +22,20 @@ var chain_key: StringName = &""
 var chain_slot: int = -1
 var chain_serial: int = -1
 var cooldowns: Cooldowns = Cooldowns.new()
+## The combo link (Story 2.6, D-S26-4): written only here, read by the resolver and the F9 overlay.
+var link: LinkState = LinkState.new()
+## The slot (0 = J, 1 = K) of the running action; -1 when none. Only J actions open the link.
+var action_slot: int = -1
+## The running action's combo (null = none) and its link_second flag (FR20); read by 2.7.
+var combo: ComboDef = null
+var link_second: bool = false
+## The combo table (Defs.COMBOS; tests may inject a stub).
+var combos: ComboTable = Defs.COMBOS
 ## Only an active FSM ticks: on in FIGHT, off elsewhere.
 var active: bool = false
+
+## The serial at the running J action's start; the link opens only if no shift happened since (review).
+var _start_serial: int = -1
 
 var _buffer: InputBuffer
 var _player: Player
@@ -43,7 +56,11 @@ func tick(ctx: SimContext) -> void:
 	cooldowns.tick()
 	var window: Vector2i = _register.active_window() if _register != null else Vector2i.ZERO
 	var serial: int = _register.shift_serial if _register != null else 0
-	var request: ActionRequest = ActionResolver.resolve(_buffer, ctx.poll_frame, window, action, action_frame, chain_key, chain_serial, serial, cooldowns)
+	_age_link(serial)
+	var request: ActionRequest = ActionResolver.resolve(_buffer, ctx.poll_frame, window, action, action_frame, chain_key, chain_serial, serial, cooldowns, link, combos)
+	if request != null and request.def == null:
+		_apply_link_op(request)
+		request = null
 	if request != null:
 		_start(request, serial)
 	elif action != null:
@@ -52,6 +69,7 @@ func tick(ctx: SimContext) -> void:
 		else:
 			action_frame += 1
 	state = state_for(action, action_frame)
+	_update_link(window, serial)
 	_apply_movement()
 
 
@@ -74,10 +92,11 @@ func frame_in_state() -> int:
 	return 0
 
 
-## Fight start (D-049 b): idle, no action, cooldowns and chain cleared, Player unlocked.
+## Fight start (D-049 b): idle, no action, cooldowns, chain and link cleared, Player unlocked.
 func reset_for_fight() -> void:
 	_finish()
 	cooldowns.reset()
+	link.close()
 	facing = Player.DEFAULT_FACING
 	state = ActionState.IDLE_MOVE
 	if _player != null:
@@ -89,6 +108,7 @@ func set_active(on: bool) -> void:
 	active = on
 	if not on:
 		_finish()
+		link.close()
 		state = ActionState.IDLE_MOVE
 		if _player != null:
 			_player.unlock_movement()
@@ -112,24 +132,87 @@ static func state_name(s: ActionState) -> String:
 func _start(request: ActionRequest, serial: int) -> void:
 	action = request.def
 	action_frame = 1
+	action_slot = request.slot
+	combo = request.combo
+	link_second = request.link_second
 	facing = _player.facing if _player != null else Player.DEFAULT_FACING
-	if request.def.cooldown_frames > 0:
-		cooldowns.start(request.bit, request.def.cooldown_frames)
-	if request.chain:
+	_start_serial = serial
+	var cooldown: int = request.def.cooldown_frames
+	if request.combo != null:
+		# D-S26-3: the replaced solo action's cooldown applies to the second bit.
+		var replaced: ActionDef = Defs.solo_action(request.bit)
+		cooldown = replaced.cooldown_frames if replaced != null else 0
+	if cooldown > 0:
+		cooldowns.start(request.bit, cooldown)
+	if request.combo != null or request.link_second:
+		# D-S26-13: one link, one K follow-up.
+		link.close()
+	if request.combo != null:
+		_clear_chain()
+		Log.debug(&"action", "combo %s" % request.combo.display_name)
+	elif request.chain:
 		Log.debug(&"action", "chain %s" % request.def.id)
 	elif request.def.chain_next != null:
 		chain_key = request.key
 		chain_slot = request.slot
 		chain_serial = serial
-		Log.debug(&"action", "%s %s" % ["cancel" if request.cancel else "start", request.def.id])
+		Log.debug(&"action", "%s %s" % [_start_verb(request), request.def.id])
 	else:
 		_clear_chain()
-		Log.debug(&"action", "%s %s" % ["cancel" if request.cancel else "start", request.def.id])
+		Log.debug(&"action", "%s %s" % [_start_verb(request), request.def.id])
+
+
+static func _start_verb(request: ActionRequest) -> String:
+	if request.link_second:
+		return "link_second"
+	return "cancel" if request.cancel else "start"
+
+
+## Before resolution (D-S26-7, B3): an applied shift closes the link and discards a held press; the
+## 18-tick count loses one tick and closes the link when it runs out.
+func _age_link(serial: int) -> void:
+	if not link.is_open():
+		return
+	if link.serial != serial:
+		var dropped: bool = link.held
+		link.close()
+		Log.debug(&"action", "link closed by shift%s" % (", held K discarded" if dropped else ""))
+		return
+	var dropped_on_expiry: bool = link.held
+	if link.tick():
+		Log.debug(&"action", "link closed%s" % (", held K discarded" if dropped_on_expiry else ""))
+
+
+## After the frame executed (B2): a J action's first ACTIVE frame opens (or reopens) the link on the
+## current window; its last ACTIVE frame starts the 18-tick count (k = 0).
+func _update_link(window: Vector2i, serial: int) -> void:
+	if action == null or action_slot != 0:
+		return
+	if action_frame == action.startup_frames + 1 and serial == _start_serial:
+		link.open(window, serial)
+		Log.debug(&"action", "link open %s %s" % [Register.glyph_of(window.x), Register.glyph_of(window.y)])
+	if action_frame == action.startup_frames + action.active_frames:
+		link.start_count()
+
+
+func _apply_link_op(request: ActionRequest) -> void:
+	match request.link_op:
+		ActionRequest.LinkOp.HOLD:
+			link.hold(request.key, request.slot, request.held_frame)
+			Log.debug(&"action", "link holds K")
+		ActionRequest.LinkOp.DROP:
+			link.clear_hold()
+			Log.debug(&"action", "link drops K (cooldown)")
 
 
 func _finish() -> void:
+	if link.is_open() and not link.counting:
+		link.start_count()  # J ended before its last ACTIVE frame: never leave the link uncounted.
 	action = null
 	action_frame = 0
+	action_slot = -1
+	combo = null
+	link_second = false
 	_clear_chain()
 
 

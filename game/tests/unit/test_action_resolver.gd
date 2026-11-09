@@ -168,3 +168,127 @@ func test_dash_recovery_cancels_into_dash_when_ready() -> void:
 	assert_not_null(r)
 	assert_true(r.cancel)
 	assert_null(_running(0, Vector2i(D, A), Defs.DASH, 10), "dash frame 10 is ACTIVE")
+
+
+# --- Story 2.6: the link rule (AC2-AC6) with a LinkState built by hand ---
+
+func _open_link(pair: Vector2i, serial: int = 0) -> LinkState:
+	var link := LinkState.new()
+	link.open(pair, serial)
+	return link
+
+
+func _linked(frame: int, window: Vector2i, def: ActionDef, action_frame: int, link: LinkState, shift_serial: int = 0) -> ActionRequest:
+	return ActionResolver.resolve(_buf, frame, window, def, action_frame, &"", -1, shift_serial, _cd, link, Defs.COMBOS)
+
+
+func test_combo_press_during_slash_active_is_held() -> void:
+	var link: LinkState = _open_link(Vector2i(A, D))
+	_buf.push(K, 4)
+	var r: ActionRequest = _linked(7, Vector2i(A, D), Defs.SLASH_1, 7, link)
+	assert_not_null(r)
+	assert_null(r.def, "a link instruction, not a start")
+	assert_eq(r.link_op, ActionRequest.LinkOp.HOLD)
+	assert_eq(r.held_frame, 4)
+	assert_eq(r.slot, 1)
+	assert_false(_buf.consume(K, 7), "consumed from the buffer")
+
+
+func test_held_combo_starts_on_the_first_recovery_frame() -> void:
+	var link: LinkState = _open_link(Vector2i(A, D))
+	link.hold(K, 1, 4)
+	for f: int in range(7, 11):
+		assert_null(_linked(f, Vector2i(A, D), Defs.SLASH_1, f, link), "frame %d is ACTIVE" % f)
+	var r: ActionRequest = _linked(11, Vector2i(A, D), Defs.SLASH_1, 11, link)
+	assert_not_null(r)
+	assert_eq(r.def, Defs.DASH_STRIKE)
+	assert_eq(r.combo, Defs.COMBOS.get_combo(A, D))
+	assert_eq(r.bit, D, "the second bit's cooldown applies")
+	assert_true(r.cancel)
+	assert_false(r.link_second)
+
+
+func test_combo_from_idle_inside_the_link() -> void:
+	var link: LinkState = _open_link(Vector2i(A, D))
+	_buf.push(K, 25)
+	var r: ActionRequest = _linked(25, Vector2i(A, D), null, 0, link)
+	assert_eq(r.def, Defs.DASH_STRIKE)
+	assert_false(r.cancel)
+
+
+func test_no_combo_window_holds_during_dash_and_starts_after_it() -> void:
+	var link: LinkState = _open_link(Vector2i(D, A))
+	_buf.push(K, 3)
+	var r: ActionRequest = _linked(3, Vector2i(D, A), Defs.DASH, 3, link)
+	assert_eq(r.link_op, ActionRequest.LinkOp.HOLD)
+	link.hold(K, 1, r.held_frame)
+	for f: int in range(4, 16):
+		assert_null(_linked(f, Vector2i(D, A), Defs.DASH, f, link), "dash frame %d: ATTACK is not in cancel_into" % f)
+	r = _linked(16, Vector2i(D, A), Defs.DASH, 16, link)
+	assert_eq(r.def, Defs.SLASH_1)
+	assert_true(r.link_second)
+	assert_null(r.combo)
+	assert_eq(r.key, K)
+
+
+func test_ordered_lookup_never_fires_a_combo_on_d_a() -> void:
+	var link: LinkState = _open_link(Vector2i(D, A))
+	_buf.push(K, 20)
+	var r: ActionRequest = _linked(20, Vector2i(D, A), null, 0, link)
+	assert_eq(r.def, Defs.SLASH_1)
+	assert_null(r.combo)
+
+
+func test_held_press_on_cooldown_drops_after_8_frames() -> void:
+	var link: LinkState = _open_link(Vector2i(A, D))
+	link.hold(K, 1, 10)
+	_cd.start(D, 30)
+	assert_null(_linked(18, Vector2i(A, D), Defs.SLASH_1, 12, link), "8 frames: still held")
+	var r: ActionRequest = _linked(19, Vector2i(A, D), Defs.SLASH_1, 13, link)
+	assert_not_null(r)
+	assert_eq(r.link_op, ActionRequest.LinkOp.DROP)
+
+
+func test_unheld_press_on_cooldown_stays_buffered() -> void:
+	var link: LinkState = _open_link(Vector2i(A, D))
+	_cd.start(D, 30)
+	_buf.push(K, 8)
+	assert_null(_linked(8, Vector2i(A, D), Defs.SLASH_1, 9, link))
+	assert_eq(_buf.size(), 1, "not consumed, not held (no partial execution)")
+	assert_null(_linked(12, Vector2i(A, D), Defs.SLASH_1, 13, link), "the solo cancel is not tried either")
+	assert_eq(_buf.size(), 1)
+
+
+func test_shift_serial_change_hands_k_back_to_the_solo_rules() -> void:
+	var link: LinkState = _open_link(Vector2i(A, D), 0)
+	_buf.push(K, 12)
+	var r: ActionRequest = _linked(12, Vector2i(A, D), Defs.SLASH_1, 12, link, 1)
+	assert_eq(r.def, Defs.DASH, "solo cancel: the link belongs to the old serial")
+	assert_null(r.combo)
+
+
+func test_closed_link_k_uses_the_2_5_rules() -> void:
+	var link := LinkState.new()
+	_buf.push(K, 3)
+	assert_null(_linked(3, Vector2i(A, D), Defs.SLASH_1, 3, link), "K in STARTUP is not held without a link")
+	assert_eq(_buf.size(), 1)
+
+
+func test_same_frame_j_and_k_resolves_j_first() -> void:
+	var link: LinkState = _open_link(Vector2i(D, A))
+	_buf.push(J, 30)
+	_buf.push(K, 30)
+	var r: ActionRequest = _linked(30, Vector2i(D, A), null, 0, link)
+	assert_eq(r.key, J)
+	assert_eq(_buf.size(), 2, "K still buffered")
+
+
+func test_j_still_resolves_while_the_link_owns_k() -> void:
+	var link: LinkState = _open_link(Vector2i(D, A))
+	link.hold(K, 1, 28)
+	_buf.push(J, 30)
+	_buf.push(K, 30)
+	_cd.start(A, 99) # the held slash cannot start; K belongs to the link
+	var r: ActionRequest = _linked(30, Vector2i(D, A), null, 0, link)
+	assert_eq(r.key, J, "J's dash")
+	assert_eq(r.def, Defs.DASH)

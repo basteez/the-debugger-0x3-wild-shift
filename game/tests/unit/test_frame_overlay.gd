@@ -1,21 +1,35 @@
 extends GutTest
-## Story 2.5 AC7: the F9 frame overlay text, default visibility, toggle and the debug-only node.
+## Story 2.5 AC7 / 2.6 AC8: the F9 frame overlay text (with the combo link lines), default visibility, toggle and the debug-only node.
 
 const S := ActionStateMachine.ActionState
+const A := Register.Bit.ATTACK
+const D := Register.Bit.DASH
 
 
 func test_format_lines_sample_state() -> void:
-	var lines: PackedStringArray = FrameOverlay.format_lines(1234, S.ACTIVE, 3, 0, 17, true)
-	assert_eq(lines, PackedStringArray(["frame 1234", "ACTIVE 3", "cd J 0 K 17", "invuln yes"]))
-	lines = FrameOverlay.format_lines(0, S.IDLE_MOVE, 0, 0, 0, false)
+	var lines: PackedStringArray = FrameOverlay.format_lines(1234, S.ACTIVE, 3, 0, 17, true, true, Vector2i(A, D), 12, true)
+	assert_eq(lines, PackedStringArray(["frame 1234", "ACTIVE 3", "cd J 0 K 17", "invuln yes", "link open", "pair A D", "left 12", "held K"]))
+	lines = FrameOverlay.format_lines(0, S.IDLE_MOVE, 0, 0, 0, false, false, Vector2i(A, D), 5, false)
 	assert_eq(lines[1], "IDLE_MOVE 0")
 	assert_eq(lines[3], "invuln no")
+	assert_eq(lines.slice(4), PackedStringArray(["link closed", "pair - -", "left 0", "held -"]))
 
 
 func test_lines_are_ascii() -> void:
-	for line: String in FrameOverlay.format_lines(9, S.RECOVERY, 12, 24, 0, false):
-		for i: int in line.length():
-			assert_lt(line.unicode_at(i), 128, line)
+	for open: bool in [true, false]:
+		for line: String in FrameOverlay.format_lines(9, S.RECOVERY, 12, 24, 0, false, open, Vector2i(D, A), 18, open):
+			for i: int in line.length():
+				assert_lt(line.unicode_at(i), 128, line)
+
+
+## The overlay reads the FSM's live link (AC8).
+func test_overlay_reads_the_fsm_link() -> void:
+	var fsm := ActionStateMachine.new()
+	fsm.link.open(Vector2i(A, D), 0)
+	fsm.link.start_count()
+	fsm.link.hold(&"action_2", 1, 3)
+	var lines: PackedStringArray = FrameOverlay.format_lines(0, fsm.state, 0, 0, 0, false, fsm.link.is_open(), fsm.link.pair, fsm.link.frames_left, fsm.link.held)
+	assert_eq(lines.slice(4), PackedStringArray(["link open", "pair A D", "left 18", "held K"]))
 
 
 func test_hidden_by_default_and_toggles() -> void:

@@ -72,7 +72,7 @@ func test_reserved_label_greyed() -> void:
 	var c: RegisterPanel.Cell = _only(RegisterPanel.plan(_ring([D, A])), RegisterPanel.LABEL_ROW)
 	assert_eq(c.text, "reserved")
 	assert_eq(c.style, RegisterPanel.GREYED)
-	assert_eq(c.cell, Vector2i(1, 9))
+	assert_eq(c.cell, Vector2i(1, 6))
 
 
 func test_window_inverted_with_jk_below() -> void:
@@ -157,3 +157,67 @@ func test_panel_draws_an_active_register_without_errors() -> void:
 	assert_not_null(RegisterPanel._checker_texture(), "checker dither built")
 	assert_eq(RegisterPanel._checker_texture().get_size(), Vector2(8, 8))
 	assert_eq(reg.ring, _ring([A, D, L]), "drawing never writes the register")
+
+
+# --- Story 2.6 D (AC8): combo names on the window and the previews ---
+
+func _texts(plan: Array[RegisterPanel.Cell], first_row: int) -> Array:
+	var out: Array = []
+	for row: int in range(first_row, first_row + RegisterPanel.NAME_ROWS):
+		var cells: Dictionary = _row(plan, row)
+		for c: RegisterPanel.Cell in cells.values():
+			out.append(c.text)
+	return out
+
+
+func test_active_dash_strike_window_shows_name_and_jk() -> void:
+	var plan: Array[RegisterPanel.Cell] = RegisterPanel.plan(_ring([A, D]))
+	assert_eq(_texts(plan, RegisterPanel.WINDOW_NAME_ROW), ["Dash", "Strike"])
+	for row: int in range(RegisterPanel.WINDOW_NAME_ROW, RegisterPanel.WINDOW_NAME_ROW + 2):
+		assert_eq(_only(plan, row).style, RegisterPanel.INK)
+	assert_eq(_only(plan, RegisterPanel.JK_ROW).text, "J→K")
+	var w: RegisterPanel.Cell = _only(plan, RegisterPanel.WINDOW_ROW)
+	assert_eq(w.text[RegisterPanel.J_COL - 1], "A")
+	assert_eq(w.text[RegisterPanel.K_COL - 1], "D")
+
+
+func test_no_combo_window_shows_glyphs_only() -> void:
+	var plan: Array[RegisterPanel.Cell] = RegisterPanel.plan(_ring([D, A]))
+	assert_eq(_texts(plan, RegisterPanel.WINDOW_NAME_ROW), [], "no name, no '(no combo)' (D-S26-10)")
+	assert_eq(_only(plan, RegisterPanel.JK_ROW).text, "J→K")
+
+
+func test_previews_show_names_only_where_a_combo_exists() -> void:
+	# [D, A]: both shifts give [A, D] = Dash Strike.
+	var plan: Array[RegisterPanel.Cell] = RegisterPanel.plan(_ring([D, A]))
+	assert_eq(_only(plan, RegisterPanel.PREVIEW_LEFT_ROW).text, "<< A D")
+	assert_eq(_texts(plan, RegisterPanel.PREVIEW_LEFT_NAME_ROW), ["Dash", "Strike"])
+	assert_eq(_texts(plan, RegisterPanel.PREVIEW_RIGHT_NAME_ROW), ["Dash", "Strike"])
+	for c: RegisterPanel.Cell in plan:
+		if c.cell.y >= RegisterPanel.PREVIEW_LEFT_NAME_ROW and c.cell.y < RegisterPanel.PREVIEW_LEFT_NAME_ROW + 2:
+			assert_eq(c.style, RegisterPanel.FADED)
+	# [A, D, L]: << gives [D, L] (Echo Dash, not shipped in 2.6), >> gives [L, A] (no combo).
+	plan = RegisterPanel.plan(_ring([A, D, L]))
+	assert_eq(_texts(plan, RegisterPanel.PREVIEW_LEFT_NAME_ROW), [])
+	assert_eq(_texts(plan, RegisterPanel.PREVIEW_RIGHT_NAME_ROW), [])
+	assert_eq(_texts(plan, RegisterPanel.WINDOW_NAME_ROW), ["Dash", "Strike"])
+
+
+func test_plan_uses_the_injected_combo_table() -> void:
+	var c := ComboDef.new()
+	c.first = D
+	c.second = L
+	c.action = Defs.DASH_STRIKE
+	c.display_name = "Echo Dash"
+	var t := ComboTable.new()
+	t.combos = [c]
+	var plan: Array[RegisterPanel.Cell] = RegisterPanel.plan(_ring([A, D, L]), Register.MAX_BITS, t)
+	assert_eq(_texts(plan, RegisterPanel.PREVIEW_LEFT_NAME_ROW), ["Echo Dash"], "fits one row")
+	assert_eq(_texts(plan, RegisterPanel.WINDOW_NAME_ROW), [], "the stub has no [A, D]")
+
+
+func test_wrap_name() -> void:
+	assert_eq(RegisterPanel.wrap_name("Dash Strike"), PackedStringArray(["Dash", "Strike"]))
+	assert_eq(RegisterPanel.wrap_name("Ghost Echo"), PackedStringArray(["Ghost Echo"]))
+	assert_eq(RegisterPanel.wrap_name("Dereference"), PackedStringArray(["Dereferenc"]), "cut to 10 cells")
+	assert_eq(RegisterPanel.wrap_name("a b c d e f g h i j k l m n o p q r s t u v w"), PackedStringArray(["a b c d e", "f g h i j"]))
