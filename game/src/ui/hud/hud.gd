@@ -2,7 +2,7 @@ class_name Hud
 extends CanvasLayer
 ## IDE HUD frame (Story 1.5, FR57 shell, D-047): 80x45 cells of 8 px at 1x on the 640x360 base.
 ## Static placeholder text (DC10) plus the RegisterPanel (Story 2.3) and the LogPanel (Story 2.8);
-## duck text and HP come later.
+## Story 3.6: the DuckBubble draws the duck and its text in the DUCK region.
 
 const COLS := 80
 const ROWS := 45
@@ -33,6 +33,8 @@ const SEPARATOR_COL := 15
 ## Console log lines under the LOG header (Story 2.8). Listens to EventBus.hit_landed itself.
 @onready var log_panel: LogPanel = $LogPanel
 @onready var frame: Node2D = $Frame
+## The duck text bubble in the DUCK region (Story 3.6). Listens to EventBus.duck_line_requested.
+@onready var duck_bubble: DuckBubble = $DuckBubble
 
 ## The fight's boss (Story 3.1), set by Main on every flow change; null = placeholder top bar.
 ## Read only: the header shows its live HP (AD-05).

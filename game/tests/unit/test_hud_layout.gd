@@ -90,6 +90,19 @@ func test_hud_scene_layer_and_children() -> void:
 	# Story 2.8: the log panel, after the frame (drawn over its rows), below the grid overlay.
 	assert_not_null(hud.log_panel)
 	assert_gt(hud.get_node(^"LogPanel").get_index(), hud.get_node(^"Frame").get_index())
+	# Story 3.6 (G2): the duck bubble, after the log panel, below the grid overlay.
+	assert_not_null(hud.duck_bubble)
+	assert_gt(hud.get_node(^"DuckBubble").get_index(), hud.get_node(^"LogPanel").get_index())
+	assert_lt(hud.get_node(^"DuckBubble").get_index(), hud.get_node(^"GridOverlay").get_index())
+
+
+## Story 3.6 (G1, D-S36-4): the frame no longer draws the DUCK box; the bubble owns cols 0-11 of
+## rows 22-37 without a border. The register box is still drawn. Read from the frame's source,
+## comments stripped.
+func test_frame_does_not_draw_the_duck_box() -> void:
+	var code: String = (load("res://tests/unit/test_attack_isolation.gd") as GDScript).call(&"code_of", "res://src/ui/hud/hud_frame.gd")
+	assert_false(code.contains("_box(Hud.DUCK"), "no DUCK box")
+	assert_true(code.contains("_box(Hud.REGISTER, Hud.REG_TITLE)"), "register box unchanged")
 
 
 ## Story 2.8 AC3: rows 39-44 hold the six log lines under the header on row 38.

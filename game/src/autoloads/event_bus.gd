@@ -43,3 +43,7 @@ signal boss_defeated(boss: StringName)
 ## AudioManager plays the chime, BossView draws the `// patched` tag.
 @warning_ignore("unused_signal")
 signal patched_applied(boss: StringName, frames: int)
+## The duck was asked to say a line (Story 3.6, AD-14, D-S36-2): the DuckLinesDef id (&"" for raw
+## text) and the resolved text. Emitted only by VoiceService.say; DuckBubble shows it. No sim emitter.
+@warning_ignore("unused_signal")
+signal duck_line_requested(line_id: StringName, text: String)

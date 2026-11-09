@@ -1,0 +1,67 @@
+extends GutTest
+## Story 3.6 AC 6 (A1-A3, H2): data/duck/duck_lines.tres holds T1-T4 with the GDD strings exactly,
+## unique ids, ASCII text that fits the bubble, and DuckLinesDef.find() / validate() behave.
+
+const LINES_PATH := "res://data/duck/duck_lines.tres"
+const GDD: Dictionary[StringName, String] = {
+	&"t1_shift": "Q and E shift your bits. Only the two on the left are live; the rest are in code review.",
+	&"t2_semicolon": "See the semicolon? It's always the semicolon. Hit it when it opens.",
+	&"t3_dash_strike": "J then K: Dash Strike. Two bits, one commit.",
+	&"t4_phase_two": "It refactored itself. Have you tried shifting it off and on again?",
+}
+
+
+func _lines() -> DuckLinesDef:
+	return load(LINES_PATH) as DuckLinesDef
+
+
+func _line(id: StringName, text: String) -> DuckLineDef:
+	var d := DuckLineDef.new()
+	d.id = id
+	d.text = text
+	return d
+
+
+func test_the_four_tutorial_lines_equal_the_gdd_strings() -> void:
+	var lines: DuckLinesDef = _lines()
+	assert_not_null(lines)
+	assert_eq(lines.entries.size(), 4, "only T1-T4 in this story (D-S36-3)")
+	for i: int in DuckDirector.DUCK_IDS.size():
+		var id: StringName = DuckDirector.DUCK_IDS[i]
+		assert_eq(lines.entries[i].id, id, "order follows the beats")
+		assert_eq(lines.find(id).text, GDD[id], String(id))
+
+
+func test_ids_are_unique_and_text_is_ascii() -> void:
+	var seen: Dictionary[StringName, bool] = {}
+	for entry: DuckLineDef in _lines().entries:
+		assert_false(seen.has(entry.id), "duplicate %s" % entry.id)
+		seen[entry.id] = true
+		assert_true(DuckLineDef.is_ascii(entry.text), String(entry.id))
+
+
+func test_every_entry_validates() -> void:
+	assert_eq(_lines().validate(), PackedStringArray())
+	for entry: DuckLineDef in _lines().entries:
+		assert_eq(entry.validate(), PackedStringArray(), String(entry.id))
+
+
+func test_find_returns_null_when_absent() -> void:
+	assert_null(_lines().find(&"no_such_line"))
+	assert_null(_lines().find(&""))
+
+
+func test_line_validation_reports_bad_values() -> void:
+	assert_gt(_line(&"", "hi").validate().size(), 0, "empty id")
+	assert_gt(_line(&"x", "").validate().size(), 0, "empty text")
+	assert_gt(_line(&"x", "café").validate().size(), 0, "non-ASCII")
+	assert_gt(_line(&"x", "a supercalifragilistic word").validate().size(), 0, "word wider than 12")
+	assert_gt(_line(&"x", "word ".repeat(40).strip_edges()).validate().size(), 0, "20 lines, more than 15")
+	assert_eq(_line(&"x", "short and fine").validate().size(), 0)
+
+
+func test_lines_def_reports_duplicates_and_nulls() -> void:
+	var d := DuckLinesDef.new()
+	d.entries = [_line(&"a", "one"), _line(&"a", "two"), null]
+	var messages: PackedStringArray = d.validate()
+	assert_eq(messages.size(), 2, ", ".join(messages))

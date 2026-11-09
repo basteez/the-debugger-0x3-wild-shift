@@ -30,6 +30,10 @@ var _tell_blip: AudioStreamWAV = null
 ## Story 3.2 placeholders, built in _ready (never in the sim tick, 3.1 review lesson).
 var _thud: AudioStreamWAV = null
 var _chime: AudioStreamWAV = null
+## The duck squeak's own player (Story 3.6, D-S36-6): never the ShiftSfx player.
+var _squeak_player: AudioStreamPlayer = null
+## Placeholder squeak stream (make_blip until 7.2), made once and shared.
+static var _squeak_stream: AudioStreamWAV = null
 
 
 func _ready() -> void:
@@ -150,6 +154,23 @@ func play_sfx(stream: AudioStream) -> void:
 		add_child(_shift_player)
 	_shift_player.stream = stream
 	_shift_player.play()
+
+
+## Story 3.6 (D-046, D-S36-6): the duck squeak on every bubble line start, on its own lazily
+## created `DuckSqueak` player on the SFX bus. Ignored before unlock (the same warn-once rule).
+func play_squeak() -> void:
+	if not _unlocked:
+		_warn_locked_once()
+		return
+	if _squeak_stream == null:
+		_squeak_stream = make_blip()
+	if _squeak_player == null:
+		_squeak_player = AudioStreamPlayer.new()
+		_squeak_player.name = &"DuckSqueak"
+		_squeak_player.bus = SFX_BUS
+		_squeak_player.stream = _squeak_stream
+		add_child(_squeak_player)
+	_squeak_player.play()
 
 
 ## 16-bit mono sine blip, no loop, short linear fade-out to avoid a click.
