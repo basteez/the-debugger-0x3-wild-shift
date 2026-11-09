@@ -2,6 +2,8 @@ extends GutTest
 ## Story 3.6 AC 10-11 (H7, NP-3, AD-05): no sim folder names the duck layer, and the duck layer
 ## never ticks the sim, draws RNG, or writes the register, the player, the boss or the arena.
 ## Textual scan, comments stripped (the 3.4 attack-isolation pattern).
+## Story 3.7 AC 10 (G4): the mumble-speech names appear only in voice_service.gd and the duck voice
+## data, and the voice signals only in the duck layer and the autoloads.
 
 const IsolationScript := preload("res://tests/unit/test_attack_isolation.gd")
 const SIM_DIRS: Array[String] = ["input", "register", "player", "combat", "bosses", "skills", "arena"]
@@ -17,6 +19,8 @@ const SIM_FORBIDDEN: Array[String] = [
 	"\\bAudioManager\\b",
 	"\\bplay_squeak\\b",
 	"\\bTypewriterReveal\\b",
+	"\\bduck_character_spoken\\b",
+	"\\bDuckClips?Def\\b",
 ]
 ## Sim writes the duck layer must never make: ticking, SimContext, RNG, any register / player /
 ## health / boss / arena method call but the reads it needs, and any assignment through them.
@@ -33,6 +37,33 @@ const DUCK_FORBIDDEN: Array[String] = [
 	"\\bSimClock\\.(?!paused\\b)\\w+",
 	"\\bSimClock\\.paused\\s*=[^=]",
 ]
+
+
+## The addon's names (D-S37-3): only VOICE_ALLOWED may mention them (tools/ and the addon itself
+## are outside the scanned folders).
+const MUMBLE_PATTERN := "MumbleSpeaker|MumbleVoice|MumbleTypewriter|\\bMumble\\.|mumble_speech"
+const VOICE_ALLOWED: Array[String] = [
+	"res://src/autoloads/voice_service.gd",
+	"res://data/duck/duck_voice.tres",
+	"res://data/duck/duck_clips.tres",
+]
+## The voice signals: only the duck layer and the autoloads (EventBus, VoiceService) may name them.
+const VOICE_SIGNAL_PATTERN := "\\bduck_character_spoken\\b|\\bduck_line_finished\\b"
+
+
+## Every file under `dir` whose name ends with one of `suffixes`, recursively.
+static func files_under(dir: String, suffixes: Array[String]) -> PackedStringArray:
+	var out := PackedStringArray()
+	if not DirAccess.dir_exists_absolute(dir):
+		return out
+	for f: String in DirAccess.get_files_at(dir):
+		for suffix: String in suffixes:
+			if f.ends_with(suffix):
+				out.append(dir.path_join(f))
+				break
+	for sub: String in DirAccess.get_directories_at(dir):
+		out.append_array(files_under(dir.path_join(sub), suffixes))
+	return out
 
 
 static func gd_files_under(dir: String) -> PackedStringArray:
@@ -99,3 +130,37 @@ func test_the_guards_catch_violations() -> void:
 	assert_eq(violations("var p: int = boss.phase_index if boss != null else 0", DUCK_FORBIDDEN).size(), 0)
 	assert_eq(violations("if SimClock.paused:", DUCK_FORBIDDEN).size(), 0)
 	assert_eq(violations("if boss.phase_index == 1:", DUCK_FORBIDDEN).size(), 0)
+
+
+func test_mumble_names_only_in_the_voice_files() -> void:
+	var paths := PackedStringArray()
+	paths.append_array(files_under("res://src", [".gd", ".tscn", ".tres"]))
+	paths.append_array(files_under("res://data", [".tres"]))
+	assert_gt(paths.size(), 20, "files found")
+	var re := RegEx.create_from_string(MUMBLE_PATTERN)
+	var found_in_voice_service: bool = false
+	for path: String in paths:
+		var code: String = IsolationScript.code_of(path) if path.ends_with(".gd") else FileAccess.get_file_as_string(path)
+		var hit: bool = re.search(code) != null
+		if path == VOICE_ALLOWED[0]:
+			found_in_voice_service = hit
+		if hit:
+			assert_true(VOICE_ALLOWED.has(path), "%s names the mumble-speech addon" % path)
+	assert_true(found_in_voice_service, "the scan sees voice_service.gd use the addon")
+
+
+func test_voice_signals_only_in_the_duck_layer_and_autoloads() -> void:
+	var re := RegEx.create_from_string(VOICE_SIGNAL_PATTERN)
+	for path: String in files_under("res://src", [".gd"]):
+		if path.begins_with(DUCK_DIR + "/") or path.begins_with("res://src/autoloads/") or path.begins_with("res://src/debug/smoke_voice/"):
+			continue
+		assert_null(re.search(IsolationScript.code_of(path)), "%s names a duck voice signal" % path)
+
+
+func test_the_mumble_guard_catches_names() -> void:
+	var re := RegEx.create_from_string(MUMBLE_PATTERN)
+	assert_not_null(re.search("ClassDB.instantiate(&\"MumbleSpeaker\")"))
+	assert_not_null(re.search("var v := MumbleVoice.new()"))
+	assert_not_null(re.search("Mumble.render(t, v, 48000)"))
+	assert_not_null(re.search("res://addons/mumble_speech/bin"))
+	assert_null(re.search("var mumbled := 1"))

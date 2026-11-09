@@ -4,6 +4,7 @@ extends Node2D
 ## EventBus.flow_state_changed. Main itself, the arena and the HUD are never freed during the flow.
 
 const SMOKE_AUDIO_SCENE := "res://src/debug/smoke_audio/smoke_audio.tscn"
+const SMOKE_VOICE_SCENE := "res://src/debug/smoke_voice/smoke_voice.tscn"
 const TitleScreenScript := preload("res://src/ui/screens/title/title_screen.gd")
 const PlaceholderScreenScript := preload("res://src/ui/screens/placeholder/placeholder_screen.gd")
 const PauseScreenScript := preload("res://src/ui/screens/pause/pause_screen.gd")
@@ -70,6 +71,14 @@ func _ready() -> void:
 			Log.info(&"flow", "audio smoke scene opened")
 			return
 		Log.warn(&"flow", "audio smoke scene missing, opening title")
+	# Story 3.7 duck voice smoke test, behind ?debug&smoke=voice and the same Debug gate.
+	if Debug.enabled and wants_voice_smoke(UrlQuery.web_search()):
+		var voice_scene := load(SMOKE_VOICE_SCENE) as PackedScene
+		if voice_scene != null:
+			add_child(voice_scene.instantiate())
+			Log.info(&"flow", "voice smoke scene opened")
+			return
+		Log.warn(&"flow", "voice smoke scene missing, opening title")
 	EventBus.flow_state_changed.connect(_on_flow_state_changed)
 	apply_flow_state(Game.flow_state, Game.run.boss_index)
 
@@ -297,3 +306,8 @@ static func should_add_debug_keys(debug_enabled: bool) -> bool:
 ## True only when the query string has a bare or valued `debug` key AND `smoke=audio`.
 static func wants_audio_smoke(search: String) -> bool:
 	return UrlQuery.has_debug(search) and UrlQuery.has_smoke(search, "audio")
+
+
+## True only when the query string has a bare or valued `debug` key AND `smoke=voice` (Story 3.7).
+static func wants_voice_smoke(search: String) -> bool:
+	return UrlQuery.has_debug(search) and UrlQuery.has_smoke(search, "voice")

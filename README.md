@@ -65,6 +65,11 @@ Check a local export before uploading with `bash game/tools/smoke_web.sh` (serve
 
 `main` is protected: all changes go through pull requests.
 
+## Credits
+
+- Voice: mumble-speech by basteez (MIT/Apache-2.0). Godot addon `0.3.0` (release `v0.3.0`, source tag `godot/v0.3.0`), vendored unchanged in `game/addons/mumble_speech/` with its `LICENSE-MIT` and `LICENSE-APACHE`.
+- Tests: [GUT](https://github.com/bitwes/Gut) (MIT).
+
 ## License
 
 Code is released under the [MIT License](LICENSE).

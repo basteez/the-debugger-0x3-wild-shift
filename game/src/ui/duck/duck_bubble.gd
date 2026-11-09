@@ -5,6 +5,11 @@ extends Node2D
 ## typewriter (TypewriterReveal) with a squeak on every line start (D-046, D-S36-6). Lines arrive
 ## through EventBus.duck_line_requested (VoiceService.say); up to MAX_PENDING wait in FIFO order.
 ## Clears whenever the flow leaves FIGHT (D-S36-8) and freezes while SimClock.paused (D-S36-12).
+## Story 3.7: when VoiceService can speak, the squeak plays first and the voice starts after
+## SQUEAK_LEAD_S (D-S37-6); the voice then drives the reveal through
+## EventBus.duck_character_spoken (set_revealed(char_index + 1), D-S37-4) and the hold starts at
+## EventBus.duck_line_finished (D-S37-5). A cut line (stop, pause, watchdog) finishes silently on
+## the timer (D-S37-7). clear() and a pause call VoiceService.stop().
 ## Presentation only: it reads signal arguments and SimClock.paused, never writes sim state (AD-05).
 
 const SCALE := 1
@@ -20,6 +25,11 @@ const MAX_PENDING := 4
 const HOLD_BASE_S := 2.0
 const HOLD_PER_CHAR_S := 0.05
 const CHARS_PER_S := TypewriterReveal.CHARS_PER_S
+## Squeak first, then the voice (D-S37-6): seconds between the line start and the voice start.
+const SQUEAK_LEAD_S := 0.15
+
+## The voice seam (VoiceService; tests swap in a fake with can_speak / speak_pending / stop).
+var voice: Node = VoiceService
 
 ## Queued line texts and their ids (parallel, FIFO), excluding the line showing now.
 var _queue: Array[String] = []
@@ -29,6 +39,12 @@ var _current_id: StringName = &""
 var _reveal: TypewriterReveal = TypewriterReveal.new()
 var _hold_s: float = 0.0
 var _showing: bool = false
+## The current line is voiced: the reveal waits for the voice (set when the line starts).
+var _voice_line: bool = false
+## The voice is speaking the current line and drives the reveal; the timer and the hold wait.
+var _voice_speaking: bool = false
+## Squeak lead left before speak_pending() runs (voiced lines only).
+var _lead_s: float = 0.0
 
 
 func _enter_tree() -> void:
@@ -36,6 +52,10 @@ func _enter_tree() -> void:
 		EventBus.duck_line_requested.connect(_on_duck_line_requested)
 	if not EventBus.flow_state_changed.is_connected(_on_flow_state_changed):
 		EventBus.flow_state_changed.connect(_on_flow_state_changed)
+	if not EventBus.duck_character_spoken.is_connected(_on_duck_character_spoken):
+		EventBus.duck_character_spoken.connect(_on_duck_character_spoken)
+	if not EventBus.duck_line_finished.is_connected(_on_duck_line_finished):
+		EventBus.duck_line_finished.connect(_on_duck_line_finished)
 
 
 func _exit_tree() -> void:
@@ -43,6 +63,13 @@ func _exit_tree() -> void:
 		EventBus.duck_line_requested.disconnect(_on_duck_line_requested)
 	if EventBus.flow_state_changed.is_connected(_on_flow_state_changed):
 		EventBus.flow_state_changed.disconnect(_on_flow_state_changed)
+	if EventBus.duck_character_spoken.is_connected(_on_duck_character_spoken):
+		EventBus.duck_character_spoken.disconnect(_on_duck_character_spoken)
+	if EventBus.duck_line_finished.is_connected(_on_duck_line_finished):
+		EventBus.duck_line_finished.disconnect(_on_duck_line_finished)
+	if _voice_speaking:
+		_voice_speaking = false
+		voice.stop()
 
 
 ## Shows `text` now when idle, else queues it; a request beyond MAX_PENDING is dropped.
@@ -57,15 +84,22 @@ func enqueue(text: String, line_id: StringName = &"") -> void:
 	_queue_ids.append(line_id)
 
 
-## Drops the queue and hides the bubble.
+## Drops the queue and hides the bubble. Hidden first, then the voice is stopped, so the
+## duck_line_finished that stop() emits finds no showing line (AC 6).
 func clear() -> void:
+	var was_showing: bool = _showing
+	_showing = false
+	_voice_line = false
+	_voice_speaking = false
+	_lead_s = 0.0
 	_queue.clear()
 	_queue_ids.clear()
 	_current_lines = PackedStringArray()
 	_current_id = &""
 	_reveal.set_line(0)
 	_hold_s = 0.0
-	_showing = false
+	if was_showing:
+		voice.stop()
 	queue_redraw()
 
 
@@ -95,20 +129,46 @@ func hold_left() -> float:
 	return _hold_s
 
 
+## True while the voice speaks the current line (it drives the reveal).
+func is_voice_speaking() -> bool:
+	return _voice_speaking
+
+
+## Squeak lead left before the voice starts (0 when the line is not voiced or already started).
+func lead_left() -> float:
+	return _lead_s
+
+
 func _process(delta: float) -> void:
 	step(delta)
 
 
 ## One presentation step of `delta` seconds (the _process body, callable from tests).
 func step(delta: float) -> void:
-	if not _showing or SimClock.paused:
+	if not _showing:
+		return
+	if SimClock.paused:
+		# D-S37-7: a pause cuts the speech once; the rest of the text finishes on the timer.
+		if _voice_speaking:
+			_cut_voice()
+		return
+	if _lead_s > 0.0:
+		_lead_s -= delta
+		if _lead_s > 0.0:
+			return
+		_lead_s = 0.0
+		# Set before the call: a voice that finishes inside speak_pending (no letters) must reach
+		# _on_duck_line_finished with the flag up, or the bubble would wait forever.
+		_voice_speaking = true
+		if not bool(voice.speak_pending(_current_id, " ".join(_current_lines))):
+			_voice_speaking = false
+			_reveal.release()
+		return
+	if _voice_speaking:
 		return
 	if not _reveal.is_done():
 		_reveal.advance(delta)
-		# Redraw on any change, including a count set from outside (the 3.7 voice seam).
-		if _reveal.revealed != _drawn_revealed:
-			_drawn_revealed = _reveal.revealed
-			queue_redraw()
+		_sync_draw()
 		return
 	_hold_s -= delta
 	if _hold_s > 0.0:
@@ -131,6 +191,11 @@ func _start_line(text: String, line_id: StringName) -> void:
 	_reveal.set_line(revealable_length(_current_lines))
 	_hold_s = hold_seconds(_reveal.length)
 	_showing = true
+	_voice_speaking = false
+	_voice_line = bool(voice.can_speak())
+	_lead_s = SQUEAK_LEAD_S if _voice_line else 0.0
+	if _voice_line:
+		_reveal.set_revealed(0) # the voice will drive the reveal; nothing shows during the lead
 	AudioManager.play_squeak()
 	queue_redraw()
 
@@ -148,6 +213,43 @@ func _draw() -> void:
 
 func _on_duck_line_requested(line_id: StringName, text: String) -> void:
 	enqueue(text, line_id)
+
+
+## D-S37-4: the voice reveals up to and including the spoken character.
+func _on_duck_character_spoken(char_index: int) -> void:
+	if not _showing or not _voice_speaking:
+		return
+	_reveal.set_revealed(maxi(_reveal.revealed, char_index + 1))
+	_sync_draw()
+
+
+## D-S37-5: the voice line ended. Completed: the rest shows now and the hold starts; cut: the timer
+## takes the reveal back from where the voice left it (silent), then the hold. Ignored when the
+## bubble is cleared or shows another line.
+func _on_duck_line_finished(line_id: StringName, completed: bool) -> void:
+	if not _showing or not _voice_speaking or line_id != _current_id:
+		return
+	_voice_speaking = false
+	if completed:
+		_reveal.set_revealed(_reveal.length)
+	else:
+		_reveal.release()
+	_sync_draw()
+
+
+## Stops the voice for the current line and hands the reveal back to the timer.
+func _cut_voice() -> void:
+	_voice_speaking = false
+	voice.stop()
+	_reveal.release()
+	_sync_draw()
+
+
+## Redraws on any change of the revealed count, including one set by the voice.
+func _sync_draw() -> void:
+	if _reveal.revealed != _drawn_revealed:
+		_drawn_revealed = _reveal.revealed
+		queue_redraw()
 
 
 func _on_flow_state_changed(_from: int, to: int) -> void:
