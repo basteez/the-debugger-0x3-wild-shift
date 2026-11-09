@@ -82,3 +82,32 @@ func test_main_camera_keeps_the_framing_and_the_hud_does_not_move() -> void:
 	assert_eq(cam.get_parent(), main.arena)
 	assert_eq(cam.global_position, Vector2.ZERO, "offset zero == no camera")
 	assert_true(main.get_node(^"Hud") is CanvasLayer, "the HUD is a CanvasLayer: the camera never moves it")
+
+
+# --- Story 2.9: the player-hit schedule (3 px, 4 frames, D-S29-6) ---
+
+func test_player_hit_schedule_is_4_frames_of_3px() -> void:
+	assert_eq(CameraShake.PLAYER_HIT_PX, 3)
+	assert_eq(CameraShake.PLAYER_HIT_FRAMES, 4)
+	var got: Array[Vector2] = []
+	for left: int in range(4, 0, -1):
+		got.append(CameraShake.offset_for(left, 3, 4))
+	assert_eq(got, [Vector2(3, 0), Vector2(-3, 0), Vector2(3, 0), Vector2(-3, 0)])
+	assert_eq(CameraShake.offset_for(5, 3, 4), Vector2.ZERO)
+	assert_eq(CameraShake.offset_for(0, 3, 4), Vector2.ZERO)
+
+
+func test_player_damaged_starts_the_player_hit_shake() -> void:
+	EventBus.player_damaged.emit(4)
+	var t: int = _driver.now()
+	assert_eq(_driver.frames_left(t), 4)
+	assert_eq(absf(_driver.camera.offset.x), 3.0)
+	_driver.apply(t + 4)
+	assert_eq(_driver.camera.offset, Vector2.ZERO, "over after 4 frames")
+
+
+func test_combo_schedule_unchanged_after_a_player_hit() -> void:
+	_driver.start(10, CameraShake.PLAYER_HIT_PX, CameraShake.PLAYER_HIT_FRAMES)
+	_driver.start(20)
+	assert_eq(_driver.frames_left(20), 6)
+	assert_eq(_driver.camera.offset, Vector2(2, 0))

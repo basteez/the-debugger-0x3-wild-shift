@@ -14,6 +14,9 @@ const HALF_TILE := Vector2(Const.TILE_PX / 2.0, Const.TILE_PX / 2.0)
 const DUCK_STEP := Vector2(Const.TILE_PX * 1.5, Const.TILE_PX)
 
 var player: Player
+## Story 2.9 (D-S29-6): the `@` blinks while this health is invulnerable; the duck never blinks.
+## Injected by Main; null = no blink.
+var health: PlayerHealth
 ## Story 2.4 shift juice (D-S24-4): the `@` draws as an INK cell with a BG glyph while true. Set by
 ## JuiceDirector for 4 frames per shift; the duck `>o` is never inverted.
 var inverted: bool = false
@@ -32,7 +35,9 @@ func _draw() -> void:
 	if player == null:
 		return
 	var top_left: Vector2 = player_top_left(player.position_px)
-	if inverted:
+	if health != null and PlayerHealth.blink_hidden(health.invuln_left):
+		pass # blink-off frame: the `@` is not drawn
+	elif inverted:
 		draw_rect(Rect2(top_left, Vector2(GlyphFont.text_width(PLAYER_GLYPH, GLYPH_SCALE), Const.TILE_PX)), Palette.INK)
 		GlyphFont.draw_at(self, top_left, PLAYER_GLYPH, Palette.BG, GLYPH_SCALE)
 	else:

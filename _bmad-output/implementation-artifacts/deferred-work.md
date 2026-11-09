@@ -180,3 +180,12 @@ Story 1.3 AC9 / I-6 ("mumble-speech web check, moved to 3.7") is UNBLOCKED. Tizi
 - PerfOverlay: "frame" is `TIME_PROCESS` only; F10 may be captured by browser menus (Firefox/Linux); hidden outside FIGHT. Debug only.
 - Micro-costs: ParticlePool scans 300 slots without a free-list; `LogPanel.lines()` allocates per `_draw`. Test-only accessors on production nodes; `CameraShakeDriver` PREDELETE camera cleanup is brittle.
 - Missing tests: LogPanel/PerfOverlay `_draw`, AC8 through the director's `_process`. Hit-stop 6 plus queued input leaves 2 frames of buffer slack (see the 2.3 note above).
+
+## Deferred from: code review of story-2-9-player-damage-death-and-instant-retry (2026-11-09)
+
+- [design call] Log panel is hidden in DEAD (HUD child); lines are kept but not drawn. Judge in human checks; show the log layer in DEAD if the player cannot tell what hit them.
+- Death transition runs synchronously mid-tick (leave_fight inside the SimClock loop) and the lethal hit's 4-frame hit-stop runs on the DEAD screen. Works via per-system `active` flags; consider deferring death to end of tick.
+- Retry reseeds the RNG from the wall clock; the seed is not part of the fight-start snapshot. Revisit with seeded boss patterns (Epic 3).
+- Guard regex for AC10 is evadable (`hp := x`, `set(&"hp", ...)`); tests peek private state (`_pending`, `_swallow_presses`) and restore SimClock state by hand.
+- `HpReadout` redraws every `_process`; `cell_for` assumes `Hud.COLS >= text.length()`.
+

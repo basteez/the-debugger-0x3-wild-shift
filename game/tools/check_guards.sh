@@ -50,6 +50,10 @@ done
 if [ ${#pres_paths[@]} -gt 0 ]; then
 	report "hit-stop requested or written from presentation (sim systems only, AD-01)" \
 		< <(grep -rnE --include='*.gd' '\brequest_hitstop[[:space:]]*\(|\bhitstop_frames[[:space:]]*([-+*/]?=[^=])' "${pres_paths[@]}" | grep -vE '^[^:]+:[0-9]+:[[:space:]]*#' || true)
+	# Story 2.9 (AD-05, AC10): HP, invulnerability and death are sim state written only by
+	# PlayerHealth; presentation reads them and only calls queue_hit / Game.retry.
+	report "player HP, invulnerability or death written from presentation (PlayerHealth only, AD-05)" \
+		< <(grep -rnE --include='*.gd' '(^|[^[:alnum:]_])(hp|invuln_left)[[:space:]]*([-+*/]?=[^=])|\.dead[[:space:]]*([-+*/]?=[^=])' "${pres_paths[@]}" | grep -vE '^[^:]+:[0-9]+:[[:space:]]*#' || true)
 fi
 
 report "direct output call outside Log (use Log.info/debug/warn/error)" \

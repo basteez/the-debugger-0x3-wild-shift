@@ -4,6 +4,7 @@ extends Node2D
 ## HUD rows 39-44, under the `── console ──` header that HudFrame draws on row 38. Oldest first,
 ## newest at the bottom; the panel fills top-down like a console, then scrolls. Gameplay
 ## presentation driven by EventBus (not the Log autoload): it reads only signal arguments (AD-05).
+## Story 2.9: EventBus.player_damaged appends `WARN: hp--` (D-S29-9).
 
 const SCALE := 1
 
@@ -20,11 +21,15 @@ func _init() -> void:
 func _enter_tree() -> void:
 	if not EventBus.hit_landed.is_connected(_on_hit_landed):
 		EventBus.hit_landed.connect(_on_hit_landed)
+	if not EventBus.player_damaged.is_connected(_on_player_damaged):
+		EventBus.player_damaged.connect(_on_player_damaged)
 
 
 func _exit_tree() -> void:
 	if EventBus.hit_landed.is_connected(_on_hit_landed):
 		EventBus.hit_landed.disconnect(_on_hit_landed)
+	if EventBus.player_damaged.is_connected(_on_player_damaged):
+		EventBus.player_damaged.disconnect(_on_player_damaged)
 
 
 ## Appends a line; once the ring is full the oldest line scrolls off.
@@ -58,6 +63,11 @@ static func line_for_damage(damage: int) -> String:
 	return "console.log(\"-%d\")" % maxi(damage, 0)
 
 
+## The log line for a hit on the player (D-S29-9): no number, no frame stamp. Pure.
+static func line_for_player_hit() -> String:
+	return "WARN: hp--"
+
+
 ## HUD cell of log line `index` (0 = top line, row 39). Pure.
 static func line_cell(index: int) -> Vector2i:
 	return Vector2i(Hud.LOG.position.x, Hud.LOG.position.y + 1 + index)
@@ -71,3 +81,7 @@ func _draw() -> void:
 
 func _on_hit_landed(_target: StringName, damage: int, _state: int, _is_combo: bool, _pos: Vector2) -> void:
 	append_line(line_for_damage(damage))
+
+
+func _on_player_damaged(_hp: int) -> void:
+	append_line(line_for_player_hit())

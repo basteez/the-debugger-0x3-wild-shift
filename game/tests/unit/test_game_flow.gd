@@ -204,3 +204,135 @@ func test_debug_jump_into_fight_seeds_the_fight() -> void:
 	game.debug_jump(S.FIGHT, 1)
 	assert_gt(game.run.fight_seed, 0)
 	_assert_clock_seeded_with(game.run.fight_seed)
+
+
+# --- Story 2.9: death, retry gate, deaths_on_boss and the fight-start snapshot ---
+
+func _fight(game: Node, boss: int = 0) -> void:
+	Debug.enabled = true
+	game.debug_jump(S.FIGHT, boss)
+	assert_eq(game.flow_state, S.FIGHT)
+
+
+func test_retry_open_boundary() -> void:
+	assert_eq(GameScript.RETRY_DELAY_FRAMES, 20)
+	assert_false(GameScript.retry_open(100, 119), "19 frames after: closed")
+	assert_true(GameScript.retry_open(100, 120), "20 frames after: open")
+	assert_true(GameScript.retry_open(100, 500))
+	assert_false(GameScript.retry_open(-1, 500), "no death: closed")
+
+
+func test_record_death_counts_enters_dead_and_emits() -> void:
+	var game: Node = _game()
+	_fight(game, 1)
+	watch_signals(EventBus)
+	assert_true(game.record_death(200))
+	assert_eq(game.flow_state, S.DEAD)
+	assert_eq(game.run.deaths_on_boss, 1)
+	assert_eq(game.death_frame, 200)
+	assert_signal_emitted_with_parameters(EventBus, "player_died", [&"null_pointer", 1])
+	assert_signal_emitted_with_parameters(EventBus, "flow_state_changed", [S.FIGHT, S.DEAD])
+
+
+func test_record_death_ignored_outside_fight() -> void:
+	var game: Node = _game()
+	watch_signals(EventBus)
+	assert_false(game.record_death(10))
+	assert_eq(game.flow_state, S.TITLE)
+	assert_eq(game.run.deaths_on_boss, 0)
+	assert_signal_not_emitted(EventBus, "player_died")
+
+
+func test_lethal_damage_signal_records_the_death() -> void:
+	var game: Node = _game()
+	_fight(game)
+	game.on_player_damaged(3)
+	assert_eq(game.flow_state, S.FIGHT, "a non-lethal hit is not a death")
+	game.on_player_damaged(0)
+	assert_eq(game.flow_state, S.DEAD)
+	assert_eq(game.run.deaths_on_boss, 1)
+
+
+func test_retry_refused_outside_dead_and_before_the_gate() -> void:
+	var game: Node = _game()
+	assert_false(game.retry(1000), "refused on TITLE")
+	_fight(game)
+	assert_false(game.retry(1000), "refused in FIGHT")
+	game.record_death(100)
+	assert_false(game.retry(100), "same frame")
+	assert_false(game.retry(119), "19 frames")
+	assert_eq(game.flow_state, S.DEAD)
+
+
+func test_retry_after_the_gate_returns_to_fight() -> void:
+	var game: Node = _game()
+	_fight(game)
+	game.record_death(100)
+	watch_signals(EventBus)
+	assert_true(game.retry(120))
+	assert_eq(game.flow_state, S.FIGHT)
+	assert_eq(game.death_frame, -1)
+	assert_signal_emitted_with_parameters(EventBus, "flow_state_changed", [S.DEAD, S.FIGHT])
+	assert_true(SimClock.get(&"_swallow_presses"), "the retry press never fires an action")
+	SimClock.set(&"_swallow_presses", false)
+
+
+func test_deaths_on_boss_kept_by_retry_and_reset_by_a_new_boss() -> void:
+	var game: Node = _game()
+	_fight(game, 0)
+	for i: int in 3:
+		game.record_death(100 * (i + 1))
+		assert_true(game.retry(100 * (i + 1) + 20))
+	SimClock.set(&"_swallow_presses", false)
+	assert_eq(game.run.deaths_on_boss, 3, "retries keep the count")
+	game.debug_jump(S.FIGHT, 1)
+	assert_eq(game.run.deaths_on_boss, 0, "a new boss resets it")
+	var run := RunState.new()
+	run.deaths_on_boss = 2
+	run.start_boss(2)
+	assert_eq(run.boss_index, 2)
+	assert_eq(run.deaths_on_boss, 0)
+
+
+func test_harvest_to_fight_resets_deaths() -> void:
+	var game: Node = _game()
+	game.start_run_from_title(1)
+	game.advance() # INTRO -> FIGHT 0
+	game.record_death(50)
+	assert_eq(game.run.deaths_on_boss, 1)
+	game.retry(70)
+	game.advance() # FIGHT -> HARVEST
+	game.advance() # HARVEST -> FIGHT 1
+	SimClock.set(&"_swallow_presses", false)
+	assert_eq(game.run.boss_index, 1)
+	assert_eq(game.run.deaths_on_boss, 0)
+
+
+func test_snapshot_captured_on_fight_entry_not_on_retry() -> void:
+	var game: Node = _game()
+	_fight(game, 1)
+	assert_eq(game.run.fight_start_ring, Register.fight_start_for_boss(1))
+	game.run.fight_start_ring = PackedInt32Array([Register.Bit.DASH, Register.Bit.ATTACK, Register.Bit.LOOP])
+	var marker: PackedInt32Array = game.run.fight_start_ring
+	game.record_death(10)
+	game.retry(30)
+	SimClock.set(&"_swallow_presses", false)
+	assert_eq(game.run.fight_start_ring, marker, "a retry restores, never re-captures")
+	game.record_death(40)
+	game.debug_jump(S.FIGHT, 0) # a debug jump out of DEAD is a new fight
+	assert_eq(game.run.fight_start_ring, Register.fight_start_for_boss(0))
+
+
+func test_boss_ids() -> void:
+	assert_eq(GameScript.boss_id(0), &"infinite_loop")
+	assert_eq(GameScript.boss_id(1), &"null_pointer")
+	assert_eq(GameScript.boss_id(2), &"segfault")
+	assert_eq(GameScript.boss_id(3), &"")
+
+
+func test_dead_is_not_pausable() -> void:
+	var game: Node = _game()
+	_fight(game)
+	game.record_death(10)
+	assert_false(game.set_paused(true, &"esc"))
+	assert_false(SimClock.paused)

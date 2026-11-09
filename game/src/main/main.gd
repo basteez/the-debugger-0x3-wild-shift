@@ -7,6 +7,7 @@ const SMOKE_AUDIO_SCENE := "res://src/debug/smoke_audio/smoke_audio.tscn"
 const TitleScreenScript := preload("res://src/ui/screens/title/title_screen.gd")
 const PlaceholderScreenScript := preload("res://src/ui/screens/placeholder/placeholder_screen.gd")
 const PauseScreenScript := preload("res://src/ui/screens/pause/pause_screen.gd")
+const DeadScreenScript := preload("res://src/ui/screens/dead/dead_screen.gd")
 const DebugKeysScript := preload("res://src/debug/debug_keys.gd")
 const GameFlow := preload("res://src/autoloads/game.gd")
 const HudScene := preload("res://src/ui/hud/hud.tscn")
@@ -23,7 +24,7 @@ var screens: Node2D
 var pause_layer: CanvasLayer
 ## The pause overlay while SimClock is paused; null otherwise.
 var pause_screen: PauseScreen
-## The screen instanced for the current flow state; null in DEAD (2.9) or after it freed itself.
+## The screen instanced for the current flow state; null after it freed itself.
 var current_screen: Node
 ## Shift juice (Story 2.4): slides the register panel, inverts the `@`, plays the click.
 var juice_director: JuiceDirector
@@ -41,6 +42,8 @@ var camera_shake: CameraShakeDriver
 var screen_fx: ScreenFX
 ## F10 perf overlay (Story 2.8): exists only when Debug.enabled; null otherwise.
 var perf_overlay: PerfOverlay
+## The player's `hp: 0b11111` readout in the HUD (Story 2.9, D-S29-8).
+var hp_readout: HpReadout
 
 
 func _ready() -> void:
@@ -52,6 +55,7 @@ func _ready() -> void:
 		debug_keys.name = &"DebugKeys"
 		debug_keys.frame_overlay = frame_overlay
 		debug_keys.perf_overlay = perf_overlay
+		debug_keys.player_health = arena.health
 		add_child(debug_keys)
 	# Story 1.3 day-1 audio smoke test, behind ?debug&smoke=audio and the Debug gate (1.6 AC8).
 	if Debug.enabled and wants_audio_smoke(UrlQuery.web_search()):
@@ -73,6 +77,7 @@ func _build_layers() -> void:
 	add_child(arena)
 	# The player view lives in presentation/, so Main (not the arena/ sim folder) attaches it.
 	var player_view := PlayerView.new(arena.player)
+	player_view.health = arena.health
 	player_view.name = &"PlayerView"
 	arena.add_child(player_view)
 	# Debug-only frame overlay (Story 2.5 AC7), above the `@`; lives in debug/, so Main attaches it.
@@ -110,6 +115,11 @@ func _build_layers() -> void:
 	add_child(hud)
 	# The panel lives in ui/, so Main (not the arena/ sim folder) hands it the register (D-S23-9).
 	hud.register_panel.register = arena.register
+	# Story 2.9: the HP readout reads the arena's PlayerHealth; it lives in ui/, so Main attaches it.
+	hp_readout = HpReadout.new()
+	hp_readout.name = &"HpReadout"
+	hp_readout.health = arena.health
+	hud.add_child(hp_readout)
 	pause_layer = CanvasLayer.new()
 	pause_layer.name = &"Pause"
 	pause_layer.layer = PAUSE_LAYER
@@ -158,19 +168,30 @@ func apply_flow_state(state: int, boss_index: int) -> void:
 	if current_screen != null:
 		screens.add_child(current_screen)
 	# No slide or inversion carries across screens (D-S24-9). Story 2.8 [design call]: nor do
-	# particles, the shake or the console lines; every fight starts with a clean log.
+	# particles, the shake or the console lines; every fight starts with a clean log. Story 2.9
+	# (D-S29-10): the log is cleared on FIGHT entry only, so DEAD keeps the lines of the fight.
 	juice_director.reset()
 	particle_pool.clear()
 	camera_shake.reset()
-	hud.log_panel.clear()
 	var in_fight: bool = state == GameFlow.FlowState.FIGHT
+	if in_fight:
+		hud.log_panel.clear()
 	arena.visible = in_fight
 	hud.visible = in_fight
 	if in_fight:
-		arena.enter_fight(Register.fight_start_for_boss(boss_index), wants_practice())
+		arena.enter_fight(fight_start_ring(Game.run, boss_index), wants_practice())
 	else:
 		arena.leave_fight()
 	_attach_practice_target()
+
+
+## The register ring a fight starts from (Story 2.9, AC 6): the RunState snapshot Game captured on
+## FIGHT enter (a retry restores it), or the boss's fight-start set when no snapshot matches this
+## boss (direct calls in tests). Pure.
+static func fight_start_ring(run: RunState, boss_index: int) -> PackedInt32Array:
+	if run != null and run.boss_index == boss_index and not run.fight_start_ring.is_empty():
+		return run.fight_start_ring
+	return Register.fight_start_for_boss(boss_index)
 
 
 ## True when the fight should have the practice target: Shift+F2 was the last jump (Story 2.7,
@@ -213,7 +234,11 @@ func _make_screen(state: int, boss_index: int) -> Node:
 			var screen: PlaceholderScreen = PlaceholderScreenScript.new()
 			screen.setup(state, boss_index)
 			return screen
-	return null # DEAD: no placeholder until 2.9
+		GameFlow.FlowState.DEAD:
+			var dead: DeadScreen = DeadScreenScript.new()
+			dead.name = &"DeadScreen"
+			return dead
+	return null
 
 
 ## DebugKeys exists only when the debug gate is open (AC5).

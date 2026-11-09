@@ -96,7 +96,8 @@ func test_screen_for_each_state() -> void:
 		assert_eq(screen.get_parent(), main.get_node(^"Screens"))
 		assert_true(not is_instance_valid(old) or old.is_queued_for_deletion(), "old screen freed")
 	main.apply_flow_state(GameScript.FlowState.DEAD, 0)
-	assert_null(_screen_of(main), "no DEAD placeholder (2.9)")
+	assert_true(_screen_of(main) is DeadScreen, "DEAD shows the Process exited screen (2.9)")
+	assert_eq(_screen_of(main).get_parent(), main.get_node(^"Screens"))
 
 
 func test_flow_signal_swaps_screen_and_keeps_layers() -> void:
@@ -146,3 +147,39 @@ func test_pause_toggled_adds_and_frees_the_pause_screen() -> void:
 	assert_null(main.pause_screen)
 	assert_same(main.get_node(^"Arena"), arena)
 	assert_same(main.get_node(^"Hud"), hud)
+
+
+# --- Story 2.9: DEAD keeps the log, the HP readout, the fight-start ring ---
+
+func test_dead_keeps_the_log_and_fight_clears_it() -> void:
+	var main: Node2D = _main()
+	main.apply_flow_state(GameScript.FlowState.FIGHT, 0)
+	main.hud.log_panel.append_line("WARN: hp--")
+	main.apply_flow_state(GameScript.FlowState.DEAD, 0)
+	assert_eq(main.hud.log_panel.lines(), PackedStringArray(["WARN: hp--"]), "DEAD keeps the fight's lines")
+	assert_false(main.hud.visible, "the HUD is hidden in DEAD")
+	assert_false(main.arena.visible, "the arena is hidden in DEAD")
+	assert_false(main.arena.health.active, "no hits while dead")
+	main.apply_flow_state(GameScript.FlowState.FIGHT, 0)
+	assert_eq(main.hud.log_panel.lines().size(), 0, "the next fight starts with a clean log")
+
+
+func test_hp_readout_reads_the_arena_health() -> void:
+	var main: Node2D = _main()
+	assert_not_null(main.hp_readout)
+	assert_eq(main.hp_readout.get_parent(), main.hud)
+	assert_eq(main.hp_readout.health, main.arena.health)
+	main.apply_flow_state(GameScript.FlowState.FIGHT, 0)
+	assert_eq(main.hp_readout.current_text(), "hp: 0b11111")
+	assert_eq(HpReadout.cell_for("hp: 0b11111"), Vector2i(69, 0))
+	assert_eq(Hud.region_of(HpReadout.cell_for("hp: 0b11111")), &"top_bar")
+	assert_lt(Hud.TOP_BAR.length(), 69, "the readout never overlaps the top bar text")
+
+
+func test_fight_start_ring_prefers_the_matching_snapshot() -> void:
+	var run := RunState.new()
+	assert_eq(MainScript.fight_start_ring(run, 1), Register.fight_start_for_boss(1), "no snapshot: boss set")
+	run.start_boss(1)
+	run.fight_start_ring = PackedInt32Array([Register.Bit.DASH, Register.Bit.LOOP])
+	assert_eq(MainScript.fight_start_ring(run, 1), run.fight_start_ring)
+	assert_eq(MainScript.fight_start_ring(run, 0), Register.fight_start_for_boss(0), "other boss: its set")
