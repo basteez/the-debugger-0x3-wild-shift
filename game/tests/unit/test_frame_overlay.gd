@@ -58,3 +58,23 @@ func test_main_adds_overlay_only_when_debug_enabled() -> void:
 	add_child_autofree(main_off)
 	Debug.enabled = saved
 	assert_null(main_off.get_node_or_null(^"Arena/FrameOverlay"))
+
+
+## The opaque box covers every line, stays in the play area and clears the F10 box.
+func test_text_box_covers_lines_and_clears_perf_box() -> void:
+	var count: int = FrameOverlay.format_lines(0, S.IDLE_MOVE, 0, 0, 0, false, false, Vector2i(A, D), 0, false).size()
+	var box: Rect2 = FrameOverlay.text_box(count)
+	assert_true(Arena.play_area().encloses(box))
+	var widest: int = 0
+	for line: String in FrameOverlay.format_lines(9999999, S.RECOVERY, 999, 99, 99, true, true, Vector2i(D, A), 18, true):
+		widest = maxi(widest, line.length())
+	assert_gte(box.size.x, widest * GlyphFont.CELL + 2.0)
+	assert_gte(box.size.y, (count - 1) * FrameOverlay.LINE_STEP + GlyphFont.CELL + 2.0)
+	var perf := Rect2(PerfOverlay.box_top_left(4), PerfOverlay.box_size(4))
+	assert_false(box.intersects(perf))
+	assert_eq(int(box.position.x) % 4, 0)
+
+
+func test_overlay_draws_above_particles() -> void:
+	var overlay: FrameOverlay = autofree(FrameOverlay.new())
+	assert_gt(overlay.z_index, 0)

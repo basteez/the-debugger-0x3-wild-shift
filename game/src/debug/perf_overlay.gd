@@ -28,6 +28,7 @@ var _warned_draw_calls: bool = false
 
 func _init() -> void:
 	visible = false
+	z_index = 10  # above the Particles layer (z 0)
 
 
 func _process(_delta: float) -> void:

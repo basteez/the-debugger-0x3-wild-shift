@@ -8,6 +8,10 @@ extends Node2D
 
 const TEXT_ORIGIN := Vector2(4, 4)
 const LINE_STEP := GlyphFont.CELL + 1
+## Widest line, in characters, for the background box ("IDLE_MOVE 999", "frame 9999999").
+const BOX_CHARS := 14
+## Above the arena's other children and the Particles layer (z 0), so nothing shows through the text.
+const OVERLAY_Z := 10
 ## Segments used to outline circles and arcs.
 const SEGMENTS := 24
 
@@ -20,6 +24,7 @@ var practice_target: PracticeTarget
 
 func _init() -> void:
 	visible = false
+	z_index = OVERLAY_Z
 
 
 func _process(_delta: float) -> void:
@@ -46,8 +51,16 @@ func _draw() -> void:
 	var window: Vector2i = register.active_window() if register != null else Vector2i.ZERO
 	var link: LinkState = actions.link
 	var lines: PackedStringArray = format_lines(SimClock.sim_frame, actions.state, actions.frame_in_state(), actions.cooldowns.remaining(window.x), actions.cooldowns.remaining(window.y), actions.invulnerable(), link.is_open(), link.pair, link.frames_left, link.held)
+	var box := text_box(lines.size())
+	draw_rect(box, Palette.BG)
+	draw_rect(box, Palette.INK, false, 1.0)
 	for i: int in lines.size():
-		GlyphFont.draw_at(self, TEXT_ORIGIN + Vector2(0, i * LINE_STEP), lines[i], Palette.INK, 1)
+		GlyphFont.draw_at(self, box.position + Vector2(2, 2 + i * LINE_STEP), lines[i], Palette.INK, 1)
+
+
+## The opaque box behind the text lines: top-left of the play area (the F10 box is top-right). Pure.
+static func text_box(line_count: int) -> Rect2:
+	return Rect2(TEXT_ORIGIN, Vector2(BOX_CHARS * GlyphFont.CELL + 4, line_count * LINE_STEP + 3))
 
 
 func _draw_shape(shape: HitShape, origin: Vector2, dir: Vector2) -> void:
