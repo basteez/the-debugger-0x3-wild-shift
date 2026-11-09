@@ -43,6 +43,19 @@ class RampBoss:
 		resets += 1
 
 
+## Story 3.5 (B1): a boss whose candidate list the test sets (null = the default pool).
+class CandidateBoss:
+	extends BossController
+	var forced: Variant = null
+	var defeats: int = 0
+
+	func _pick_candidates(phase: int) -> PackedInt32Array:
+		return super(phase) if forced == null else forced
+
+	func _on_defeated() -> void:
+		defeats += 1
+
+
 ## Test-only FSM whose dash invulnerability is set by the test.
 class FakeActions:
 	extends ActionStateMachine
@@ -245,6 +258,71 @@ func test_history_resets_on_fight_start() -> void:
 	c.reset_for_fight()
 	assert_eq(c.last_pick, -1)
 	assert_eq(c.second_last_pick, -1)
+
+
+# --- Story 3.5 B1, B2: the candidate hook (D-S35-3) ---
+
+func test_default_candidates_are_the_phase_pool_for_every_phase() -> void:
+	var c: BossController = _controller(TEST_BOSS)
+	var pools: Array = c.get(&"_pools")
+	assert_eq(pools.size(), TEST_BOSS.phases.size())
+	for i: int in pools.size():
+		assert_eq(c._pick_candidates(i), pools[i], "phase %d" % i)
+
+
+func test_a_single_candidate_is_picked_without_an_rng_draw() -> void:
+	var pool: Array[AttackDef] = [_attack(&"a", 20, 1, 0), _attack(&"b", 20, 1, 0)]
+	var c := CandidateBoss.new()
+	_controller(_boss_def([_phase(100, 1, pool)]), null, c)
+	c.forced = PackedInt32Array([1])
+	_ctx.rng.randi() # move off the seed so a draw would show
+	var before: int = _ctx.rng.state
+	for i: int in 5:
+		assert_eq(c.pick_next(_ctx.rng), 1)
+	assert_eq(_ctx.rng.state, before, "one candidate: no RNG draw")
+	assert_eq([c.last_pick, c.second_last_pick], [1, 1])
+
+
+func test_picks_come_only_from_the_candidates_without_triples() -> void:
+	var pool: Array[AttackDef] = [_attack(&"a", 20, 1, 0), _attack(&"b", 20, 1, 0), _attack(&"c", 20, 1, 0)]
+	var c := CandidateBoss.new()
+	_controller(_boss_def([_phase(100, 1, pool)]), null, c)
+	c.forced = PackedInt32Array([0, 2])
+	var prev := PackedInt32Array([-1, -1])
+	var seen: Dictionary[int, bool] = {}
+	for i: int in 1000:
+		var p: int = c.pick_next(_ctx.rng)
+		assert_true(p == 0 or p == 2, "candidate only")
+		assert_false(p == prev[0] and p == prev[1], "triple at %d" % i)
+		prev = PackedInt32Array([p, prev[0]])
+		seen[p] = true
+	assert_eq(seen.size(), 2)
+
+
+func test_an_empty_candidate_list_keeps_the_fsm_in_gap() -> void:
+	var pool: Array[AttackDef] = [_attack(&"a", 20, 1, 0), _attack(&"b", 20, 1, 0)]
+	var c := CandidateBoss.new()
+	_controller(_boss_def([_phase(100, 3, pool)]), null, c)
+	c.forced = PackedInt32Array()
+	var before: int = _ctx.rng.state
+	watch_signals(EventBus)
+	_tick(c, 30)
+	assert_eq(c.state, BossController.BossState.GAP)
+	assert_eq(c.pick_next(_ctx.rng), -1)
+	assert_eq(_ctx.rng.state, before)
+	assert_signal_not_emitted(EventBus, "boss_tell_started")
+	c.forced = null
+	_tick(c, 3)
+	assert_eq(c.state, BossController.BossState.TELL, "the pool is back")
+
+
+func test_defeat_calls_the_defeated_hook_once() -> void:
+	var pool: Array[AttackDef] = [_attack(&"a", 20, 1, 0), _attack(&"b", 20, 1, 0)]
+	var c := CandidateBoss.new()
+	_controller(_boss_def([_phase(100, 3, pool)]), null, c)
+	c.debug_kill()
+	c.debug_kill()
+	assert_eq(c.defeats, 1)
 
 
 # --- AC 3: phases, roar, hook, jitter (D-S31-4, D-S31-8, D-S31-9) ---

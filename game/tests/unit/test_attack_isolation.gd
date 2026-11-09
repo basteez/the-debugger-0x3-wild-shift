@@ -61,6 +61,18 @@ func test_the_infinite_loop_attacks_are_found() -> void:
 	var files: PackedStringArray = attack_files()
 	assert_true(files.has("res://src/bosses/infinite_loop/attacks/head_rush.gd"))
 	assert_true(files.has("res://src/bosses/infinite_loop/attacks/constrict.gd"))
+	# Story 3.5 (AC 14): the Nested Loop and the `;` Spit are scanned too.
+	assert_true(files.has("res://src/bosses/infinite_loop/attacks/nested_loop.gd"))
+	assert_true(files.has("res://src/bosses/infinite_loop/attacks/semicolon_spit.gd"))
+
+
+## Story 3.5 (AC 14): the Spit aims through ctx.target_position() and reads nothing else from ctx.
+func test_the_spit_reads_only_the_aim_from_the_context() -> void:
+	var code: String = code_of("res://src/bosses/infinite_loop/attacks/semicolon_spit.gd")
+	assert_true(code.contains("ctx.target_position()"))
+	var re := RegEx.create_from_string("\\bctx\\.(\\w+)")
+	for m: RegExMatch in re.search_all(code):
+		assert_eq(m.get_string(1), "target_position", "ctx.%s" % m.get_string(1))
 
 
 func test_attack_scripts_read_only_the_aim() -> void:

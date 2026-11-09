@@ -231,3 +231,12 @@ Story 1.3 AC9 / I-6 ("mumble-speech web check, moved to 3.7") is UNBLOCKED. Tizi
 - Head Rush aim inside the ring flips direction (charges inward); aim == centre falls back inconsistently. Untested.
 - Test gaps: no positive control for dash-invulnerability tests; head-hit test does not watch hit_landed/Patched/hit-stop; `test_a_new_run_takes_a_new_run_seed` never asserts a nonzero new seed; Constrict ACTIVE positions not in `declared_positions` (AC 13); debug-jump FIGHT entry untested for seed; isolation guard is textual only (no Time/OS/shuffle bans, `#` in strings); hard-coded 7.9/8.5 px offsets and private `_pending` reads.
 - Float geometry (`normalized`, `move_toward`, `from_angle`) feeds hashed state; native vs wasm divergence not covered (same as 3.3).
+
+
+## Deferred from: code review of story-3.5 (2026-11-09)
+
+- Spit projectile is not consumed by contact: it overlaps the player ~10 ticks and re-queues a hit each tick (PlayerHealth i-frames absorb it, but a second hit lands when they end). Decide in playtest 3.9: free the slot on hit.
+- The Nested Loop TELL blink hides the ring but `touches_player` still hurts (D-S35-22); dim/outline instead of hiding, or gate contact.
+- A timed `;` opening fired in GAP (60 ticks) is cut by the next TELL (`_on_attack_started`), so the 90-tick window is truncated; and recovery/timed openings alternate in lockstep (recovery inner, timed outer) in real fights (D-S35-24). Playtest 3.9: consider delaying the pick while a `;` is open or alternating the kinds independently.
+- Spit float-derived state (`normalized`, `roundi`) feeds the hash (native vs wasm drift, as 3.3/3.4); `step_for` per-axis rounding gives 100 to 141 mtiles diagonal speed and a zero step for a tiny `spit_tps`; Spit origin is read one tick before the ring moves.
+- Minor: Constrict ACTIVE declared positions omit the inner ring; `RingDef.validate` hard-codes 16/8/150 and does not cross-check the opening period against attack recoveries; AC 6 inner window derived from the phase window (D-S35-19); `_pick_candidates` allocates per pick; replay has no Spit-contact assertion; swept-segment test for fast non-invulnerable dashes.

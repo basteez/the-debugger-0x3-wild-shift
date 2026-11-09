@@ -167,7 +167,7 @@ func test_infinite_loop_boss_def_matches_the_gdd() -> void:
 		for a_def: AttackDef in p.attack_pool:
 			phase_ids.append(a_def.id)
 		ids.append(phase_ids)
-	assert_eq(ids, [[&"head_rush"], [&"head_rush", &"constrict"], [&"head_rush", &"constrict"]], "Story 3.4 AC 1 pools (Spit, Nested Loop in 3.5)")
+	assert_eq(ids, [[&"head_rush"], [&"head_rush", &"constrict"], [&"head_rush", &"constrict", &"nested_loop"]], "Story 3.5 AC 1 pools (the Spit is not a pool attack)")
 
 
 func test_infinite_loop_ring_def_matches_the_gdd() -> void:
@@ -194,6 +194,44 @@ func test_ring_def_reports_each_bad_value() -> void:
 		assert_true(found, "%s flagged (%s)" % [field, messages])
 
 
+# --- Story 3.5 AC 12 (A1, A3): the phase-3 numbers on the ring ---
+
+func test_ring_def_carries_the_phase_3_numbers() -> void:
+	var ring: RingDef = load("res://data/bosses/infinite_loop/ring_def.tres")
+	assert_eq(ring.validate(), PackedStringArray())
+	assert_eq([ring.split_outer_segments, ring.split_inner_segments, ring.split_inner_speed_percent,
+			ring.opening_period_frames, ring.spit_period_frames, ring.spit_tell_frames, ring.spit_tps, ring.spit_slots],
+			[16, 8, 150, 180, 360, 20, 6, 16], "D-S35-13")
+	var defaults := RingDef.new()
+	assert_eq([defaults.split_outer_segments, defaults.split_inner_segments, defaults.split_inner_speed_percent,
+			defaults.opening_period_frames, defaults.spit_period_frames, defaults.spit_tell_frames, defaults.spit_tps, defaults.spit_slots],
+			[16, 8, 150, 180, 360, 20, 6, 16], "defaults are the GDD values")
+	assert_gt(ring.opening_period_frames, 120, "the period beats the longest opening (Constrict recovery 120)")
+
+
+func test_ring_def_rejects_bad_phase_3_numbers() -> void:
+	var cases: Array = [
+		[&"split_outer_segments", 12, "split_outer_segments"],
+		[&"split_inner_segments", 6, "split_inner_segments"],
+		[&"split_inner_speed_percent", 100, "split_inner_speed_percent"],
+		[&"opening_period_frames", 90, "opening_period_frames"], # == open_frames
+		[&"spit_period_frames", 1, "spit_period_frames"],
+		[&"spit_tell_frames", 0, "spit_tell_frames"],
+		[&"spit_tell_frames", 360, "spit_tell_frames"], # == period
+		[&"spit_tps", 0, "spit_tps"],
+		[&"spit_slots", 0, "spit_slots"],
+	]
+	for c: Array in cases:
+		var ring := RingDef.new()
+		ring.set(c[0], c[1])
+		var messages: PackedStringArray = ring.validate()
+		assert_gt(messages.size(), 0, "%s = %d flagged" % [c[0], c[1]])
+		var found: bool = false
+		for m: String in messages:
+			found = found or m.begins_with(String(c[2]))
+		assert_true(found, "%s = %d (%s)" % [c[0], c[1], messages])
+
+
 # --- Story 3.4 AC 1 (A1, A4): the attack numbers on the ring ---
 
 func test_ring_def_carries_the_attack_numbers() -> void:
@@ -217,5 +255,8 @@ func test_ring_def_rejects_bad_attack_numbers() -> void:
 		assert_eq(messages.size(), 1, "%s = %d" % [c[0], c[1]])
 		assert_true(messages.size() == 1 and messages[0].contains(c[2]))
 	var ok := RingDef.new()
-	ok.constrict_radius_tiles = 3
-	assert_eq(ok.validate(), PackedStringArray(), "3 < 3.82")
+	ok.constrict_radius_tiles = 2
+	assert_eq(ok.validate(), PackedStringArray(), "2 < 2.55 (Story 3.5: the split outer ring bounds it, D-S35-12)")
+	var too_big_for_split := RingDef.new()
+	too_big_for_split.constrict_radius_tiles = 3 # < 3.82 but >= the 2.55-tile split outer ring
+	assert_eq(too_big_for_split.validate().size(), 1, "3 >= 2.55")

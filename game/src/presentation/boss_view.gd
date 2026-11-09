@@ -16,6 +16,10 @@ extends Node2D
 ## a `!` one cell above each tell mark (Head Rush's origin, clamped into the arena), a `{` cell at each
 ## live hazard (the head), and an INK circle outline (Constrict's tell outline at nominal size, then
 ## the disc's edge while ACTIVE). INK/BG only. Reads only.
+## Story 3.5 (Q1, D-S35-14): after the split both rings are drawn with the same glyphs (outer, then
+## inner), each with its `;` at the junction; only the open ring's `;` is the lit (inverted) cell. The
+## whole ring blinks during the Nested Loop TELL (blocks of the TELL countdown, read only), the Spit
+## origin `;` gets an INK frame while the Spit glows, and every live projectile is an INK `;` cell.
 
 const GLYPH_SCALE := 2
 const TELL_MARK := "!"
@@ -112,14 +116,22 @@ func _draw_ring(body: InfiniteLoopBody) -> void:
 	var jitter := Vector2(0.0 if defeated else jitter_offset(body.jitter_level(), SimClock.sim_frame), 0.0)
 	var flash: bool = roar_flash_on(body.state == BossController.BossState.ROAR, body.frames_left)
 	var open: bool = body.is_open() and not defeated
-	for k: int in body.ring.segments:
-		var top_left: Vector2 = line_top_left(body.segment_px(k), cell) + jitter
-		var glyph: String = ring_glyph(k)
-		if flash != (k == 0 and open):
-			draw_rect(Rect2(top_left, cell), Palette.INK)
-			GlyphFont.draw_at(self, top_left, glyph, Palette.BG, GLYPH_SCALE)
-		else:
-			GlyphFont.draw_at(self, top_left, glyph, Palette.INK, GLYPH_SCALE)
+	var hidden: bool = not defeated and nested_flash_hidden(nested_telling(body), body.frames_left)
+	if not hidden:
+		var outer_open: bool = open and body.open_ring != InfiniteLoopBody.INNER
+		for k: int in body.outer_segments():
+			_draw_ring_cell(body.segment_px(k), ring_glyph(k), flash != (k == 0 and outer_open), cell, jitter)
+		var inner_open: bool = open and body.open_ring == InfiniteLoopBody.INNER
+		for k: int in body.inner_segment_count():
+			_draw_ring_cell(body.inner_segment_px(k), ring_glyph(k), flash != (k == 0 and inner_open), cell, jitter)
+	if not defeated and spit_glow_on(body):
+		var glow_left: Vector2 = line_top_left(body.spit_origin_px(), cell) + jitter
+		draw_rect(Rect2(glow_left - Vector2.ONE, cell + Vector2(2, 2)), Palette.INK, false, 1.0)
+	if not defeated:
+		for p: Vector2 in body.spit.projectile_positions():
+			var p_left: Vector2 = line_top_left(p, cell)
+			draw_rect(Rect2(p_left, cell), Palette.BG)
+			GlyphFont.draw_at(self, p_left, SEMICOLON, Palette.INK, GLYPH_SCALE)
 	var counter: String = counter_text(body.iteration)
 	var counter_size := Vector2(GlyphFont.text_width(counter, COUNTER_SCALE), GlyphFont.CELL * COUNTER_SCALE)
 	var counter_left: Vector2 = line_top_left(counter_centre(body.body_center_px, body.radius_px()), counter_size) + jitter
@@ -129,6 +141,16 @@ func _draw_ring(body: InfiniteLoopBody) -> void:
 	if not defeated:
 		_draw_attack(body.current_attack(), cell)
 	_draw_number(Vector2(0, 0))
+
+
+## One ring glyph cell: inverted (INK block, BG glyph) when `lit`, plain INK otherwise.
+func _draw_ring_cell(centre: Vector2, glyph: String, lit: bool, cell: Vector2, jitter: Vector2) -> void:
+	var top_left: Vector2 = line_top_left(centre, cell) + jitter
+	if lit:
+		draw_rect(Rect2(top_left, cell), Palette.INK)
+		GlyphFont.draw_at(self, top_left, glyph, Palette.BG, GLYPH_SCALE)
+	else:
+		GlyphFont.draw_at(self, top_left, glyph, Palette.INK, GLYPH_SCALE)
 
 
 ## Story 3.4 (G1): the running attack's tell marks, hazard cells and outline. Reads only.
@@ -202,6 +224,26 @@ static func tell_mark_centre(anchor: Vector2) -> Vector2:
 	var area: Rect2 = Arena.play_area()
 	var p: Vector2 = anchor - Vector2(0.0, Const.TILE_PX)
 	return Vector2(clampf(p.x, area.position.x + half, area.end.x - half), clampf(p.y, area.position.y + half, area.end.y - half))
+
+
+## Story 3.5 (D-S35-14): true while the boss is in the Nested Loop's TELL. Reads only.
+static func nested_telling(body: InfiniteLoopBody) -> bool:
+	return body.state == BossController.BossState.TELL and body.current != null \
+			and body.current.id == InfiniteLoopBody.NESTED_LOOP_ID
+
+
+## Story 3.5 (D-S35-14): the ring is hidden on alternate FLASH_BLOCK blocks of the Nested Loop TELL
+## countdown (the blink), shown otherwise. Pure.
+static func nested_flash_hidden(telling: bool, frames_left: int) -> bool:
+	if not telling:
+		return false
+	@warning_ignore("integer_division")
+	return (frames_left / FLASH_BLOCK) % 2 == 1
+
+
+## Story 3.5 (D-S35-9): true while the Spit's origin `;` glows (its last spit_tell_frames ticks). Reads only.
+static func spit_glow_on(body: InfiniteLoopBody) -> bool:
+	return body.spit.glowing()
 
 
 ## The loop counter text (AC 1). Pure.

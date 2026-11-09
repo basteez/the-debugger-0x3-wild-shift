@@ -14,6 +14,11 @@ extends GutTest
 ## RNG state. A second scripted FIGHT runs a Head Rush in phase 1, jumps to phase 2 (the Shift+F6
 ## debug skip, called on the body in the test only), runs until a Constrict has played, and places
 ## the player on the `;` during attack recoveries so the boss path is hit there too.
+## Story 3.5 (Q5, AC 13, D-S35-16): the hash also covers the split state (split, next_ring, open_ring,
+## ring_timer, nested_done, the inner ring's travel, remainder and speed) and the Spit (cycle timer,
+## every projectile slot's active flag, position and step in milli-tiles). A third scripted FIGHT
+## jumps to phase 3 (Shift+F6 twice, test only), splits, and runs timed openings on both rings, Spit
+## shots, attack recovery openings and a Constrict; RNG moves only on (non-forced) pick ticks.
 
 const GameScript := preload("res://src/autoloads/game.gd")
 const HEAD_RUSH: AttackDef = preload("res://data/bosses/infinite_loop/attack_head_rush.tres")
@@ -27,6 +32,10 @@ const STRIKES: Array[int] = [20, 45, 70]
 const ATTACK_FRAMES := 1500
 const SKIP_AT := 260
 const ATTACK_SEED := 34034
+## Story 3.5: the phase-3 scenario's length, the loop index of the double skip, and its seed.
+const P3_FRAMES := 3000
+const P3_SKIP_AT := 200
+const P3_SEED := 35035
 
 
 ## The scripted player: the first shift on poll 1 starts the ring, J on each STRIKES poll, then a
@@ -129,7 +138,15 @@ static func _hash(h: int, arena: Arena, body: InfiniteLoopBody) -> int:
 		int(body.state), body.frames_left, body.last_pick, body.second_last_pick, body.attack_radius_mtiles,
 		head.get(&"travelled_mtiles"), constrict.get(&"elapsed"),
 		rng_state & 0x7FFFFFFF, (rng_state >> 31) & 0x7FFFFFFF, (rng_state >> 62) & 0x3,
+		int(body.split), body.next_ring, body.open_ring, body.ring_timer, int(body.nested_done),
+		body.inner_travel_mtiles, body.inner_travel_rem, body.inner_speed_mtps(), body.spit.timer,
 	]
+	for k: int in body.spit.slot_active.size():
+		values.append(body.spit.slot_active[k])
+		values.append(body.spit.slot_pos_mtiles[k].x)
+		values.append(body.spit.slot_pos_mtiles[k].y)
+		values.append(body.spit.slot_step_mtiles[k].x)
+		values.append(body.spit.slot_step_mtiles[k].y)
 	for v: int in values:
 		h = (h * 31 + v + 7) & 0x7FFFFFFF
 	return h
@@ -137,7 +154,7 @@ static func _hash(h: int, arena: Arena, body: InfiniteLoopBody) -> int:
 
 ## One FIGHT session: a fresh Arena in the tree, the clock re-seeded, `frames` polls. With
 ## `attacks` (Story 3.4) the phase-2 skip runs at SKIP_AT and the recovery choreography is on.
-func _session(source: InputSource, seed_value: int, frames: int = FRAMES, attacks: bool = false) -> Dictionary:
+func _session(source: InputSource, seed_value: int, frames: int = FRAMES, attacks: bool = false, p3: bool = false) -> Dictionary:
 	_boss_hits = [0]
 	_recovery_hits = [0]
 	var tells: Dictionary[StringName, int] = {}
@@ -155,15 +172,30 @@ func _session(source: InputSource, seed_value: int, frames: int = FRAMES, attack
 	var hashes := PackedInt64Array()
 	var h: int = 17
 	var rng_off_tell: int = 0
+	var timed_openings: Array[int] = [0, 0] # Story 3.5: per ring, after the split, outside recoveries
+	var recovery_openings_split: int = 0
+	var ring_openings: Array[int] = [0, 0] # Story 3.5: every opening after the split, per ring
 	for i: int in frames:
 		_choreography(arena, body, i)
+		if p3 and i == P3_SKIP_AT:
+			body.debug_skip_phase() # Shift+F6 twice (D-S34-19), test only
+			body.debug_skip_phase()
 		if attacks:
 			_recovery_choreography(arena, body, i)
 			if i == SKIP_AT:
 				body.debug_skip_phase() # Shift+F6 (D-S34-19), test only
 		var rng_before: int = SimClock.ctx.rng.state
 		var tells_before: int = tells.values().reduce(func(a: int, b: int) -> int: return a + b, 0)
+		var i_before: int = body.iteration
+		var was_split: bool = body.split
+		var timed_before: int = body.timed_openings
 		SimClock.tick()
+		if was_split and body.iteration != i_before and body.open_ring >= 0:
+			ring_openings[body.open_ring] += 1
+			if body.timed_openings != timed_before: # D-S35-24: an explicit signal, not the FSM state
+				timed_openings[body.open_ring] += 1
+			else:
+				recovery_openings_split += 1
 		if SimClock.ctx.rng.state != rng_before and tells.values().reduce(func(a: int, b: int) -> int: return a + b, 0) != tells_before + 1:
 			rng_off_tell += 1
 		h = _hash(h, arena, body)
@@ -180,6 +212,11 @@ func _session(source: InputSource, seed_value: int, frames: int = FRAMES, attack
 		&"tells": tells.duplicate(),
 		&"rng_off_tell": rng_off_tell,
 		&"phase": body.phase_index,
+		&"split": body.split,
+		&"timed_openings": timed_openings,
+		&"recovery_openings_split": recovery_openings_split,
+		&"ring_openings": ring_openings,
+		&"spit_shots": body.spit.shots,
 	}
 	EventBus.boss_tell_started.disconnect(on_tell)
 	_body = null
@@ -247,6 +284,44 @@ func test_a_recorded_fight_through_head_rush_and_constrict_replays_bit_identical
 	assert_eq(again[&"tells"], live[&"tells"], "same attack order counts")
 	assert_eq(again[&"boss_hits"], live[&"boss_hits"])
 	assert_eq(again[&"recovery_hits"], live[&"recovery_hits"])
+	assert_eq(again[&"boss_hp"], live[&"boss_hp"])
+	assert_eq(again[&"hashes"], live[&"hashes"], "same integer-state hash on every tick")
+	assert_eq(again[&"rng_state"], live[&"rng_state"])
+
+
+func test_a_recorded_fight_through_phase_3_replays_bit_identically() -> void:
+	var rec := InputRecorder.new()
+	rec.start(P3_SEED)
+	SimClock.recorder = rec
+	var live: Dictionary = _session(LoopScript.new(), P3_SEED, P3_FRAMES, false, true)
+	SimClock.recorder = null
+	assert_true(InputRecorder.save(rec.stop(), TMP_PATH))
+
+	var replay := ReplayInput.from_file(TMP_PATH)
+	assert_eq(replay.frame_count(), P3_FRAMES)
+	var again: Dictionary = _session(replay, replay.seed_value, P3_FRAMES, false, true)
+
+	assert_eq(live[&"phase"], 2, "the debug skips reached phase 3")
+	assert_true(live[&"split"], "the Nested Loop split the ring")
+	assert_eq(live[&"tells"].get(&"nested_loop", 0), 1, "once per fight")
+	assert_gt(live[&"tells"].get(&"constrict", 0), 0, "a Constrict ran")
+	# D-S35-24: the 180-tick timer runs through attacks and recovery openings do not restart it, so
+	# timed openings really occur in a phase-3 fight, on both rings (AC 13).
+	# In a real fight each attack cycle holds exactly one recovery and one timed opening, so the
+	# alternation locks (recoveries on the inner ring, timed on the outer, 9000-tick run checked);
+	# the inner-ring timed opening is covered by test_infinite_loop_split.gd (FSM held in GAP).
+	assert_gt(live[&"timed_openings"][0], 0, "timed openings occur in a real phase-3 fight (D-S35-24)")
+	assert_eq(live[&"timed_openings"][0] + live[&"timed_openings"][1] + live[&"recovery_openings_split"], live[&"ring_openings"][0] + live[&"ring_openings"][1], "every opening is timed or a recovery")
+	assert_gt(live[&"ring_openings"][0], 0, "an outer opening after the split")
+	assert_gt(live[&"ring_openings"][1], 0, "an inner opening after the split")
+	assert_gt(live[&"recovery_openings_split"], 0, "an attack recovery opening after the split")
+	assert_gt(live[&"spit_shots"], 0, "the Spit fired")
+	assert_eq(live[&"rng_off_tell"], 0, "the RNG moves only on pick ticks (AC 13)")
+	assert_eq(again[&"ticks"], live[&"ticks"], "same sim_frame")
+	assert_eq(again[&"tells"], live[&"tells"])
+	assert_eq(again[&"timed_openings"], live[&"timed_openings"])
+	assert_eq(again[&"ring_openings"], live[&"ring_openings"])
+	assert_eq(again[&"spit_shots"], live[&"spit_shots"])
 	assert_eq(again[&"boss_hp"], live[&"boss_hp"])
 	assert_eq(again[&"hashes"], live[&"hashes"], "same integer-state hash on every tick")
 	assert_eq(again[&"rng_state"], live[&"rng_state"])

@@ -136,7 +136,8 @@ func _advance(rng: RandomNumberGenerator) -> void:
 		BossState.GAP:
 			# D-S33-9: no attacks yet; Story 3.4 (D-S34-23): or the body holds its attacks (the loop has
 			# not started). Stay in GAP: no pick, no RNG.
-			if _pools[phase_index].is_empty() or not _attacks_allowed():
+			# Story 3.5 (B1): the candidate list (default: the phase pool) decides; empty keeps GAP.
+			if _pick_candidates(phase_index).is_empty() or not _attacks_allowed():
 				_enter(BossState.GAP, def.phases[phase_index].gap_frames)
 				return
 			_current_index = pick_next(rng)
@@ -189,8 +190,12 @@ func _enter(next: BossState, frames: int) -> void:
 ## Draws the next attack's cache index from the current phase's pool (D-S31-6): uniform, and when
 ## the draw would make three in a row, redrawn from the pool minus that attack. Records the pick.
 ## Story 3.4 (D-S34-3): a one-attack pool has nothing to redraw from, so it repeats its attack.
+## Story 3.5 (B1, D-S35-3): draws from _pick_candidates(phase_index) (default: the pool); the same
+## one-candidate and no-triple rules apply to that list. -1 (no draw) when it is empty.
 func pick_next(rng: RandomNumberGenerator) -> int:
-	var pool: PackedInt32Array = _pools[phase_index]
+	var pool: PackedInt32Array = _pick_candidates(phase_index)
+	if pool.is_empty():
+		return -1
 	if pool.size() == 1: # nothing to choose: no RNG draw, by construction (review 3.4)
 		second_last_pick = last_pick
 		last_pick = pool[0]
@@ -253,6 +258,7 @@ func _defeat() -> void:
 	_enter(BossState.DEFEATED, 0)
 	active = false
 	weak_window.clear()
+	_on_defeated()
 	if not _defeat_emitted:
 		_defeat_emitted = true
 		if Debug.enabled:
@@ -323,6 +329,17 @@ func _tick_body(_ctx: SimContext) -> void:
 
 
 ## Story 3.4 virtual hooks (D-S34-15, D-S34-22, D-S34-23). Defaults do nothing / allow attacks.
+
+## Story 3.5 (B1, D-S35-3): the cache indices pick_next may draw from in `phase`. Default: the
+## phase's pool. A body narrows it (Nested Loop once per fight). Never allocates in the default.
+func _pick_candidates(phase: int) -> PackedInt32Array:
+	return _pools[phase]
+
+
+## Story 3.5 (P9): the boss was defeated (after the running attack was cut). Default: nothing.
+func _on_defeated() -> void:
+	pass
+
 
 ## False holds the FSM in GAP at the end of each gap (no pick, no RNG). Default: true.
 func _attacks_allowed() -> bool:

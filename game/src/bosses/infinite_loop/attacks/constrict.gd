@@ -3,7 +3,8 @@ extends BossAttack
 ## final ring outline is shown at its exact (nominal) size around the aim, clamped into the play
 ## area; the ring stays where it is. ACTIVE: the ring re-centres on the aim (re-read every tick, the
 ## GDD's "re-centres on the player") at constrict_chase_tps, never past it, and its radius shrinks in
-## integer milli-tiles from the nominal 3820 to constrict_radius_tiles * 1000 over the active frames.
+## integer milli-tiles from the outer nominal radius (3820; 2546 after the Story 3.5 split, D-S35-12)
+## to constrict_radius_tiles * 1000 over the active frames.
 ## The whole disc of the current radius is the contact area (it replaces the segments), so walking
 ## cannot get out; only an invulnerable move does (PlayerHealth honours invulnerability).
 ## RECOVERY: the nominal radius returns and the body opens the `;` for the recovery (D-S34-18).
@@ -90,8 +91,8 @@ func declared_positions(ctx: ArenaContext) -> PackedVector2Array:
 	var r: float = body.nominal_radius_px()
 	var c: Vector2 = tell_outline_centre(ctx.target_position(), r)
 	var out := PackedVector2Array([c])
-	for k: int in body.ring.segments:
-		out.append(c + Vector2.from_angle(TAU * float(k) / float(body.ring.segments)) * r)
+	for k: int in body.outer_segments():
+		out.append(c + Vector2.from_angle(TAU * float(k) / float(body.outer_segments())) * r)
 	return out
 
 
