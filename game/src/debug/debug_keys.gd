@@ -1,7 +1,7 @@
 class_name DebugKeys
 extends Node
-## F1-F5 debug jump keys (Story 1.6 AC4, DC6, DC7), Shift+F2 practice target (Story 2.7), the F9 frame overlay (Story 2.5 AC7) and the
-## F11 input recorder (Story 2.1 AC5).
+## F1-F5 debug jump keys (Story 1.6 AC4, DC6, DC7), Shift+F2 practice target (Story 2.7), the F9 frame overlay (Story 2.5 AC7),
+## the F10 perf overlay (Story 2.8 AC6) and the F11 input recorder (Story 2.1 AC5).
 ## Main adds this node only when Debug.enabled, so release builds without `?debug` never see it. Keys are consumed in _input, before any screen.
 
 const GameFlow := preload("res://src/autoloads/game.gd")
@@ -10,6 +10,8 @@ const SimClockScript := preload("res://src/autoloads/sim_clock.gd")
 const RECORD_KEY := KEY_F11
 ## F9 (no modifiers) toggles the frame overlay; Shift+F9 is the HUD grid (D-S25-11).
 const OVERLAY_KEY := KEY_F9
+## F10 (no modifiers) toggles the perf overlay (Story 2.8 AC6).
+const PERF_KEY := KEY_F10
 ## Shift+F2 (Story 2.7, D-S27-3): FIGHT boss 0 with the practice target. Plain F2 is unchanged.
 const PRACTICE_KEY := KEY_F2
 ## Physical keycode -> jump target. Matched by keycode (debug only, not an InputMap action).
@@ -23,6 +25,8 @@ const JUMPS: Dictionary[Key, Array] = {
 
 ## The frame overlay (Story 2.5), set by Main. Null = F9 does nothing.
 var frame_overlay: FrameOverlay
+## The perf overlay (Story 2.8), set by Main. Null = F10 does nothing.
+var perf_overlay: PerfOverlay
 ## True after Shift+F2 until another jump key (Story 2.7): Main reads it on every FIGHT entry, so a
 ## retry keeps the practice target. Lives on this debug-only node, so release code never sees it.
 var practice_requested: bool = false
@@ -57,6 +61,13 @@ func handle_key(event: InputEvent) -> bool:
 		if frame_overlay == null:
 			return false
 		frame_overlay.toggle()
+		return true
+	if code == PERF_KEY:
+		if key.shift_pressed or key.ctrl_pressed or key.alt_pressed or key.meta_pressed:
+			return false
+		if perf_overlay == null:
+			return false
+		perf_overlay.toggle()
 		return true
 	var target: Dictionary = {}
 	if key.shift_pressed:

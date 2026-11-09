@@ -4,6 +4,7 @@ extends GutTest
 var _director: JuiceDirector
 var _panel: RegisterPanel
 var _view: PlayerView
+var _fx: ScreenFX
 
 
 func before_each() -> void:
@@ -14,6 +15,9 @@ func before_each() -> void:
 	_director = JuiceDirector.new()
 	_director.register_panel = _panel
 	_director.player_view = _view
+	_fx = ScreenFX.new()
+	add_child(_fx)
+	_director.screen_fx = _fx
 	add_child(_director)
 
 
@@ -21,6 +25,8 @@ func after_each() -> void:
 	_director.queue_free()
 	_panel.queue_free()
 	_view.queue_free()
+	_fx.queue_free()
+	SimClock.hitstop_frames = 0
 	await get_tree().process_frame
 
 
@@ -91,3 +97,78 @@ func test_direction_is_normalised_to_its_sign() -> void:
 	assert_eq(j.direction, 1)
 	j.on_shift(-7, 20)
 	assert_eq(j.direction, -1)
+
+
+# --- Story 2.8: ScreenFX inversion and dither (AC5), hit-stop independence (AC8) ---
+
+func test_request_invert_inverts_the_screen_for_one_frame() -> void:
+	assert_false(_fx.visible, "no effect, no screen copy")
+	_director.request_invert()
+	var t: int = _director.now()
+	assert_true(_fx.is_inverted())
+	assert_true(_fx.visible)
+	assert_true(_director.is_screen_inverted(t))
+	assert_false(_director.is_screen_inverted(t + 1), "1 frame by default")
+	await wait_physics_frames(2)
+	await get_tree().process_frame
+	assert_false(_fx.is_inverted(), "inversion is over")
+	assert_false(_fx.visible)
+
+
+func test_request_invert_for_n_frames_and_ignores_zero() -> void:
+	_director.request_invert(0)
+	assert_false(_fx.is_inverted())
+	_director.request_invert(3)
+	var t: int = _director.now()
+	assert_true(_director.is_screen_inverted(t + 2))
+	assert_false(_director.is_screen_inverted(t + 3))
+
+
+func test_low_dither_keeps_the_screen_fx_hidden() -> void:
+	_director.set_dither(0.3)
+	assert_false(_fx.visible, "below 0.5 the shader draws nothing, so skip the screen copy")
+	_director.set_dither(0.5)
+	assert_true(_fx.visible)
+
+
+func test_set_dither_clamps_and_writes_the_uniform() -> void:
+	_director.set_dither(0.5)
+	assert_eq(_fx.dither_level(), 0.5)
+	assert_true(_fx.visible)
+	_director.set_dither(3.0)
+	assert_eq(_director.dither_level(), 1.0)
+	assert_eq(_fx.dither_level(), 1.0)
+	_director.set_dither(-1.0)
+	assert_eq(_fx.dither_level(), 0.0)
+	assert_false(_fx.visible)
+
+
+func test_reset_clears_screen_effects() -> void:
+	_director.request_invert(10)
+	_director.set_dither(1.0)
+	_director.reset()
+	assert_false(_fx.is_inverted())
+	assert_eq(_fx.dither_level(), 0.0)
+
+
+func test_null_screen_fx_is_safe() -> void:
+	_director.screen_fx = null
+	_director.request_invert()
+	_director.set_dither(1.0)
+	assert_eq(_director.dither_level(), 1.0)
+
+
+func test_slide_advances_while_the_world_is_in_hitstop() -> void:
+	# 2.4 H4 automated part (AC8): the slide runs on physics frames, not on the sim clock.
+	var was_paused: bool = SimClock.paused
+	SimClock.paused = false
+	SimClock.hitstop_frames = 100
+	var frozen_at: int = SimClock.sim_frame
+	_emit(1)
+	var first: int = _panel.slide_px
+	await wait_physics_frames(2)
+	await get_tree().process_frame
+	assert_gt(SimClock.hitstop_frames, 0, "still in hit-stop")
+	assert_eq(SimClock.sim_frame, frozen_at, "the world stayed frozen")
+	assert_ne(_panel.slide_px, first, "the slide advanced during hit-stop")
+	SimClock.paused = was_paused

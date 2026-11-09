@@ -5,6 +5,9 @@ extends Node
 ## player glyph and plays the key click. Presentation only (AD-05): it reads the signal arguments
 ## and writes only the injected presentation nodes. It runs on the engine physics counter, never on
 ## the simulation clock, so hit-stop and Breakpoint do not freeze it (D-S24-1).
+## Story 2.8: the only writer of the ScreenFX uniforms (AD-07): request_invert (full-screen
+## inversion for N physics frames) and set_dither. Gameplay in 2.8 requests neither (crit inversion
+## is Epic 3, Breakpoint dither Epic 4). Presentation never requests hit-stop (D-S28-12).
 
 const CLICK_LEFT: AudioStream = preload(ShiftJuice.CLICK_LEFT)
 const CLICK_RIGHT: AudioStream = preload(ShiftJuice.CLICK_RIGHT)
@@ -12,10 +15,16 @@ const CLICK_RIGHT: AudioStream = preload(ShiftJuice.CLICK_RIGHT)
 ## Injected by Main. Either may be null (nothing is applied to a missing node).
 var register_panel: RegisterPanel
 var player_view: PlayerView
+## Injected by Main (Story 2.8). Null = invert and dither requests are kept but not shown.
+var screen_fx: ScreenFX
 var juice: ShiftJuice = ShiftJuice.new()
 
 ## True while a slide or inversion still has frames to show; _process does nothing otherwise.
 var _live: bool = false
+## Physics frame the full-screen inversion ends on (exclusive); NO_START when none.
+var _invert_until: int = ShiftJuice.NO_START
+## Current dither level 0..1.
+var _dither: float = 0.0
 
 
 func _enter_tree() -> void:
@@ -32,7 +41,8 @@ func _process(_delta: float) -> void:
 	if not _live:
 		return
 	_apply()
-	_live = juice.is_live(now())
+	var t: int = now()
+	_live = juice.is_live(t) or is_screen_inverted(t)
 
 
 ## Presentation frame: the engine's 60 Hz physics counter (D-S24-1).
@@ -42,8 +52,35 @@ func now() -> int:
 
 func reset() -> void:
 	juice.reset()
+	_invert_until = ShiftJuice.NO_START
+	_dither = 0.0
 	_live = false
 	_apply()
+
+
+## Inverts the full screen for `frames` physics frames from now (Story 2.8 AC5; crit is Epic 3).
+## A new request restarts the count.
+func request_invert(frames: int = 1) -> void:
+	if frames <= 0:
+		return
+	_invert_until = now() + frames
+	_live = true
+	_apply()
+
+
+## Sets the full-screen dither level, clamped to 0..1 (Story 2.8 AC5; Breakpoint is Epic 4).
+func set_dither(level: float) -> void:
+	_dither = clampf(level, 0.0, 1.0)
+	_apply()
+
+
+func dither_level() -> float:
+	return _dither
+
+
+## True while a requested full-screen inversion covers frame `t`.
+func is_screen_inverted(t: int) -> bool:
+	return _invert_until != ShiftJuice.NO_START and t < _invert_until
 
 
 func _on_register_shifted(direction: int, _window: Vector2i, _ring: PackedInt32Array, _source: StringName) -> void:
@@ -66,3 +103,6 @@ func _apply() -> void:
 	if is_instance_valid(player_view):
 		player_view.inverted = juice.is_inverted(t)
 		player_view.queue_redraw()
+	if is_instance_valid(screen_fx):
+		screen_fx.set_invert(is_screen_inverted(t))
+		screen_fx.set_dither(_dither)

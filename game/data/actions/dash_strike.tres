@@ -21,3 +21,4 @@ base_damage = 20
 cooldown_frames = 0
 move_tiles = 5.0
 cancel_into = PackedInt32Array()
+hitstop_frames = 6

@@ -22,6 +22,10 @@ extends Def
 @export var cancel_into: PackedInt32Array = PackedInt32Array([Register.Bit.DASH])
 ## The next hit of an ATTACK chain; null = end of chain (D-S25-14).
 @export var chain_next: ActionDef
+## Hit-stop in sim frames when this action lands as a combo hit (Story 2.8, FR26, D-S28-1). The
+## default 3 is the normal (unpatched) value; Dash Strike is 6. A solo hit always uses
+## HitFeedback.NORMAL_HITSTOP; the precedence rule lives in HitFeedback.
+@export var hitstop_frames: int = 3
 
 
 func total_frames() -> int:
@@ -45,6 +49,10 @@ func validate() -> PackedStringArray:
 		out.append("base_damage must be >= 0 (got %d)" % base_damage)
 	if cooldown_frames < 0:
 		out.append("cooldown_frames must be >= 0 (got %d)" % cooldown_frames)
+	if hitstop_frames < 0:
+		out.append("hitstop_frames must be >= 0 (got %d)" % hitstop_frames)
+	if hitstop_frames > 8:
+		out.append("hitstop_frames must be <= 8, the InputBuffer window (got %d)" % hitstop_frames)
 	var no_invuln: bool = invuln_from == 0 and invuln_to == 0
 	if not no_invuln and not (1 <= invuln_from and invuln_from <= invuln_to and invuln_to <= total_frames()):
 		out.append("invuln range %d-%d must be 0-0 or within 1..%d" % [invuln_from, invuln_to, total_frames()])

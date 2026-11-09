@@ -67,3 +67,16 @@ func test_hud_scene_layer_and_children() -> void:
 	assert_lt(hud.get_node(^"RegisterPanel").get_index(), hud.get_node(^"GridOverlay").get_index())
 	assert_gt(hud.get_node(^"RegisterPanel").get_index(), hud.get_node(^"Frame").get_index())
 	assert_eq(hud.get_child(hud.get_child_count() - 1).name, &"GridOverlay", "grid overlay drawn last")
+	# Story 2.8: the log panel, after the frame (drawn over its rows), below the grid overlay.
+	assert_not_null(hud.log_panel)
+	assert_gt(hud.get_node(^"LogPanel").get_index(), hud.get_node(^"Frame").get_index())
+
+
+## Story 2.8 AC3: rows 39-44 hold the six log lines under the header on row 38.
+func test_log_rows_39_to_44_hold_the_lines() -> void:
+	assert_eq(Hud.LOG.position.y, 38, "header row")
+	assert_eq(Hud.LOG.size.y, Hud.LOG_LINES + 1)
+	var rows: Array[int] = []
+	for i: int in Hud.LOG_LINES:
+		rows.append(LogPanel.line_cell(i).y)
+	assert_eq(rows, [39, 40, 41, 42, 43, 44])

@@ -60,26 +60,18 @@ func test_multiplier_is_always_one() -> void:
 	assert_eq(t.damage_multiplier(), 1.0, "never Patched, whatever it took")
 
 
-func test_view_readout_lines_are_ascii_and_show_the_last_three() -> void:
-	var t := PracticeTarget.new()
-	assert_eq(PracticeTargetView.readout_lines(t), PackedStringArray(["hits 0"]))
-	t.register_hit(1, 100, &"slash_1", 10)
-	t.register_hit(2, 130, &"slash_2", 10)
-	t.register_hit(3, 160, &"slash_3", 15)
-	t.register_hit(4, 400, &"dash_strike", 20)
-	var lines: PackedStringArray = PracticeTargetView.readout_lines(t)
-	assert_eq(lines, PackedStringArray(["hits 4", "f=130 slash_2 10", "f=160 slash_3 15", "f=400 dash_strike 20"]))
-	for line: String in lines:
-		for i: int in line.length():
-			assert_lt(line.unicode_at(i), 128, line)
+func test_view_has_no_readout_after_story_2_8() -> void:
+	# D-S28-9: the 2.7 readout is gone; hits show in the HUD LogPanel instead.
+	var text: String = FileAccess.get_file_as_string("res://src/presentation/practice_target_view.gd")
+	for gone: String in ["READOUT_HITS", "readout_lines", "readout_top_left", "hit_line"]:
+		assert_false(text.contains(gone), "PracticeTargetView still has %s" % gone)
+	var view: PracticeTargetView = autofree(PracticeTargetView.new())
+	assert_false(view.has_method(&"readout_lines"))
 
 
-func test_view_label_is_centred_and_readout_inside_the_play_area() -> void:
+func test_view_label_is_centred_and_clear_of_the_spawn() -> void:
 	var tl: Vector2 = PracticeTargetView.label_top_left(Arena.PRACTICE_TARGET_PX)
 	assert_eq(tl + Vector2(GlyphFont.text_width(PracticeTargetView.LABEL, PracticeTargetView.LABEL_SCALE), GlyphFont.CELL) / 2.0, Arena.PRACTICE_TARGET_PX)
 	var spawn_cell := Rect2(Arena.SPAWN_PX - Vector2(8, 8), Vector2(16, 16))
 	var label := Rect2(tl, Vector2(GlyphFont.text_width(PracticeTargetView.LABEL, PracticeTargetView.LABEL_SCALE), GlyphFont.CELL))
 	assert_false(label.intersects(spawn_cell), "the label never covers the spawn @")
-	var top: Vector2 = PracticeTargetView.readout_top_left(4)
-	assert_true(Arena.play_area().has_point(top))
-	assert_true(Arena.play_area().has_point(top + Vector2(0, 4 * PracticeTargetView.LINE_STEP)))

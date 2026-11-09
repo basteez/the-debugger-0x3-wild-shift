@@ -5,7 +5,8 @@ extends SimSystem
 ## (D-S27-5). No Area2D, no physics body: the running action's HitShape, anchored at the action's
 ## start (D-S27-13), is tested against each target's circular hurtbox. Inputs are injected
 ## (D-S27-11); holds no node. Order per hit (NP-4): interactions (Epic 3), damage, hit_landed.
-## Story 2.7 targets are practice targets only (x1, never Patched); hit-stop is Story 2.8.
+## Story 2.7 targets are practice targets only (x1, never Patched). Story 2.8: after the hit loop
+## the tick requests hit-stop once, the maximum HitFeedback value of its hits (AD-01, D-S28-12).
 ## The hit's frame stamp is SimClock.sim_frame, the same frame as the Log `[f=...]` prefix (D-S27-8).
 
 var actions: ActionStateMachine
@@ -28,12 +29,17 @@ func tick(_ctx: SimContext) -> void:
 		return
 	var serial: int = actions.action_serial
 	var hit: Array[PracticeTarget] = hits_for(def.hit_shape, actions.action_origin_px, Vector2(actions.facing).normalized(), targets, serial)
+	if hit.is_empty():
+		return
 	var is_combo: bool = actions.combo != null
+	var hitstop: int = 0
 	for target: PracticeTarget in hit:
 		var damage: int = DamageCalc.compute(def.base_damage, target.damage_multiplier(), false, 1.0)
 		target.register_hit(serial, SimClock.sim_frame, def.id, damage)
 		Log.debug(&"combat", "hit %s dmg=%d" % [def.id, damage])
 		EventBus.hit_landed.emit(&"practice_target", damage, DamageCalc.STATE_BASE, is_combo, target.position_px)
+		hitstop = maxi(hitstop, HitFeedback.hitstop_for(is_combo, def.hitstop_frames))
+	SimClock.request_hitstop(hitstop)
 
 
 ## The targets the shape overlaps that the action with `serial` has not hit yet (D-S27-4). Pure.

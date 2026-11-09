@@ -33,6 +33,14 @@ var frame_overlay: FrameOverlay
 var debug_keys: DebugKeys
 ## Practice target view (Story 2.7): exists only when Debug.enabled; draws only while a target exists.
 var practice_view: PracticeTargetView
+## Hit glyph particles (Story 2.8), in the Particles layer at the arena origin.
+var particle_pool: ParticlePool
+## Combo-hit shake (Story 2.8): owns the arena Camera2D (a child of the Arena).
+var camera_shake: CameraShakeDriver
+## Full-screen invert / dither rect in the ScreenFX layer (Story 2.8); driven only by JuiceDirector.
+var screen_fx: ScreenFX
+## F10 perf overlay (Story 2.8): exists only when Debug.enabled; null otherwise.
+var perf_overlay: PerfOverlay
 
 
 func _ready() -> void:
@@ -43,6 +51,7 @@ func _ready() -> void:
 		debug_keys = DebugKeysScript.new()
 		debug_keys.name = &"DebugKeys"
 		debug_keys.frame_overlay = frame_overlay
+		debug_keys.perf_overlay = perf_overlay
 		add_child(debug_keys)
 	# Story 1.3 day-1 audio smoke test, behind ?debug&smoke=audio and the Debug gate (1.6 AC8).
 	if Debug.enabled and wants_audio_smoke(UrlQuery.web_search()):
@@ -83,6 +92,17 @@ func _build_layers() -> void:
 		var node := Node2D.new()
 		node.name = layer_name
 		add_child(node)
+	# Story 2.8: the pool sits at the arena origin so hit_landed's arena-local points line up.
+	particle_pool = ParticlePool.new()
+	particle_pool.name = &"ParticlePool"
+	particle_pool.position = Vector2(Arena.ORIGIN_CELL * GlyphFont.CELL)
+	get_node(^"Particles").add_child(particle_pool)
+	# Debug-only F10 perf overlay (Story 2.8 AC6), drawn over the arena (arena-local pixels).
+	if Debug.enabled:
+		perf_overlay = PerfOverlay.new()
+		perf_overlay.name = &"PerfOverlay"
+		perf_overlay.particle_pool = particle_pool
+		arena.add_child(perf_overlay)
 	hud = HudScene.instantiate() as Hud
 	hud.name = &"Hud"
 	hud.layer = HUD_LAYER
@@ -98,6 +118,9 @@ func _build_layers() -> void:
 	fx.name = &"ScreenFX"
 	fx.layer = SCREEN_FX_LAYER
 	add_child(fx)
+	screen_fx = ScreenFX.new()
+	screen_fx.name = &"ScreenFXRect"
+	fx.add_child(screen_fx)
 	screens = Node2D.new()
 	screens.name = &"Screens"
 	add_child(screens)
@@ -106,7 +129,16 @@ func _build_layers() -> void:
 	juice_director.name = &"JuiceDirector"
 	juice_director.register_panel = hud.register_panel
 	juice_director.player_view = player_view
+	juice_director.screen_fx = screen_fx
 	add_child(juice_director)
+	# Story 2.8 combo shake: the camera is a child of the Arena, placed at the canvas origin so
+	# offset zero keeps today's framing exactly (D-S28-5). The driver lives in presentation/, so
+	# Main attaches it, after the layers so LAYER_ORDER is unchanged.
+	camera_shake = CameraShakeDriver.new()
+	camera_shake.name = &"CameraShakeDriver"
+	add_child(camera_shake)
+	camera_shake.camera.position = -Vector2(Arena.ORIGIN_CELL * GlyphFont.CELL)
+	arena.add_child(camera_shake.camera)
 
 
 func _on_flow_state_changed(_from: int, to: int) -> void:
@@ -125,8 +157,12 @@ func apply_flow_state(state: int, boss_index: int) -> void:
 	current_screen = _make_screen(state, boss_index)
 	if current_screen != null:
 		screens.add_child(current_screen)
-	# No slide or inversion carries across screens (D-S24-9).
+	# No slide or inversion carries across screens (D-S24-9). Story 2.8 [design call]: nor do
+	# particles, the shake or the console lines; every fight starts with a clean log.
 	juice_director.reset()
+	particle_pool.clear()
+	camera_shake.reset()
+	hud.log_panel.clear()
 	var in_fight: bool = state == GameFlow.FlowState.FIGHT
 	arena.visible = in_fight
 	hud.visible = in_fight
