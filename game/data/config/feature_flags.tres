@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="FeatureFlags" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/core/feature_flags.gd" id="1_flags"]
+
+[resource]
+script = ExtResource("1_flags")
+reserved_write = true
+watch = true
+breakpoint_enabled = true
+segfault = true

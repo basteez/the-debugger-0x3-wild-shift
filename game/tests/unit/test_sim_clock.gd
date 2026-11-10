@@ -24,6 +24,24 @@ class LogSystem:
 			clock.call(&"request_hitstop", hitstop_request)
 
 
+## Story 4.3: records poll() calls ("poll:<name>:<presses>") and ticks ("tick:<name>") into a log.
+class PollSystem:
+	extends SimSystem
+	var name: String
+	var log: Array[String]
+
+	func _init(p_phase: SimSystem.SimPhase, p_name: String, p_log: Array[String]) -> void:
+		phase = p_phase
+		name = p_name
+		log = p_log
+
+	func poll(presses: Array[StringName], _ctx: SimContext) -> void:
+		log.append("poll:%s:%s" % [name, ",".join(presses)])
+
+	func tick(_ctx: SimContext) -> void:
+		log.append("tick:%s" % name)
+
+
 ## Test-only source: returns the scripted presses (and moves) per poll, empty/zero after.
 class ScriptedInput:
 	extends InputSource
@@ -424,3 +442,97 @@ func test_swallow_survives_pause_and_begin_fight() -> void:
 	_clock.paused = false
 	_tick(1)
 	assert_eq(_clock.buffer.size(), 0, "the first polled tick after the pause is swallowed")
+
+
+# --- Story 4.3: poll hook and SHIFTS-only freeze (AC 4, D-S43-3, D-S43-4) ---
+
+func test_default_poll_is_a_no_op() -> void:
+	var sys := SimSystem.new()
+	sys.poll([&"action_1"] as Array[StringName], SimContext.new())
+	assert_eq(sys.phase, SimSystem.SimPhase.TIMERS)
+
+
+func test_poll_runs_on_every_system_before_any_tick() -> void:
+	var log: Array[String] = []
+	var P := SimSystem.SimPhase
+	_clock.register_system(PollSystem.new(P.TIMERS, "t", log))
+	_clock.register_system(PollSystem.new(P.SHIFTS, "s", log))
+	var src := ScriptedInput.new()
+	src.frames = [[&"action_1", &"shift_left"]]
+	_clock.input_source = src
+	_tick(1)
+	assert_eq(log, ["poll:s:action_1,shift_left", "poll:t:action_1,shift_left", "tick:s", "tick:t"] as Array[String])
+	assert_true(_clock.buffer.consume(&"action_1", 0), "presses are pushed before poll")
+
+
+func test_poll_runs_during_hitstop_and_breakpoint_not_pause() -> void:
+	var log: Array[String] = []
+	_clock.register_system(PollSystem.new(SimSystem.SimPhase.PLAYER, "p", log))
+	_clock.hitstop_frames = 1
+	_tick(1)
+	assert_eq(log, ["poll:p:"] as Array[String], "polled during hit-stop, not ticked")
+	log.clear()
+	_clock.breakpoint_gate_active = true
+	_tick(1)
+	assert_eq(log, ["poll:p:"] as Array[String], "polled during Breakpoint, not ticked")
+	log.clear()
+	_clock.paused = true
+	_tick(3)
+	assert_eq(log.size(), 0, "pause returns before the poll hook")
+
+
+func test_poll_can_open_the_gate_for_its_own_tick() -> void:
+	var log: Array[String] = []
+	var gate := GateOnPoll.new(_clock)
+	_clock.register_system(gate)
+	_clock.register_system(LogSystem.new(SimSystem.SimPhase.PLAYER, "p", log))
+	_tick(1)
+	assert_true(_clock.breakpoint_gate_active)
+	assert_eq(log.size(), 0, "the gate set in poll freezes that same tick")
+	assert_eq(_clock.sim_frame, 0)
+
+
+func test_breakpoint_freeze_ticks_shifts_only() -> void:
+	var log: Array[String] = []
+	var P := SimSystem.SimPhase
+	_clock.register_system(LogSystem.new(P.TIMERS, "timers", log))
+	_clock.register_system(LogSystem.new(P.SHIFTS, "shifts", log))
+	_clock.register_system(LogSystem.new(P.ACTIONS, "actions", log))
+	_clock.register_system(LogSystem.new(P.SHIFTS, "shifts2", log))
+	_clock.hitstop_frames = 4
+	_clock.breakpoint_gate_active = true
+	_tick(3)
+	assert_eq(log, ["shifts", "shifts2", "shifts", "shifts2", "shifts", "shifts2"] as Array[String])
+	assert_eq(_clock.sim_frame, 0, "sim_frame frozen")
+	assert_eq(_clock.hitstop_frames, 4, "hit-stop untouched")
+	assert_eq(_clock.poll_frame, 3)
+
+
+func test_q_press_shifts_the_register_while_frozen() -> void:
+	var register := Register.new(_clock.buffer)
+	register.set_fight_start(Register.fight_start_for_boss(1))
+	register.set_active(true)
+	_clock.register_system(register)
+	var src := ScriptedInput.new()
+	src.frames = [[], [&"shift_right"]]
+	_clock.input_source = src
+	_clock.breakpoint_gate_active = true
+	watch_signals(EventBus)
+	var before: PackedInt32Array = register.ring.duplicate()
+	_tick(2)
+	assert_signal_emit_count(EventBus, "register_shifted", 1)
+	assert_eq(register.ring, Register.rotated(before, Register.RIGHT))
+	assert_eq(_clock.sim_frame, 0)
+
+
+## Test-only: opens the Breakpoint gate from its poll hook.
+class GateOnPoll:
+	extends SimSystem
+	var clock: Node
+
+	func _init(p_clock: Node) -> void:
+		phase = SimPhase.TIMERS
+		clock = p_clock
+
+	func poll(_presses: Array[StringName], _ctx: SimContext) -> void:
+		clock.set(&"breakpoint_gate_active", true)

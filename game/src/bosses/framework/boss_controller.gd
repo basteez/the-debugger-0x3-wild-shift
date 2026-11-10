@@ -43,6 +43,9 @@ var last_hit_serial: int = -1
 ## Story 3.8 (A1, D-S38-1, D-S38-8): world ticks since the defeat, 0..DEFEAT_FRAMES. Counted in
 ## tick() while DEFEATED even though `active` is false; reset in reset_for_fight. Sim state only.
 var defeat_frames_elapsed: int = 0
+## Story 4.3 (AC 13, D-S43-11): FeatureFlags.breakpoint, injected by the arena (never read here).
+## Off: an attack with recovery_if_no_breakpoint > 0 uses it in place of recovery (SIGSEGV 150).
+var breakpoint_on: bool = true
 
 var _health: PlayerHealth
 var _arena: ArenaContext
@@ -162,8 +165,9 @@ func _advance(rng: RandomNumberGenerator) -> void:
 		BossState.TELL:
 			_enter(BossState.ACTIVE, current.active)
 		BossState.ACTIVE:
-			if current.recovery > 0:
-				_enter(BossState.RECOVERY, current.recovery)
+			var recovery: int = effective_recovery(current, breakpoint_on)
+			if recovery > 0:
+				_enter(BossState.RECOVERY, recovery)
 				_attacks[_current_index].on_recovery(_arena)
 			else:
 				_attacks[_current_index].on_recovery(_arena)
@@ -174,6 +178,16 @@ func _advance(rng: RandomNumberGenerator) -> void:
 			_end_attack()
 		BossState.DEFEATED:
 			pass
+
+
+## The recovery an attack runs (Story 4.3, AC 13, GDD cut #3): recovery_if_no_breakpoint when
+## Breakpoint is cut and that value is > 0, else recovery. Pure.
+static func effective_recovery(attack: AttackDef, p_breakpoint_on: bool) -> int:
+	if attack == null:
+		return 0
+	if not p_breakpoint_on and attack.recovery_if_no_breakpoint > 0:
+		return attack.recovery_if_no_breakpoint
+	return attack.recovery
 
 
 ## Drops a running attack (phase change or defeat): on_cancel lets it clear hazards; no on_recovery.

@@ -20,6 +20,8 @@ const DASH_STRIKE: ActionDef = preload("res://data/actions/dash_strike.tres")
 const ECHO_DASH: ActionDef = preload("res://data/actions/echo_dash.tres")
 ## Ordered combo lookup (Story 2.6, AD-02): COMBOS.get_combo(first, second).
 const COMBOS: ComboTable = preload("res://data/combos/combo_table.tres")
+## Story 4.3 (AD-12, D-S43-1): the cut-ladder switches, read once by the startup wiring.
+const FEATURE_FLAGS: FeatureFlags = preload("res://data/config/feature_flags.tres")
 
 
 ## The def of a bit id; null for a bit with no def yet (NULL_BIT until Epic 5; LOOP since Story 3.8).
