@@ -4,7 +4,8 @@ extends GutTest
 
 const LINES_PATH := "res://data/duck/duck_lines.tres"
 const GDD: Dictionary[StringName, String] = {
-	&"t1_shift": "Q and E shift your bits. Only the two on the left are live; the rest are in code review.",
+	# Story 4.4 (D-S44-2): T1 rewritten for the Infinite Loop start nudge.
+	&"t1_shift": "Q or E shifts your bits. Go on, shift. It's waiting. Only the two on the left are live; the rest are in code review.",
 	&"t2_semicolon": "See the semicolon? It's always the semicolon. Hit it when it opens.",
 	&"t3_dash_strike": "J then K: Dash Strike. Two bits, one commit.",
 	&"t4_phase_two": "It refactored itself. Have you tried shifting it off and on again?",
@@ -29,7 +30,7 @@ func _line(id: StringName, text: String) -> DuckLineDef:
 func test_the_four_tutorial_lines_equal_the_gdd_strings() -> void:
 	var lines: DuckLinesDef = _lines()
 	assert_not_null(lines)
-	assert_eq(lines.entries.size(), 5, "T1-T4 (D-S36-3) plus the 3.8 harvest line")
+	assert_eq(lines.entries.size(), 7, "T1-T4 (D-S36-3), the 3.8 harvest line, the two 4.4 hint windows")
 	for i: int in DuckDirector.DUCK_IDS.size():
 		var id: StringName = DuckDirector.DUCK_IDS[i]
 		assert_eq(lines.entries[i].id, id, "order follows the beats")
@@ -41,7 +42,23 @@ func test_harvest_line_is_the_fifth_entry_and_the_budget_holds() -> void:
 	assert_eq(lines.entries[4].id, &"harvest_shared")
 	assert_eq(lines.find(&"harvest_shared").text, HARVEST_TEXT)
 	assert_eq(lines.find(StringName(HarvestScreen.LINE_ID)).text, HARVEST_TEXT, "the screen's id resolves")
-	assert_lte(lines.entries.size(), LINE_BUDGET, "duck line budget (GDD D-039)")
+	assert_lte(budget_count(lines), LINE_BUDGET, "duck line budget (GDD D-039, the hint template counts once)")
+
+
+## Lines counted against D-039: every entry but the hint windows, plus one for the hint template.
+static func budget_count(lines: DuckLinesDef) -> int:
+	var n: int = 0
+	var has_hint: bool = false
+	for entry: DuckLineDef in lines.entries:
+		if DuckHint.is_hint_id(entry.id):
+			has_hint = true
+		else:
+			n += 1
+	return n + (1 if has_hint else 0)
+
+
+func test_budget_counts_the_hint_template_once() -> void:
+	assert_eq(budget_count(_lines()), 6, "T1-T4, harvest, the hint template")
 
 
 func test_ids_are_unique_and_text_is_ascii() -> void:
@@ -49,7 +66,10 @@ func test_ids_are_unique_and_text_is_ascii() -> void:
 	for entry: DuckLineDef in _lines().entries:
 		assert_false(seen.has(entry.id), "duplicate %s" % entry.id)
 		seen[entry.id] = true
-		assert_true(DuckLineDef.is_ascii(entry.text), String(entry.id))
+		if DuckHint.is_hint_id(entry.id):
+			assert_true(DuckLineDef.is_drawable(entry.text), "%s: ASCII plus the arrow (D-S44-10)" % entry.id)
+		else:
+			assert_true(DuckLineDef.is_ascii(entry.text), String(entry.id))
 
 
 func test_every_entry_validates() -> void:
@@ -67,6 +87,8 @@ func test_line_validation_reports_bad_values() -> void:
 	assert_gt(_line(&"", "hi").validate().size(), 0, "empty id")
 	assert_gt(_line(&"x", "").validate().size(), 0, "empty text")
 	assert_gt(_line(&"x", "café").validate().size(), 0, "non-ASCII")
+	assert_eq(_line(&"x", "Weak window: D→A.").validate().size(), 0, "the hint arrow is allowed (D-S44-10)")
+	assert_gt(_line(&"x", "D←A").validate().size(), 0, "other arrows are not")
 	assert_gt(_line(&"x", "a supercalifragilistic word").validate().size(), 0, "word wider than 12")
 	assert_gt(_line(&"x", "word ".repeat(40).strip_edges()).validate().size(), 0, "20 lines, more than 15")
 	assert_eq(_line(&"x", "short and fine").validate().size(), 0)

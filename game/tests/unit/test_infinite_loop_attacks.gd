@@ -148,8 +148,9 @@ func test_no_attack_before_the_loop_starts() -> void:
 	_player_px = b.body_center_px
 	var before: int = _ctx.rng.state
 	watch_signals(EventBus)
-	_tick(b, 600)
-	assert_eq(b.state, S.GAP, "D-S34-23: the FSM waits for the first shift")
+	# Story 4.4 (D-S44-1): 299 ticks (was 600); the ring now starts on its own at tick 300.
+	_tick(b, InfiniteLoopBody.START_NUDGE_TICKS - 1)
+	assert_eq(b.state, S.GAP, "D-S34-23: the FSM waits for the first shift (or the nudge)")
 	assert_signal_emit_count(EventBus, "boss_tell_started", 0)
 	assert_eq(_ctx.rng.state, before, "no pick, no RNG")
 

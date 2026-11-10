@@ -40,7 +40,7 @@ Tiziano decided on 2026-11-07 that everything involving the itch.io page, the fi
 
 ## Open for the 3.9 playtest: new UX finding (2026-11-10)
 
-- [ ] [3.9 UX] The Infinite Loop stays still until the first register shift (D-S33-6) and nothing tells the player that Q/E starts the fight. Proposal: a clearer T1 duck line plus an auto-start after about 5 s without a shift.
+- [x] [3.9 UX] The Infinite Loop stays still until the first register shift (D-S33-6) and nothing tells the player that Q/E starts the fight. (Closed in Story 4.4: clearer T1 line plus a sim-side 300-tick auto-start, D-S44-1/D-S44-2. GDD Duck row 2 and the Boss 1 note still need the "or 5 s" edit after the playtest.)
 
 ## mumble-speech web support: UNBLOCKED by v0.3.0 (2026-11-07)
 
@@ -262,10 +262,10 @@ Story 1.3 AC9 / I-6 ("mumble-speech web check, moved to 3.7") is UNBLOCKED. Tizi
 ## Deferred from: code review of story-3.6 (2026-11-09)
 
 - 3.7 voice seam: add a stop/finish path (hold timer starts only after `is_done()`, so a voice that stops early hangs the bubble until FIGHT exit); call `VoiceService.stop()` on `clear()`/flow exit; decide typewriter-vs-voice ownership (`driven_externally`) before the `duck_line_requested` emit; let the squeak be suppressed while a voice speaks.
-- Strict beat order means T4 never fires if Dash Strike was never the active window (tutorial soft-lock only, by design D-S36-7); consider letting later triggers supersede earlier beats in playtest 3.9.
-- Beats dropped by the `MAX_PENDING` cap are lost for the run (`requested` already advanced); unreachable with one beat per poll. Debug FIGHT->FIGHT jump does not clear the bubble nor reset `requested`.
+- [x] ~~Strict beat order means T4 never fires if Dash Strike was never the active window~~ (Closed in Story 4.4: per-beat triggers, D-S44-3/D-S44-10. Residual: T3 has a transient trigger, see the 4.4 review section.)
+- [x] ~~Beats dropped by the `MAX_PENDING` cap are lost for the run~~ (Closed in Story 4.4: `DuckBubble.has_room()` gates the director, a due line waits, D-S44-4.) Still open: debug FIGHT->FIGHT jump does not clear the bubble nor reset `requested`.
 - `VoiceService.say` raw text: no empty/ASCII/12-col checks (only the catalogue is validated); double spaces desync the joined-text index; raw text equal to a known id resolves to the catalogue.
-- Layering: `DuckLineDef` (data) depends on `DuckBubble` constants and `wrap`; `DuckDirector.poll()` is not gated on `SimClock.paused`; `>o` glyph is hidden between lines (D-S36-4, confirm in H9); `AudioManager` missing from the isolation guard pattern (voice_service is scanned instead).
+- Layering: `DuckLineDef` (data) depends on `DuckBubble` constants and `wrap`; `DuckDirector.poll()` pause gate (closed in Story 4.4, D-S44-9); `>o` glyph is hidden between lines (D-S36-4, confirm in H9); `AudioManager` missing from the isolation guard pattern (voice_service is scanned instead).
 
 
 ## Deferred from: dev of story-3.7 (2026-11-09)
@@ -314,7 +314,7 @@ Story 1.3 AC9 / I-6 ("mumble-speech web check, moved to 3.7") is UNBLOCKED. Tizi
 
 ## Deferred from: code review of story-4-3-breakpoint-skill (2026-11-10)
 
-- Breakpoint can start during the boss DEFEATED animation (can_start ignores boss state); it delays HARVEST by up to about 2 s and burns the cooldown on a dead boss. Cosmetic/pacing; gate it from Arena if playtest shows it.
+- Breakpoint can start during the boss DEFEATED animation (can_start ignores boss state); it delays HARVEST by up to about 2 s and burns the cooldown on a dead boss. Cosmetic/pacing; gate it from Arena if playtest shows it. (Hint side closed in Story 4.4: no hint while DEFEATED. The delay/cooldown burn itself stays open.)
 - The start poll counts as frozen poll 1, so the world freezes for 119 ticks, not 120 (D-S43-16, "at most 120"). Confirm with the GDD owner whether 120 frozen frames is meant.
 - Readout text is `brk READY` / `brk 12s` (GDD HUD label), AC 10 wording says `READY` / seconds only; amend the AC text.
 - Spec/AC 1 field name `breakpoint` is `breakpoint_enabled` in code (reserved word, D-S43-17); later stories (6.5, 7.4) must use the new name.
@@ -324,3 +324,14 @@ Story 1.3 AC9 / I-6 ("mumble-speech web check, moved to 3.7") is UNBLOCKED. Tizi
 - ScreenFX exemption uses an exact match (epsilon 0.002) on screen_texture; anti-aliased dot rim or sRGB differences on the Web Compatibility renderer may dither the rim. Human check in browser; fallback: draw_rect dot or a wider threshold.
 - check_guards leaf rule: does not cover BreakpointReadout (in ui/hud), .tscn/.tres references, or trailing `#` comments on code lines.
 - `_gate.set(&"breakpoint_gate_active")` on an untyped Object is silent if renamed or null; replay test hashes no player position; wiring test reads private `_systems`; assorted weak/tautological tests; `breakpoint_music_events` counter merges started and ended.
+
+
+## Deferred from: code review of story-4.4 (2026-11-10)
+
+- A queued Breakpoint hint stores the window at queue time and can be said later (full bubble) when the phase or the phase-3 ring has moved on. Resolve at pop time or drop on phase change if the playtest shows it.
+- The Breakpoint hint is once per (boss, phase) (D-S44-5), so in Infinite Loop phase 3 the inner-ring window is not hinted after the outer one. Add the window to the key if the playtest wants it.
+- T3 (Dash Strike) has a transient trigger: if the window passes while the bubble has no room or the game is paused and T4 then fires, T3 is skipped for good; `requested` survives retries so a retry never re-teaches it. Latch trigger observations if the playtest shows it.
+- Null Pointer and Segfault have no BossDef yet: the AC 2 per-phase hint test picks them up when the defs land (Epic 5).
+- Hit-stop is not covered by a nudge test (pause and Breakpoint are, in `test_start_nudge.gd`); the `test_a_shift_at_tick_10_starts_at_10` tail assertion (`iteration >= 1`) is near-vacuous; `test_third_death_through_the_real_game_flow` sets the flow state by hand after the retry.
+- The `→` in hint text is sent to the mumble voice (letters only, probed silent in 4.4); confirm by ear in the browser (human check).
+- Pending hints are dropped when the flow leaves FIGHT (D-S44-12) and the Breakpoint record is marked at queue time, a recorded departure from the AC 9 wording.

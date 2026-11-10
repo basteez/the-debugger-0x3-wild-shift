@@ -175,6 +175,7 @@ func _build_layers() -> void:
 	duck_director = DuckDirector.new()
 	duck_director.name = &"DuckDirector"
 	duck_director.arena = arena
+	duck_director.bubble = hud.duck_bubble # Story 4.4 (D-S44-4): request only when it has room
 	add_child(duck_director)
 	# Story 2.8 combo shake: the camera is a child of the Arena, placed at the canvas origin so
 	# offset zero keeps today's framing exactly (D-S28-5). The driver lives in presentation/, so

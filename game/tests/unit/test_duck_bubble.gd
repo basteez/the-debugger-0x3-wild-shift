@@ -36,7 +36,8 @@ func _finish_line() -> void:
 # --- wrap (B1) ---
 
 func test_wrap_fits_every_tutorial_line() -> void:
-	var expected_lines: Array[int] = [8, 7, 4, 7, 6] # Story 3.8: + harvest_shared
+	# Story 3.8: + harvest_shared. Story 4.4: T1 rewritten (11 lines, D-S44-2) + the two hint lines.
+	var expected_lines: Array[int] = [11, 7, 4, 7, 6, 2, 2]
 	var texts: PackedStringArray = _texts()
 	for i: int in texts.size():
 		var lines: PackedStringArray = DuckBubble.wrap(texts[i], DuckBubble.WRAP_WIDTH)
@@ -48,8 +49,21 @@ func test_wrap_fits_every_tutorial_line() -> void:
 
 
 func test_wrap_matches_the_story_t1_lines() -> void:
-	assert_eq(DuckBubble.wrap(_texts()[0]), PackedStringArray([
-		"Q and E", "shift your", "bits. Only", "the two on", "the left are", "live; the", "rest are in", "code review.",
+	# Story 4.4 (AC 11, D-S44-2): the rewritten T1 wraps to 11 of the 15 text rows (rows 23-33).
+	var lines: PackedStringArray = DuckBubble.wrap(_texts()[0])
+	assert_eq(lines, PackedStringArray([
+		"Q or E", "shifts your", "bits. Go on,", "shift. It's", "waiting.", "Only the two", "on the left", "are live;",
+		"the rest are", "in code", "review.",
+	]))
+	assert_lte(DuckBubble.line_cell(lines.size() - 1).y, 37, "the last row stays inside the duck region")
+	for cell: Vector2i in DuckBubble.cells_for_text(_texts()[0]):
+		assert_true(cell.x >= 0 and cell.x <= 11 and cell.y >= 22 and cell.y <= 37, "cell %s inside cols 0-11, rows 22-37" % cell)
+
+
+func test_hint_lines_wrap_with_the_window_on_one_row() -> void:
+	# Story 4.4 (AC 1): the window glyphs never split across rows.
+	assert_eq(DuckBubble.wrap(DuckHint.window_text(Vector2i(Register.Bit.DASH, Register.Bit.ATTACK))), PackedStringArray([
+		"Quack. Weak", "window: D→A.",
 	]))
 
 
