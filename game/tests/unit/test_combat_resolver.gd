@@ -319,3 +319,208 @@ func test_through_simclock_slash_freezes_the_world_for_3_frames() -> void:
 	assert_eq(SimClock.sim_frame, frame + 1, "the world resumes")
 	SimClock.input_source = saved_source
 	SimClock.paused = saved_paused
+
+
+# --- Story 3.2: boss hits, weak window, Patched (AC 1-4, 6, 7; D-S32-8..12) ---
+
+const PULSE: AttackDef = preload("res://data/bosses/test_boss/attack_pulse.tres")
+const SWEEP: AttackDef = preload("res://data/bosses/test_boss/attack_sweep.tres")
+
+
+## A one-phase boss with `weak` as its window, 100 HP (no phase change in these tests), at `pos`.
+func _boss(weak: Vector2i, pos: Vector2, max_hp: int = 100) -> BossController:
+	var p := PhaseDef.new()
+	p.hp_threshold = 100
+	p.weak_window = weak
+	p.gap_frames = 40
+	p.attack_pool = [PULSE, SWEEP]
+	var d := BossDef.new()
+	d.boss_id = &"unit_boss"
+	d.name_signature = "unitBoss"
+	d.max_hp = max_hp
+	d.phases = [p]
+	d.body_radius_tiles = 1.0
+	var c := BossController.new()
+	assert_true(c.setup(d, null, null))
+	c.reset_for_fight()
+	c.body_center_px = pos
+	_combat.boss = c
+	return c
+
+
+## Dash Strike from spawn on [A, D]: J at 0, K held by the link, the strike hits on tick 11.
+func _dash_strike() -> void:
+	_buf.push(J, 0)
+	_run_to(3)
+	_buf.push(K, _t)
+	_run_to(11)
+	SimClock._pending_hitstop = 0
+	_tick()
+	assert_eq(_fsm.action, Defs.DASH_STRIKE)
+
+
+func _boss_hits() -> Array:
+	var out: Array = []
+	for i: int in get_signal_emit_count(EventBus, "hit_landed"):
+		var params: Array = get_signal_parameters(EventBus, "hit_landed", i)
+		if params[0] == &"boss":
+			out.append(params)
+	return out
+
+
+func test_dash_strike_on_the_a_d_window_patches_first_and_deals_30() -> void:
+	_ring([A, D])
+	var boss: BossController = _boss(Vector2i(A, D), SPAWN + Vector2(64, 0))
+	_dash_strike()
+	assert_eq(_fsm.action_window, Vector2i(A, D))
+	assert_signal_emit_count(EventBus, "patched_applied", 1)
+	assert_signal_emitted_with_parameters(EventBus, "patched_applied", [&"unit_boss", 180])
+	assert_eq(boss.weak_window.frames_left, 180)
+	assert_eq(boss.hp, 70, "20 x 1.5 = 30, the patching hit is already Patched")
+	assert_signal_emitted_with_parameters(EventBus, "hit_landed", [&"boss", 30, DamageState.Kind.PATCHED, true, boss.body_center_px])
+	assert_eq(SimClock._pending_hitstop, HitFeedback.PATCHED_APPLIED_HITSTOP, "patching hit: 4 (D-S32-8)")
+	while _fsm.action != null:
+		_tick()
+	assert_eq(_boss_hits().size(), 1, "one boss hit per action serial")
+	assert_signal_emit_count(EventBus, "patched_applied", 1)
+
+
+func test_dash_strike_on_a_d_against_a_d_to_a_boss_is_resisted() -> void:
+	_ring([A, D])
+	var boss: BossController = _boss(Vector2i(D, A), SPAWN + Vector2(64, 0))
+	_dash_strike()
+	assert_signal_emit_count(EventBus, "patched_applied", 0)
+	assert_false(boss.weak_window.is_patched())
+	assert_eq(boss.hp, 90, "20 x 0.5 = 10")
+	assert_signal_emitted_with_parameters(EventBus, "hit_landed", [&"boss", 10, DamageState.Kind.UNPATCHED, true, boss.body_center_px])
+	assert_eq(SimClock._pending_hitstop, 6, "unpatched combo keeps its own value")
+
+
+func test_link_second_slash_on_d_a_patches_and_deals_15() -> void:
+	_ring([D, A])
+	_buf.push(J, 0) # solo dash, opens the link
+	_run_to(16)
+	var boss: BossController = _boss(Vector2i(D, A), _player.position_px + Vector2(32, 0))
+	_buf.push(K, _t)
+	var guard: int = 0
+	while _boss_hits().is_empty() and guard < 20:
+		SimClock._pending_hitstop = 0
+		_tick()
+		guard += 1
+	assert_true(_fsm.link_second)
+	assert_eq(_fsm.action_window, Vector2i(D, A))
+	assert_signal_emit_count(EventBus, "patched_applied", 1)
+	assert_eq(boss.hp, 85)
+	assert_eq(_boss_hits()[0], [&"boss", 15, DamageState.Kind.PATCHED, false, boss.body_center_px])
+	assert_eq(SimClock._pending_hitstop, HitFeedback.PATCHED_APPLIED_HITSTOP, "the patching slash takes 4 (D-S32-8)")
+
+
+func test_solo_slash_on_the_right_bits_never_patches() -> void:
+	_ring([A, D])
+	var boss: BossController = _boss(Vector2i(A, D), SPAWN + Vector2(32, 0))
+	_buf.push(J, 0)
+	_run_to(6)
+	SimClock._pending_hitstop = 0
+	_tick()
+	assert_signal_emit_count(EventBus, "patched_applied", 0)
+	assert_eq(boss.hp, 95, "slash 10 x 0.5 = 5")
+	assert_eq(_boss_hits()[0], [&"boss", 5, DamageState.Kind.UNPATCHED, false, boss.body_center_px])
+	assert_eq(SimClock._pending_hitstop, HitFeedback.NORMAL_HITSTOP)
+
+
+func test_a_patched_boss_takes_crits_with_8_frames_of_hitstop() -> void:
+	_ring([A, D])
+	var boss: BossController = _boss(Vector2i(D, A), SPAWN + Vector2(32, 0))
+	boss.weak_window.apply_patched(100)
+	_buf.push(J, 0)
+	_run_to(6)
+	SimClock._pending_hitstop = 0
+	_tick()
+	assert_signal_emit_count(EventBus, "patched_applied", 0, "a plain hit does not refresh")
+	assert_eq(boss.weak_window.frames_left, 100)
+	assert_eq(_boss_hits()[0], [&"boss", 15, DamageState.Kind.PATCHED, false, boss.body_center_px])
+	assert_eq(SimClock._pending_hitstop, HitFeedback.CRIT_HITSTOP)
+
+
+func test_reapplying_patched_while_active_refreshes_to_180() -> void:
+	_ring([A, D])
+	var boss: BossController = _boss(Vector2i(A, D), SPAWN + Vector2(64, 0))
+	boss.weak_window.apply_patched(20)
+	_dash_strike()
+	assert_eq(boss.weak_window.frames_left, 180)
+	assert_signal_emit_count(EventBus, "patched_applied", 1)
+	assert_eq(SimClock._pending_hitstop, HitFeedback.PATCHED_APPLIED_HITSTOP)
+
+
+func test_practice_target_on_a_matching_window_is_never_patched() -> void:
+	_ring([D, A])
+	_buf.push(J, 0)
+	_run_to(16)
+	var t: PracticeTarget = _target(_player.position_px + Vector2(32, 0))
+	_buf.push(K, _t)
+	_run_to(_t + 10)
+	assert_true(_fsm.link_second)
+	assert_eq(t.hits, 1)
+	assert_signal_emit_count(EventBus, "patched_applied", 0)
+	assert_eq(get_signal_parameters(EventBus, "hit_landed"), [&"practice_target", 10, DamageState.Kind.BASE, false, t.position_px])
+
+
+## D-S32-9 / AC 7: a Dash Strike through a boss in `mode` has no effect at all.
+func _assert_never_hit(mode: String) -> void:
+	_ring([A, D])
+	var boss: BossController = _boss(Vector2i(A, D), SPAWN + Vector2(64, 0))
+	match mode:
+		"roar":
+			boss.state = BossController.BossState.ROAR
+		"defeated":
+			boss.debug_kill()
+		"inactive":
+			boss.set_active(false)
+	var hp: int = boss.hp
+	_buf.push(J, 0)
+	_run_to(3)
+	_buf.push(K, _t)
+	_run_to(11)
+	SimClock._pending_hitstop = 0
+	_run_to(30)
+	assert_false(boss.is_hittable(), mode)
+	assert_eq(boss.hp, hp, mode)
+	assert_false(boss.weak_window.is_patched(), mode)
+	assert_eq(_boss_hits().size(), 0, mode)
+	assert_signal_emit_count(EventBus, "patched_applied", 0, mode)
+	assert_eq(SimClock._pending_hitstop, 0, "%s: no hit-stop" % mode)
+
+
+func test_a_roaring_boss_is_never_hit() -> void:
+	_assert_never_hit("roar")
+
+
+func test_a_defeated_boss_is_never_hit() -> void:
+	_assert_never_hit("defeated")
+
+
+func test_an_inactive_boss_is_never_hit() -> void:
+	_assert_never_hit("inactive")
+
+
+func test_a_combo_hits_a_boss_and_a_practice_target_in_the_same_tick() -> void:
+	_ring([A, D])
+	var t: PracticeTarget = _target(SPAWN + Vector2(64, 0))
+	var boss: BossController = _boss(Vector2i(A, D), SPAWN + Vector2(96, 0))
+	_dash_strike()
+	assert_signal_emit_count(EventBus, "hit_landed", 2)
+	assert_eq(boss.hp, 70)
+	assert_eq(t.hits, 1)
+	assert_eq(t.records()[0][&"damage"], 20, "the practice target stays x1")
+	assert_eq(SimClock._pending_hitstop, 6, "max of the patching 4 and the practice combo 6")
+
+
+func test_hits_for_dedupes_a_target_listed_twice() -> void:
+	var t := PracticeTarget.new(SPAWN + Vector2(20, 0))
+	var all: Array[PracticeTarget] = [t, t]
+	assert_eq(CombatResolver.hits_for(_arc(), SPAWN, RIGHT, all, 1).size(), 1)
+
+
+func test_target_ids() -> void:
+	assert_eq(PracticeTarget.new().hit_target_id(), &"practice_target")
+	assert_eq(BossController.new().hit_target_id(), &"boss")

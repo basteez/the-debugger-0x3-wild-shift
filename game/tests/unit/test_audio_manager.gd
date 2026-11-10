@@ -119,3 +119,24 @@ func test_master_mute_toggles_the_master_bus() -> void:
 	assert_false(am.is_master_muted())
 	for bus: StringName in [&"Music", &"SFX", &"Voice"]:
 		assert_false(AudioServer.is_bus_mute(AudioServer.get_bus_index(bus)), "%s untouched" % bus)
+
+
+# Story 3.2 (AC 3, AC 5, D-S32-17): placeholder thud and chime, built once in _ready.
+func test_unpatched_boss_hit_plays_the_thud_and_patched_plays_the_chime() -> void:
+	var am: Node = add_child_autofree(AudioManagerScript.new())
+	am.unlock()
+	var thud: AudioStreamWAV = am.get("_thud")
+	var chime: AudioStreamWAV = am.get("_chime")
+	assert_not_null(thud)
+	assert_not_null(chime)
+	assert_gt(thud.data.size(), 0)
+	assert_gt(chime.data.size(), 0)
+	EventBus.hit_landed.emit(&"practice_target", 10, DamageState.Kind.BASE, false, Vector2.ZERO)
+	EventBus.hit_landed.emit(&"boss", 15, DamageState.Kind.PATCHED, false, Vector2.ZERO)
+	assert_null(am.get_node_or_null(^"ShiftSfx"), "no thud for practice or Patched hits")
+	EventBus.hit_landed.emit(&"boss", 5, DamageState.Kind.UNPATCHED, false, Vector2.ZERO)
+	var player := am.get_node(^"ShiftSfx") as AudioStreamPlayer
+	assert_eq(player.stream, thud)
+	EventBus.patched_applied.emit(&"test_boss", 180)
+	assert_eq(player.stream, chime)
+	assert_same(am.get("_thud"), thud, "cached, not rebuilt per hit")

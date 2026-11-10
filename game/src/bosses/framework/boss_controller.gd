@@ -6,6 +6,8 @@ extends SimSystem
 ## BossView, the HUD header and AudioManager read them or listen to EventBus. All randomness comes
 ## from SimContext.rng. Concrete bosses subclass this (speed ramp via _on_phase_reset) and put
 ## their attacks in src/bosses/<boss>/attacks/.
+## Story 3.2: owns the WeakWindowTracker (`weak_window`, Patched), ticked here once per live tick;
+## CombatResolver applies Patched and calls take_hit / mark_hit (NP-4, D-S32-3).
 
 enum BossState { GAP, TELL, ACTIVE, RECOVERY, ROAR, DEFEATED }
 
@@ -30,6 +32,10 @@ var active: bool = false
 ## The last two picks as indices into the attack cache (-1 = none), most recent first (D-S31-6).
 var last_pick: int = -1
 var second_last_pick: int = -1
+## Patched state (Story 3.2, D-S32-3). Only CombatResolver applies it; ticked here.
+var weak_window: WeakWindowTracker = WeakWindowTracker.new()
+## ActionStateMachine.action_serial of the last action that hit the boss; -1 = none (D-S32-10).
+var last_hit_serial: int = -1
 
 var _health: PlayerHealth
 var _arena: ArenaContext
@@ -83,6 +89,8 @@ func setup(p_def: BossDef, p_health: PlayerHealth, p_arena: ArenaContext) -> boo
 ## Fight start and retry (AC 8): full HP, phase 0, GAP for the first phase's gap, empty pick
 ## history, live. Cached attack scripts are reset, never rebuilt.
 func reset_for_fight() -> void:
+	last_hit_serial = -1
+	weak_window.clear()
 	if def == null:
 		active = false
 		return
@@ -93,6 +101,8 @@ func reset_for_fight() -> void:
 	last_pick = -1
 	second_last_pick = -1
 	_defeat_emitted = false
+	last_hit_serial = -1
+	weak_window.clear()
 	for attack: BossAttack in _attacks:
 		attack.reset()
 	if _arena != null:
@@ -109,6 +119,7 @@ func set_active(on: bool) -> void:
 func tick(ctx: SimContext) -> void:
 	if not active:
 		return
+	weak_window.tick() # D-S32-22: Patched counts live sim frames, ROAR included
 	if state == BossState.ACTIVE and _current_index >= 0:
 		_attacks[_current_index].on_active(_arena)
 	frames_left -= 1
@@ -189,10 +200,11 @@ func _check_contact() -> void:
 		_health.queue_hit()
 
 
-## Lowers HP by `damage` (the 3.2 entry point; in 3.1 only tests and debug keys call it), emits
-## boss_hp_changed, then defeats the boss at 0 or enters the phase the HP now falls in.
+## Lowers HP by `damage` (CombatResolver, debug keys), emits boss_hp_changed, then defeats the
+## boss at 0 or enters the phase the HP now falls in. Story 3.2 (AC 8): ignored before
+## reset_for_fight, while inactive and after defeat; HP unchanged, no signal.
 func take_hit(damage: int) -> void:
-	if def == null or state == BossState.DEFEATED or damage <= 0:
+	if not active or def == null or state == BossState.DEFEATED or damage <= 0:
 		return
 	hp = maxi(hp - damage, 0)
 	EventBus.boss_hp_changed.emit(hp, def.max_hp)
@@ -212,7 +224,8 @@ func _change_phase(next: int) -> void:
 	_enter(BossState.ROAR, ROAR_FRAMES)
 	_on_phase_reset()
 	if Debug.enabled:
-		Log.debug(&"boss", "phase %d" % phase_index)
+		var weak: Vector2i = current_weak_window()
+		Log.debug(&"boss", "phase %d weak %s>%s" % [phase_index, Register.glyph_of(weak.x), Register.glyph_of(weak.y)])
 	EventBus.boss_roar_started.emit(phase_index)
 	EventBus.boss_phase_changed.emit(phase_index)
 
@@ -221,11 +234,46 @@ func _defeat() -> void:
 	_cancel_attack()
 	_enter(BossState.DEFEATED, 0)
 	active = false
+	weak_window.clear()
 	if not _defeat_emitted:
 		_defeat_emitted = true
 		if Debug.enabled:
 			Log.debug(&"boss", "defeated %s" % def.boss_id)
 		EventBus.boss_defeated.emit(def.boss_id)
+
+
+## True while a player hit can affect the boss (D-S32-9): live, in GAP, TELL, ACTIVE or RECOVERY.
+## Not in ROAR, DEFEATED or while inactive.
+func is_hittable() -> bool:
+	if not active or def == null:
+		return false
+	return state == BossState.GAP or state == BossState.TELL or state == BossState.ACTIVE or state == BossState.RECOVERY
+
+
+## The current phase's weak window (first, second) (D-019, AD-06); ZERO without a def.
+func current_weak_window() -> Vector2i:
+	if def == null or phase_index < 0 or phase_index >= def.phases.size():
+		return Vector2i.ZERO
+	return def.phases[phase_index].weak_window
+
+
+## True when the action with `serial` already hit the boss (D-S32-10, like PracticeTarget).
+func was_hit_by(serial: int) -> bool:
+	return last_hit_serial == serial
+
+
+func mark_hit(serial: int) -> void:
+	last_hit_serial = serial
+
+
+## Radius of the body hurtbox circle in px (D-S31-12); the boss's player-hit hurtbox too.
+func body_radius_px() -> float:
+	return _body_radius_px
+
+
+## The id EventBus.hit_landed carries for a boss hit (D-S32-11).
+func hit_target_id() -> StringName:
+	return &"boss"
 
 
 ## Speed-ramp reset hook (FR30), called on every phase change. The framework does nothing.

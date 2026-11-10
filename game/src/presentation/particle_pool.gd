@@ -127,9 +127,12 @@ func position_of(i: int) -> Vector2:
 	return _pos[i]
 
 
-## Burst size for a hit (D-S28-2). Pure.
-static func burst_for(is_combo: bool) -> int:
-	return COMBO_BURST if is_combo else SOLO_BURST
+## Burst size for a hit (D-S28-2). Story 3.2 (D-S32-18): a resisted (UNPATCHED) hit bursts half
+## the glyphs. Pure.
+static func burst_for(is_combo: bool, state: int = DamageState.Kind.BASE) -> int:
+	var count: int = COMBO_BURST if is_combo else SOLO_BURST
+	@warning_ignore("integer_division")
+	return count / 2 if state == DamageState.Kind.UNPATCHED else count
 
 
 func clear() -> void:
@@ -149,6 +152,6 @@ func _draw() -> void:
 		GlyphFont.draw_at(self, (_pos[i] - HALF_CELL).round(), GLYPHS[_glyph[i]], Palette.INK, GLYPH_SCALE)
 
 
-func _on_hit_landed(_target: StringName, _damage: int, _state: int, is_combo: bool, pos: Vector2) -> void:
-	spawn(pos, burst_for(is_combo))
+func _on_hit_landed(_target: StringName, _damage: int, state: int, is_combo: bool, pos: Vector2) -> void:
+	spawn(pos, burst_for(is_combo, state))
 	queue_redraw()

@@ -9,8 +9,8 @@ signal pause_toggled(paused: bool)
 ## (two bit ids), the whole ring after the shift, and who shifted it (&"player"; boss effects later).
 @warning_ignore("unused_signal")
 signal register_shifted(direction: int, window: Vector2i, ring: PackedInt32Array, source: StringName)
-## A player hit landed (Story 2.7, NP-4): who was hit (&"practice_target"; &"boss" from Epic 3),
-## the DamageCalc result, the damage state (DamageCalc.STATE_BASE until Epic 3, D-S27-7), whether
+## A player hit landed (Story 2.7, NP-4): who was hit (&"practice_target" or &"boss", D-S32-11),
+## the DamageCalc result, the damage state (a DamageState.Kind int, D-S32-7), whether
 ## the hitting action is a combo (D-S27-14) and the target's arena-local position.
 @warning_ignore("unused_signal")
 signal hit_landed(target: StringName, damage: int, state: int, is_combo: bool, pos: Vector2)
@@ -38,3 +38,8 @@ signal boss_roar_started(phase: int)
 ## The boss was defeated (Story 3.1, D-S31-19): its BossDef.boss_id. Harvest (3.8) reacts.
 @warning_ignore("unused_signal")
 signal boss_defeated(boss: StringName)
+## The boss became Patched (Story 3.2, FR21-FR23, D-S32-4): its BossDef.boss_id and the Patched
+## length in frames. Emitted by CombatResolver once per application (a refresh emits again);
+## AudioManager plays the chime, BossView draws the `// patched` tag.
+@warning_ignore("unused_signal")
+signal patched_applied(boss: StringName, frames: int)

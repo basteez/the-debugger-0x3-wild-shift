@@ -116,7 +116,7 @@ development_status:
   # Fallback: Boss 1 ships phases 1–2 only.
   epic-3: in-progress
   3-1-reusable-boss-framework: done # large; not split (design call)
-  3-2-weak-window-patched-and-damage-states: backlog
+  3-2-weak-window-patched-and-damage-states: done
   3-3-infinite-loop-body-and-loop-condition: backlog
   3-4-head-rush-and-constrict: backlog
   3-5-nested-loop-semicolon-spit-and-phase-3: backlog # phase 3 droppable under MVP fallback

@@ -5,8 +5,8 @@ extends RefCounted
 ## Factors become integer percent first, so float drift never moves a .5 result (D-S27-6).
 
 ## Damage state carried by EventBus.hit_landed (D-S27-7): BASE = x1, not a boss (practice target).
-## Epic 3 adds UNPATCHED and PATCHED after it; the signal's type stays int.
-const STATE_BASE := 0
+## Alias of DamageState.Kind.BASE (Story 3.2 adds UNPATCHED and PATCHED there); the signal type stays int.
+const STATE_BASE := DamageState.Kind.BASE
 ## Clean Catch bonus, in percent (GDD: x1.5 on top of the damage state).
 const CLEAN_CATCH_PCT := 150
 ## Three percent factors (state, Clean Catch, Echo) multiplied together.
@@ -14,7 +14,10 @@ const DEN := 100 * 100 * 100
 
 
 ## base x state_mult x (1.5 if clean_catch) x echo_scale, rounded half up once. Pure.
+## Programmer errors (D-S32-15): a negative base or a state multiplier off the whole-5% grid.
 static func compute(base: int, state_mult: float, clean_catch: bool, echo_scale: float) -> int:
+	assert(base >= 0, "DamageCalc.compute: negative base")
+	assert(to_pct(state_mult) % 5 == 0, "DamageCalc.compute: state multiplier must be a whole 5%")
 	var num: int = base * to_pct(state_mult) * (CLEAN_CATCH_PCT if clean_catch else 100) * to_pct(echo_scale)
 	if num <= 0:
 		return 0 # damage is never negative

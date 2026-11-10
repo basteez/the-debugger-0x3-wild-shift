@@ -96,3 +96,13 @@ func test_glyphs_are_ascii_and_ink_only_source() -> void:
 			continue
 		assert_false(line.contains("SimContext") or line.contains("ctx.rng"), "presentation randomness only (D-S28-3): %s" % line)
 		assert_false(line.contains("Label"), "no Label nodes")
+
+
+# Story 3.2 (AC 3, D-S32-18): a resisted boss hit bursts half the glyphs.
+func test_unpatched_hit_bursts_half() -> void:
+	assert_eq(ParticlePool.burst_for(false, DamageState.Kind.UNPATCHED), 6)
+	assert_eq(ParticlePool.burst_for(true, DamageState.Kind.UNPATCHED), 10)
+	assert_eq(ParticlePool.burst_for(true, DamageState.Kind.PATCHED), 20)
+	assert_eq(ParticlePool.burst_for(false), 12)
+	EventBus.hit_landed.emit(&"boss", 5, DamageState.Kind.UNPATCHED, false, Vector2(10, 10))
+	assert_eq(_pool.live_count(), 6)

@@ -154,8 +154,8 @@ func test_panel_draws_an_active_register_without_errors() -> void:
 	panel.register = reg
 	add_child_autofree(panel)
 	await wait_process_frames(3)
-	assert_not_null(RegisterPanel._checker_texture(), "checker dither built")
-	assert_eq(RegisterPanel._checker_texture().get_size(), Vector2(8, 8))
+	assert_not_null(RegisterPanel.checker_texture(), "checker dither built")
+	assert_eq(RegisterPanel.checker_texture().get_size(), Vector2(8, 8))
 	assert_eq(reg.ring, _ring([A, D, L]), "drawing never writes the register")
 
 

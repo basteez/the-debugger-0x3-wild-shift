@@ -172,3 +172,14 @@ func test_slide_advances_while_the_world_is_in_hitstop() -> void:
 	assert_eq(SimClock.sim_frame, frozen_at, "the world stayed frozen")
 	assert_ne(_panel.slide_px, first, "the slide advanced during hit-stop")
 	SimClock.paused = was_paused
+
+
+# Story 3.2 (AC 4, D-S32-18): a Patched hit inverts the screen for 1 frame; others do not.
+func test_patched_hit_inverts_the_screen_for_one_frame() -> void:
+	var t: int = _director.now()
+	EventBus.hit_landed.emit(&"boss", 5, DamageState.Kind.UNPATCHED, false, Vector2.ZERO)
+	EventBus.hit_landed.emit(&"practice_target", 10, DamageState.Kind.BASE, false, Vector2.ZERO)
+	assert_false(_director.is_screen_inverted(t))
+	EventBus.hit_landed.emit(&"boss", 15, DamageState.Kind.PATCHED, false, Vector2.ZERO)
+	assert_true(_director.is_screen_inverted(t))
+	assert_false(_director.is_screen_inverted(t + 1), "one frame only")

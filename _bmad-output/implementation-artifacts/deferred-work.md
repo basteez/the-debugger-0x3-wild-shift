@@ -201,3 +201,10 @@ Story 1.3 AC9 / I-6 ("mumble-speech web check, moved to 3.7") is UNBLOCKED. Tizi
 - `PlayerEffects.apply_all` silently drops pushed commands until command types exist; `BossDef.validate` does not check `weak_window` or name width (3.2).
 - Missing tests: ROAR cutting TELL/RECOVERY, contact through full tick, SimClock registration on re-entry, HUD redraw from `boss_hp_changed`, AudioManager tell cue.
 - Jitter amplitude is subtle (1-2 px); judge by feel. `Main._attach_boss` does not guard `boss_view`/`hud` and a stale boss stays attached after `leave_fight`.
+
+## Deferred from: code review of story-3.2 (2026-11-09)
+
+- Hit/patch cues share the single ShiftSfx AudioStreamPlayer; overlapping cues truncate each other (tell blip vs thud, chime vs thud). Give hit cues their own player.
+- Patched tag/bar can overlap the TELL mark row and has no top-edge clamp; revisit with art (3.3).
+- Damage number counts presentation frames, not sim frames; BossView/AudioManager connections lack `_exit_tree` disconnect; LogPanel `_dithered` not reset on `clear()`; hard-coded tick numbers and `LOG_LINES` in tests are brittle; `DamageState.multiplier` falls back to BASE silently.
+- A multi-tick action overlapping a boss during ROAR is not marked consumed and could land after ROAR if an action outlasted 60 ticks.

@@ -5,31 +5,68 @@ extends Node2D
 ## tell, and an inverted flash during the ROAR (E3). Presentation only (AD-05): reads the
 ## controller, never writes it. A child of the Arena (arena-local px), added by Main because
 ## arena/ may not reference presentation/. Real boss bodies replace it from 3.3.
+## Story 3.2 (AC 5, D-S32-18, D-S32-22): while Patched, a `// patched` tag and a countdown bar
+## (frames_left / 180) float above the body; the last boss hit's damage number shows over it for
+## DAMAGE_NUMBER_FRAMES presentation frames, 1x unpatched, 2x patched. Reads only.
 
 const GLYPH_SCALE := 2
 const TELL_MARK := "!"
 ## ROAR flash: inverted on alternate blocks of this many sim frames.
 const FLASH_BLOCK := 6
+const PATCHED_TAG := "// patched"
+const TAG_SCALE := 1
+## Countdown bar height in px, and the gap between the tag, the bar and the body line.
+const BAR_HEIGHT := 2
+const STACK_GAP := 2
+## Damage number lifetime in presentation (_process) frames, not sim frames (D-S32-18).
+const DAMAGE_NUMBER_FRAMES := 30
 
 var boss: BossController
+
+## The last boss hit's number and its scale; _number_left counts presentation frames down.
+var _number_text: String = ""
+var _number_scale: int = 1
+var _number_left: int = 0
 
 
 func _ready() -> void:
 	EventBus.boss_roar_started.connect(_on_boss_event)
 	EventBus.boss_hp_changed.connect(_on_boss_hp)
 	EventBus.boss_defeated.connect(_on_boss_event)
+	EventBus.hit_landed.connect(_on_hit_landed)
 
 
 func _process(_delta: float) -> void:
+	if _number_left > 0:
+		_number_left -= 1
+		queue_redraw()
 	if boss != null and boss.active:
 		queue_redraw()
 
 
+## Story 3.2: a boss hit sets the damage number (presentation only): shown for DAMAGE_NUMBER_FRAMES _process frames.
+func _on_hit_landed(target: StringName, damage: int, state: int, _is_combo: bool, _pos: Vector2) -> void:
+	if target != &"boss":
+		return
+	_number_text = str(maxi(damage, 0))
+	_number_scale = damage_number_scale(state)
+	_number_left = DAMAGE_NUMBER_FRAMES
+	queue_redraw()
+
+
+## The damage number being shown ("" when none).
+func damage_number() -> String:
+	return _number_text if _number_left > 0 else ""
+
+
 func _draw() -> void:
-	if boss == null or boss.def == null or boss.state == BossController.BossState.DEFEATED:
+	if boss == null or boss.def == null:
 		return
 	var text: String = boss.def.name_signature
 	var size := Vector2(GlyphFont.text_width(text, GLYPH_SCALE), GlyphFont.CELL * GLYPH_SCALE)
+	if boss.state == BossController.BossState.DEFEATED:
+		_draw_number(size) # review: the killing blow's number still shows after defeat
+		return
 	var top_left: Vector2 = line_top_left(boss.body_center_px, size) \
 			+ Vector2(jitter_offset(boss.jitter_level(), SimClock.sim_frame), 0)
 	if roar_flash_on(boss.state == BossController.BossState.ROAR, boss.frames_left):
@@ -40,14 +77,49 @@ func _draw() -> void:
 	if boss.state == BossController.BossState.TELL:
 		var mark_size := Vector2(GlyphFont.text_width(TELL_MARK, GLYPH_SCALE), size.y)
 		GlyphFont.draw_at(self, top_left + Vector2((size.x - mark_size.x) / 2.0, -size.y), TELL_MARK, Palette.INK, GLYPH_SCALE)
+	if boss.weak_window.is_patched():
+		_draw_patched(top_left, size, boss.weak_window.frames_left)
+	_draw_number(size)
+
+
+func _draw_number(size: Vector2) -> void:
+	if _number_left > 0:
+		var num_size := Vector2(GlyphFont.text_width(_number_text, _number_scale), GlyphFont.CELL * _number_scale)
+		var num_left: Vector2 = line_top_left(boss.body_center_px, num_size) + Vector2(0, size.y + STACK_GAP)
+		GlyphFont.draw_at(self, num_left, _number_text, Palette.INK, _number_scale)
+
+
+## `// patched` and the countdown bar, stacked above the body line (over the tell mark's row).
+func _draw_patched(top_left: Vector2, size: Vector2, frames_left: int) -> void:
+	var bar_full: float = float(GlyphFont.text_width(PATCHED_TAG, TAG_SCALE))
+	var centre_x: float = top_left.x + size.x / 2.0
+	var bar_top: float = top_left.y - size.y - STACK_GAP - BAR_HEIGHT
+	var tag_top: float = bar_top - STACK_GAP - GlyphFont.CELL * TAG_SCALE
+	var left: float = roundf(centre_x - bar_full / 2.0)
+	GlyphFont.draw_at(self, Vector2(left, tag_top), PATCHED_TAG, Palette.INK, TAG_SCALE)
+	draw_rect(Rect2(left, bar_top, bar_full, BAR_HEIGHT), Palette.INK, false, 1.0)
+	draw_rect(Rect2(left, bar_top, roundf(bar_full * bar_fraction(frames_left)), BAR_HEIGHT), Palette.INK)
 
 
 func _on_boss_event(_value: Variant) -> void:
 	queue_redraw()
 
 
-func _on_boss_hp(_hp: int, _max_hp: int) -> void:
+func _on_boss_hp(hp: int, max_hp: int) -> void:
+	if hp >= max_hp: # fight (re)start: drop the previous fight's number
+		_number_left = 0
+		_number_text = ""
 	queue_redraw()
+
+
+## Countdown bar fill (AC 5): frames_left / PATCHED_FRAMES, clamped to 0..1. Pure.
+static func bar_fraction(frames_left: int) -> float:
+	return clampf(float(frames_left) / float(WeakWindowTracker.PATCHED_FRAMES), 0.0, 1.0)
+
+
+## Damage number scale (D-S32-18): 2x for a Patched hit, 1x otherwise. Pure.
+static func damage_number_scale(state: int) -> int:
+	return 2 if state == DamageState.Kind.PATCHED else 1
 
 
 ## Top-left pixel of a glyph line of `size` centred on `centre`, on the pixel grid. Pure.

@@ -35,6 +35,9 @@ var action_slot: int = -1
 ## The running action's combo (null = none) and its link_second flag (FR20); read by 2.7.
 var combo: ComboDef = null
 var link_second: bool = false
+## The register window (J bit, K bit) the running action started on (Story 3.2, D-S32-5): for a
+## combo the combo's pair, for a link_second the link's pair. ZERO when no action runs.
+var action_window: Vector2i = Vector2i.ZERO
 ## The combo table (Defs.COMBOS; tests may inject a stub).
 var combos: ComboTable = Defs.COMBOS
 ## Only an active FSM ticks: on in FIGHT, off elsewhere.
@@ -68,7 +71,7 @@ func tick(ctx: SimContext) -> void:
 		_apply_link_op(request)
 		request = null
 	if request != null:
-		_start(request, serial)
+		_start(request, serial, window)
 	elif action != null:
 		if action_frame >= action.total_frames():
 			_finish()
@@ -152,8 +155,9 @@ static func state_name(s: ActionState) -> String:
 	return ActionState.keys()[s]
 
 
-func _start(request: ActionRequest, serial: int) -> void:
+func _start(request: ActionRequest, serial: int, window: Vector2i = Vector2i.ZERO) -> void:
 	action = request.def
+	action_window = window
 	action_frame = 1
 	action_slot = request.slot
 	combo = request.combo
@@ -238,6 +242,7 @@ func _finish() -> void:
 	action_slot = -1
 	combo = null
 	link_second = false
+	action_window = Vector2i.ZERO
 	_clear_chain()
 
 

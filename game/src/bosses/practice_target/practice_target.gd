@@ -56,6 +56,11 @@ func damage_multiplier() -> float:
 	return DAMAGE_MULT
 
 
+## The id EventBus.hit_landed carries for a practice-target hit (D-S32-11).
+func hit_target_id() -> StringName:
+	return &"practice_target"
+
+
 ## The kept records, oldest first: [{frame, action, damage}], at most LOG_CAPACITY.
 func records() -> Array[Dictionary]:
 	var out: Array[Dictionary] = []

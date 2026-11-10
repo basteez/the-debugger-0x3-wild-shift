@@ -88,6 +88,7 @@ func _attack(id: StringName, tell: int, active: int, recovery: int, attack_scrip
 func _phase(threshold: int, gap: int, pool: Array[AttackDef]) -> PhaseDef:
 	var p := PhaseDef.new()
 	p.hp_threshold = threshold
+	p.weak_window = Vector2i(Register.Bit.ATTACK, Register.Bit.DASH) # Story 3.2: validate requires one
 	p.gap_frames = gap
 	p.attack_pool = pool
 	return p
@@ -655,3 +656,133 @@ func test_roar_flash_alternates_only_while_roaring() -> void:
 	assert_true(BossView.roar_flash_on(true, 0))
 	assert_false(BossView.roar_flash_on(true, BossView.FLASH_BLOCK))
 	assert_true(BossView.roar_flash_on(true, BossView.FLASH_BLOCK * 2))
+
+
+# --- Story 3.2: take_hit guard, Patched lifetime, weak window per phase (AC 4, 7, 8) ---
+
+func test_take_hit_before_reset_does_nothing() -> void:
+	var c := BossController.new()
+	assert_true(c.setup(_timing_def(), null, _arena))
+	watch_signals(EventBus)
+	c.take_hit(5)
+	assert_eq(c.hp, 0, "never reset: HP untouched")
+	assert_signal_emit_count(EventBus, "boss_hp_changed", 0)
+	assert_signal_emit_count(EventBus, "boss_defeated", 0)
+
+
+func test_take_hit_while_inactive_does_nothing() -> void:
+	var c: BossController = _controller(_timing_def())
+	c.set_active(false)
+	watch_signals(EventBus)
+	c.take_hit(5)
+	assert_eq(c.hp, 100)
+	assert_signal_emit_count(EventBus, "boss_hp_changed", 0)
+
+
+func test_take_hit_after_defeat_does_nothing() -> void:
+	var c: BossController = _controller(_timing_def())
+	c.take_hit(100)
+	watch_signals(EventBus)
+	c.take_hit(5)
+	assert_eq(c.hp, 0)
+	assert_signal_emit_count(EventBus, "boss_hp_changed", 0)
+	assert_signal_emit_count(EventBus, "boss_defeated", 0)
+
+
+func test_take_hit_with_zero_damage_does_nothing() -> void:
+	var c: BossController = _controller(_timing_def())
+	watch_signals(EventBus)
+	c.take_hit(0)
+	assert_signal_emit_count(EventBus, "boss_hp_changed", 0)
+
+
+func test_patched_survives_a_phase_change_and_counts_down_through_roar() -> void:
+	var c: BossController = _controller(_three_phase_def())
+	c.weak_window.apply_patched()
+	c.take_hit(34)
+	assert_eq(c.state, BossController.BossState.ROAR)
+	assert_true(c.weak_window.is_patched(), "the bug stays patched (D-S32-14)")
+	assert_false(c.is_hittable(), "no damage window in ROAR (D-S32-9)")
+	_tick(c, 60)
+	assert_eq(c.weak_window.frames_left, 120, "Patched counts every live tick, ROAR included")
+
+
+func test_patched_is_cleared_on_reset_and_on_defeat() -> void:
+	var c: BossController = _controller(_three_phase_def())
+	c.weak_window.apply_patched()
+	c.mark_hit(7)
+	c.reset_for_fight()
+	assert_false(c.weak_window.is_patched())
+	assert_false(c.was_hit_by(7), "hit serial reset with the fight")
+	c.weak_window.apply_patched()
+	c.debug_kill()
+	assert_false(c.weak_window.is_patched())
+
+
+func test_patched_does_not_count_while_inactive() -> void:
+	var c: BossController = _controller(_timing_def())
+	c.weak_window.apply_patched()
+	c.set_active(false)
+	_tick(c, 30)
+	assert_eq(c.weak_window.frames_left, 180)
+	c.set_active(true)
+	_tick(c, 30)
+	assert_eq(c.weak_window.frames_left, 150)
+
+
+func test_current_weak_window_per_phase() -> void:
+	var c: BossController = _controller(TEST_BOSS)
+	assert_eq(c.current_weak_window(), Vector2i(Register.Bit.ATTACK, Register.Bit.DASH))
+	assert_true(c.debug_skip_phase())
+	assert_eq(c.current_weak_window(), Vector2i(Register.Bit.DASH, Register.Bit.ATTACK))
+	assert_eq(BossController.new().current_weak_window(), Vector2i.ZERO, "no def")
+
+
+func test_is_hittable_by_state() -> void:
+	var c: BossController = _controller(_timing_def())
+	for s: BossController.BossState in [BossController.BossState.GAP, BossController.BossState.TELL, BossController.BossState.ACTIVE, BossController.BossState.RECOVERY]:
+		c.state = s
+		assert_true(c.is_hittable(), BossController.BossState.keys()[s])
+	for s: BossController.BossState in [BossController.BossState.ROAR, BossController.BossState.DEFEATED]:
+		c.state = s
+		assert_false(c.is_hittable(), BossController.BossState.keys()[s])
+	c.state = BossController.BossState.GAP
+	c.set_active(false)
+	assert_false(c.is_hittable(), "inactive")
+
+
+func test_one_hit_per_action_serial() -> void:
+	var c: BossController = _controller(_timing_def())
+	assert_false(c.was_hit_by(3))
+	c.mark_hit(3)
+	assert_true(c.was_hit_by(3))
+	assert_false(c.was_hit_by(4))
+
+
+func test_patched_view_helpers() -> void:
+	assert_eq(BossView.bar_fraction(180), 1.0)
+	assert_eq(BossView.bar_fraction(90), 0.5)
+	assert_eq(BossView.bar_fraction(0), 0.0)
+	assert_eq(BossView.bar_fraction(500), 1.0, "clamped")
+	assert_eq(BossView.damage_number_scale(DamageState.Kind.PATCHED), 2)
+	assert_eq(BossView.damage_number_scale(DamageState.Kind.UNPATCHED), 1)
+
+
+func test_boss_view_shows_the_last_boss_hit_number_only() -> void:
+	var view: BossView = add_child_autofree(BossView.new())
+	EventBus.hit_landed.emit(&"practice_target", 10, DamageState.Kind.BASE, false, Vector2.ZERO)
+	assert_eq(view.damage_number(), "", "practice hits are not drawn on the boss")
+	EventBus.hit_landed.emit(&"boss", 30, DamageState.Kind.PATCHED, true, Vector2.ZERO)
+	assert_eq(view.damage_number(), "30")
+	for i: int in BossView.DAMAGE_NUMBER_FRAMES:
+		view._process(0.0)
+	assert_eq(view.damage_number(), "", "gone after its presentation frames")
+
+
+func test_boss_view_number_clears_on_fight_restart() -> void:
+	var view := BossView.new()
+	add_child_autofree(view)
+	EventBus.hit_landed.emit(&"boss", 7, 0, false, Vector2.ZERO)
+	assert_eq(view.damage_number(), "7")
+	EventBus.boss_hp_changed.emit(100, 100)
+	assert_eq(view.damage_number(), "")
