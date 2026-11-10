@@ -26,9 +26,18 @@ const PAUSABLE_STATES: Array[FlowState] = [FlowState.INTRO, FlowState.FIGHT]
 ## reaches the canvas, and the blur pauses the game. So the `pause` action is Esc or P, and while
 ## paused a left click / tap resumes, unless it comes less than CLICK_RESUME_GUARD_MSEC (wall clock,
 ## sim frames stop while paused) after the pause began: the click that took focus away (or came with
-## the blur) never also resumes. Every left click while paused re-focuses the canvas on web.
+## the blur) never also resumes. Every left click re-focuses the game on web (D-FIX-FS-2).
 const CLICK_RESUME_GUARD_MSEC := 300
+## Focus loss only: focuses the canvas inside its own document, never takes focus from the parent page.
 const _FOCUS_CANVAS_JS := "var c=document.querySelector('canvas'); if (c) { c.focus(); }"
+## [design call] D-FIX-FS-2 (frozen after a fullscreen resume): after itch.io's fullscreen exits, the
+## focus sits in the parent page while the canvas stays its iframe's activeElement. canvas.focus()
+## on the already active element is then a no-op (Godot's own mousedown focus too, and the engine
+## preventDefaults mousedown, so the click never focuses the iframe natively): the game resumes
+## but every key goes to the parent page. window.focus() first moves the focus back into the
+## iframe. It runs on a left click only: Godot flushes input inside the DOM mousedown callback, so
+## the click's user activation allows it, and a blur never steals the focus back.
+const REFOCUS_ON_CLICK_JS := "window.focus(); var c=document.querySelector('canvas'); if (c) { c.focus(); }"
 
 var flow_state: FlowState = FlowState.TITLE
 ## Sim frame of the first title input: start of the 30-s first-shift clock. -1 before it.
@@ -49,6 +58,8 @@ var _web_focus_cb: JavaScriptObject = null
 var _focus_lost: bool = false
 ## Wall-clock msec (Time.get_ticks_msec) when the current pause began; -1 when not paused (D-FIX-FS-1).
 var _paused_at_msec: int = -1
+## Runs a JS snippet on web (JavaScriptBridge.eval); a no-op elsewhere. Tests swap in a recorder.
+var _web_eval: Callable = _eval_on_web
 
 
 func _ready() -> void:
@@ -58,6 +69,7 @@ func _ready() -> void:
 
 
 func _input(event: InputEvent) -> void:
+	handle_click_refocus(event) # never consumes: the click still reaches the resume rule and the screens
 	if handle_pause_input(event) or handle_resume_click(event, Time.get_ticks_msec()):
 		get_viewport().set_input_as_handled()
 
@@ -99,8 +111,22 @@ func handle_pause_input(event: InputEvent) -> bool:
 	return set_paused(not SimClock.paused, &"esc")
 
 
-## D-FIX-FS-1: while paused, a left click / tap resumes once the guard has passed. Every left click
-## while paused re-focuses the canvas on web (keyboard back after a fullscreen exit). True when it
+## D-FIX-FS-2: every left click / tap, in any state, paused or not, moves the keyboard focus back to
+## the game (REFOCUS_ON_CLICK_JS). True when it was a left click. Never consumes the event.
+func handle_click_refocus(event: InputEvent) -> bool:
+	if not is_left_click(event):
+		return false
+	_web_eval.call(REFOCUS_ON_CLICK_JS)
+	return true
+
+
+func _eval_on_web(code: String) -> void:
+	if OS.has_feature("web"):
+		JavaScriptBridge.eval(code)
+
+
+## D-FIX-FS-1: while paused, a left click / tap resumes once the guard has passed (the keyboard
+## focus comes back through handle_click_refocus, D-FIX-FS-2). True when it
 ## resumed; the caller then consumes the click, so no screen sees it. No mouse button is bound to a
 ## gameplay action and a paused tick never polls (D-S21-9), so the resume click never attacks.
 ## A click on the pause screen's mute label is consumed by PauseScreen first (it sits later in the
@@ -109,8 +135,6 @@ func handle_resume_click(event: InputEvent, now_msec: int) -> bool:
 	if not SimClock.paused or not is_left_click(event):
 		return false
 	_focus_lost = false # a click on the game proves it has focus
-	if OS.has_feature("web"):
-		JavaScriptBridge.eval(_FOCUS_CANVAS_JS)
 	if not click_resume_allowed(_paused_at_msec, now_msec):
 		return false
 	return set_paused(false, &"click")
@@ -149,8 +173,8 @@ static func is_focus_gained_notification(what: int) -> bool:
 ## On web the canvas is re-focused so Esc reaches it when the player returns.
 func on_focus_lost() -> void:
 	_focus_lost = true
-	if set_paused(true, &"focus") and OS.has_feature("web"):
-		JavaScriptBridge.eval(_FOCUS_CANVAS_JS)
+	if set_paused(true, &"focus"):
+		_web_eval.call(_FOCUS_CANVAS_JS)
 
 
 ## Title press-to-start (FR47). Valid only from TITLE.
