@@ -286,3 +286,51 @@ func test_resumed_tick_never_fires_the_resume_press() -> void:
 	assert_eq(SimClock.poll_frame, poll, "a paused tick never polls input")
 	game.handle_resume_click(_click(), game._paused_at_msec + 1000)
 	assert_false(SimClock.paused)
+
+
+## D-FIX-FS-2 helper: swaps Game's web eval for a recorder; returns the list it appends to.
+func _record_js(game: Node) -> Array[String]:
+	var calls: Array[String] = []
+	game._web_eval = func(code: String) -> void: calls.append(code)
+	return calls
+
+
+func test_every_left_click_refocuses_the_game_window() -> void:
+	# Fix: after itch.io's fullscreen exit the parent page holds the focus while the canvas stays the
+	# iframe's activeElement, so canvas.focus() alone was a no-op and the resumed game got no keys.
+	for paused: bool in [true, false]:
+		for state: S in [S.FIGHT, S.INTRO, S.TITLE, S.DEAD, S.HARVEST, S.ENDING]:
+			var game: Node = _game(state)
+			SimClock.paused = paused
+			var calls: Array[String] = _record_js(game)
+			assert_true(game.handle_click_refocus(_click()), "left click in %s" % S.keys()[state])
+			assert_eq(calls.size(), 1)
+			assert_true(calls[0].begins_with("window.focus();"), "the iframe window is focused first")
+			assert_string_contains(calls[0], "c.focus()")
+	SimClock.paused = false
+
+
+func test_refocus_ignores_other_buttons_and_releases() -> void:
+	var game: Node = _game()
+	var calls: Array[String] = _record_js(game)
+	assert_false(game.handle_click_refocus(_click(MOUSE_BUTTON_RIGHT)))
+	assert_false(game.handle_click_refocus(_click(MOUSE_BUTTON_LEFT, false)))
+	assert_false(game.handle_click_refocus(_p()))
+	assert_eq(calls.size(), 0)
+
+
+func test_refocus_never_consumes_or_resumes_by_itself() -> void:
+	var game: Node = _game()
+	game.set_paused(true, &"esc")
+	_record_js(game)
+	game.handle_click_refocus(_click())
+	assert_true(SimClock.paused, "only handle_resume_click resumes")
+
+
+func test_focus_loss_never_takes_focus_back_from_the_parent_page() -> void:
+	var game: Node = _game()
+	var calls: Array[String] = _record_js(game)
+	game.on_focus_lost()
+	assert_true(SimClock.paused)
+	assert_eq(calls.size(), 1, "the canvas is still focused inside its own document")
+	assert_false(calls[0].contains("window.focus"), "a blur never steals the focus back")
