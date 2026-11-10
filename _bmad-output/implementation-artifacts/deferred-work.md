@@ -1,6 +1,8 @@
 # Deferred: itch.io deploy & browser smoke (decided 2026-11-07 by Tiziano)
 
-Tiziano decided on 2026-11-07 that everything involving the itch.io page, the first deploy and real-browser checks is done LATER. Each item is tagged with its source story. Nothing here is done yet.
+Tiziano decided on 2026-11-07 that everything involving the itch.io page, the first deploy and real-browser checks is done LATER. Each item is tagged with its source story.
+
+**Status 2026-11-10:** itch.io page, secrets and the first deploys are DONE, and the Chrome (macOS) smoke is done (see "Results 2026-11-10" below). Firefox and Safari are still pending for every browser item, so Epic 1 stays `in-progress`.
 
 **Epic 1 Definition of Done is BLOCKED on this section.** The DoD requires a release web build deployed with `butler` to the itch.io draft page and a Chrome/Firefox smoke test. Epic 1 stays `in-progress` in `sprint-status.yaml` until the checklist below is cleared.
 
@@ -9,23 +11,36 @@ Tiziano decided on 2026-11-07 that everything involving the itch.io page, the fi
 ## Checklist
 
 ### itch.io setup and first deploy (HUMAN)
-- [ ] [1.3 H1] Create the itch.io draft page (HTML, played in browser, 1280x720 viewport, fullscreen button on, SharedArrayBuffer off, Draft/Restricted).
-- [ ] [1.3 H2] Add the `BUTLER_API_KEY` secret and the `ITCH_TARGET` variable (`<user>/<slug>`) in the repo settings.
-- [ ] [1.3 H3] First manual deploy: Actions, CI, Run workflow on `main` (or `butler push` by hand). Check the `butler version` and `butler push --help` output in the log (butler pin 15.32.0, flags and sha256 are verified only here). Decide the 48.5 MB stock-template size waiver first (CI still exports with the stock template).
-- [ ] [1.3 H4] Chrome, Firefox and Safari smoke: glyph boots with no console errors; `?debug&smoke=audio` (click, then L/R audible, or "fails" and the hum falls back to `playback_type = Stream`); size shown on itch.io and transfer size in DevTools; embed viewport and fullscreen behaviour.
+- [x] [1.3 H1] Create the itch.io draft page (HTML, played in browser, 1280x720 viewport, fullscreen button on, SharedArrayBuffer off, Draft/Restricted). (Done 2026-11-10: https://basteez.itch.io/wild-shift, draft.)
+- [x] [1.3 H2] Add the `BUTLER_API_KEY` secret and the `ITCH_TARGET` variable (`<user>/<slug>`) in the repo settings. (Done 2026-11-10: `BUTLER_API_KEY` secret set, `ITCH_TARGET=basteez/wild-shift`.)
+- [x] [1.3 H3] First manual deploy: Actions, CI, Run workflow on `main` (or `butler push` by hand). Check the `butler version` and `butler push --help` output in the log (butler pin 15.32.0, flags and sha256 are verified only here). Decide the 48.5 MB stock-template size waiver first (CI still exports with the stock template). (Done 2026-11-10: manual run on `main` succeeded, butler 15.32.0, channel `html5`. Run 42786062282 = Epic 2 build, 27.24 MiB; run 42787839468 = Epic 3 build, 28.17 MiB; latest run 42841220490 after fixes #29/#30, 28.17 MiB.)
+- [ ] [1.3 H4] Chrome, Firefox and Safari smoke: glyph boots with no console errors; `?debug&smoke=audio` (click, then L/R audible, or "fails" and the hum falls back to `playback_type = Stream`); size shown on itch.io and transfer size in DevTools; embed viewport and fullscreen behaviour. (Chrome ✅ 2026-11-10; Firefox/Safari pending. Chrome: boots fine, only itch noise in the console (Permissions-Policy browsing-topics, html-callback blocked by ad-blocker) plus benign "AudioContext was not allowed to start" warnings before the first gesture. `?debug&smoke=audio` result was not recorded. Fullscreen bug found and fixed, see "Results 2026-11-10".)
 
 ### Browser checks on the deployed build (HUMAN)
-- [ ] [1.4 H1] Audio unlock per browser (Chrome, Firefox, Safari): silent until first key or click, test blip audible after the first click and not before; note the result per browser. Also verify the AudioContext state (1.4 review deferral).
-- [ ] [1.4 H3] NFR3: title reaches a playable state in 10 s or less on a throttled 50 Mbps connection, cold cache.
-- [ ] [1.3 / 1.6 H2] Get the `?debug` iframe URL (`https://html.itch.zone/html/<id>/index.html` from the game iframe `src`) and open it directly with `?debug` appended; the itch.io page query never reaches the iframe.
-- [ ] [1.6 H2] On that URL in Chrome and Firefox: F1-F5 jump between screens, and F5 does not reload the page. Release URL (no `debug`): F1-F5 do nothing. Also note F1/F11/F12 browser defaults and Firefox/Safari F-key behaviour.
-- [ ] [1.7 H2] On the direct `?debug` URL in Chrome and Firefox: Esc pauses and resumes in INTRO and FIGHT; M mutes; pause on tab switch and on window blur to another app (headless Chrome could not emulate blur); Esc in browser fullscreen (the browser eats the first Esc, a second is needed; record observed behaviour).
+- [ ] [1.4 H1] Audio unlock per browser (Chrome, Firefox, Safari): silent until first key or click, test blip audible after the first click and not before; note the result per browser. Also verify the AudioContext state (1.4 review deferral). (Chrome ✅ 2026-11-10: silent until first input, then unlocks; Firefox/Safari pending.)
+- [x] [1.4 H3] NFR3: title reaches a playable state in 10 s or less on a throttled 50 Mbps connection, cold cache. (Chrome 2026-11-10: title opens fast; Network with cache disabled on the direct iframe URL shows 12.3 MB transferred / 32.9 MB resources (itch compresses), about 2 s at 50 Mbps, well within 10 s. Not re-measured on Firefox/Safari.)
+- [x] [1.3 / 1.6 H2] Get the `?debug` iframe URL (`https://html.itch.zone/html/<id>/index.html` from the game iframe `src`) and open it directly with `?debug` appended; the itch.io page query never reaches the iframe. (Done 2026-11-10: confirmed, `?debug` on the itch page does not reach the iframe; `https://html.itch.zone/html/<id>/index.html?debug` works.)
+- [ ] [1.6 H2] On that URL in Chrome and Firefox: F1-F5 jump between screens, and F5 does not reload the page. Release URL (no `debug`): F1-F5 do nothing. Also note F1/F11/F12 browser defaults and Firefox/Safari F-key behaviour. (Chrome ✅ 2026-11-10; Firefox/Safari pending. Chrome macOS: F1-F5 work on the direct `?debug` URL (needs fn+F-key), F5 does not reload the page, on the release URL the F-keys do nothing.)
+- [ ] [1.7 H2] On the direct `?debug` URL in Chrome and Firefox: Esc pauses and resumes in INTRO and FIGHT; M mutes; pause on tab switch and on window blur to another app (headless Chrome could not emulate blur); Esc in browser fullscreen (the browser eats the first Esc, a second is needed; record observed behaviour). (Not covered by the Chrome smoke except the fullscreen Esc case: Esc in itch fullscreen exits fullscreen and auto-pauses; the resume left keyboard focus on the itch parent page, fixed by PRs #29 and #30, verified in Chrome after the #30 deploy. Firefox fullscreen behaviour pending. Rest of H2 still open.)
 - [ ] [1.7 H3] Release build (no `debug`): Esc and M on the title.
-- [ ] [1.6 H3 / 1.7] Record the release web build size as shown on itch.io (local export: 28,447,262 bytes, budget 30,000,000).
+- [x] [1.6 H3 / 1.7] Record the release web build size as shown on itch.io (local export: 28,447,262 bytes, budget 30,000,000). (Done 2026-11-10: Epic 3 build deployed at 28.17 MiB, about 29.54 MB, under the 30,000,000-byte budget; Epic 2 build was 27.24 MiB.)
 - [ ] [1.5 H1] Real-browser visual check of `?debug&smoke=arena` (Chrome and Firefox): arena layout, HUD grid alignment, F9 overlay. (Not itch-specific; listed here because it needs the deployed or hosted build.)
 
 ### Not itch-related, still open for Tiziano
 - [ ] [1.5 H2] Confirm the CC0 licence of the self-authored pixel font.
+
+## Results 2026-11-10: first itch.io deploy and Chrome smoke (Tiziano, macOS Chrome)
+
+- Deploy pipeline works: Actions, CI, Run workflow on `main` pushes to `basteez/wild-shift` channel `html5` (butler 15.32.0). Runs: 42786062282 (Epic 2, 27.24 MiB), 42787839468 (Epic 3, 28.17 MiB, about 29.54 MB, under the 30,000,000-byte budget), 42841220490 (after fixes #29/#30, 28.17 MiB).
+- Debug URL: use the direct iframe URL `https://html.itch.zone/html/<id>/index.html?debug`; debug F-keys need fn on macOS, and on the release URL they do nothing.
+- Chrome real game flow OK: title, intro, Fight 1 with the Infinite Loop, attacks, damage, death/retry and the duck beats. Boss debug keys F6, Shift+F6, F8 work.
+- Bug found and fixed: Esc in itch fullscreen exits fullscreen and auto-pauses; resuming left keyboard focus on the itch parent page. PR #29 (P or click resumes) and PR #30 (click refocuses the iframe via `window.focus()`); verified in Chrome after the #30 deploy.
+- Still NOT verified: Firefox and Safari (all items), Ctrl+F6 on macOS, Firefox fullscreen behaviour. Duck voice tuning by ear is acceptable for now.
+- Open (unchanged): submission deadline mismatch between `README.md` and `epics.md`.
+
+## Open for the 3.9 playtest: new UX finding (2026-11-10)
+
+- [ ] [3.9 UX] The Infinite Loop stays still until the first register shift (D-S33-6) and nothing tells the player that Q/E starts the fight. Proposal: a clearer T1 duck line plus an auto-start after about 5 s without a shift.
 
 ## mumble-speech web support: UNBLOCKED by v0.3.0 (2026-11-07)
 
@@ -33,7 +48,7 @@ Story 1.3 AC9 / I-6 ("mumble-speech web check, moved to 3.7") is UNBLOCKED. Tizi
 - [x] [3.7 / 1.3 I-6] Vendor `addons/mumble_speech` from the v0.3.0 zip and verify it against `SHA256SUMS.txt`. (Story 3.7: SHA-256 OK, vendored in `game/addons/mumble_speech/`.)
 - [x] [3.7 / 1.3 I-6] Confirm the stripped web template (`game/tools/build_web_template.sh`) still loads GDExtension side modules; CI uses the dlink/extensions template. (Story 3.7: yes, no module re-enabled; headless Chrome `?debug&smoke=voice` speaks T1 on the MUMBLE backend.)
 - [x] [3.7 / 1.3 I-6] Re-measure the web export against the 30,000,000-byte budget (currently about 28.45 MB, so the addon's wasm must fit). (Story 3.7: local release export 29,461,134 bytes, +1,013,872; headroom 538,866.)
-- [ ] [3.7 / 1.3 I-6] Smoke-test the duck voice in Chrome, Firefox and Safari. (Headless Chrome done in 3.7; real Chrome, Firefox and Safari are the 3.7 HUMAN checks H1-H5.)
+- [ ] [3.7 / 1.3 I-6] Smoke-test the duck voice in Chrome, Firefox and Safari. (Headless Chrome done in 3.7; real Chrome, Firefox and Safari are the 3.7 HUMAN checks H1-H5.) (Chrome ✅ 2026-11-10: `?debug&smoke=voice` reports `backend MUMBLE`, the mumble-speech wasm loads, audio unlocks then speech starts; Firefox/Safari pending.)
 
 ---
 
@@ -195,7 +210,7 @@ Story 1.3 AC9 / I-6 ("mumble-speech web check, moved to 3.7") is UNBLOCKED. Tizi
 - `BossController.take_hit` ignores `active` and the pre-reset state (hp is 0 before `reset_for_fight`, so an early hit emits `boss_defeated`; after `leave_fight` a hit still mutates HP). Guard when 3.2 wires player damage.
 - Body contact is a centre-point-in-circle test (D-S31-25) and the 16 px test-boss radius is smaller than the drawn 128 px glyph; tie radius to the drawn size / player hurtbox when Boss 1 art lands (3.3) [design call].
 - AC5 off-screen safety is enforced by each attack clamping itself; the test checks `declared_positions()` which is a separate method from the real positions. A framework-level clamp or position-reporting hook would be stronger.
-- Plain F6 / Shift+F6 / Shift+F3 may be intercepted by browsers (address bar, find-previous); add to the H3 manual web check and have fallback keys ready.
+- Plain F6 / Shift+F6 / Shift+F3 may be intercepted by browsers (address bar, find-previous); add to the H3 manual web check and have fallback keys ready. (Chrome macOS 2026-11-10: F6, Shift+F6 and F8 work on the direct `?debug` URL; Ctrl+F6 on macOS unconfirmed; Firefox/Safari pending.)
 - `ArenaContext.player_position()` (D-S31-21) lets any attack bypass the decoy-aware `target_position()` by convention only; split it off or add a guard before 3.4.
 - `Arena._set_test_boss` failure leaves `test_boss_requested` set and gives no in-game hint; test boss code and .tres ship in release (gated by `Debug.enabled`); `load()` is synchronous at fight entry.
 - `PlayerEffects.apply_all` silently drops pushed commands until command types exist; `BossDef.validate` does not check `weak_window` or name width (3.2).
@@ -253,7 +268,7 @@ Story 1.3 AC9 / I-6 ("mumble-speech web check, moved to 3.7") is UNBLOCKED. Tizi
 
 ## Deferred from: dev of story-3.7 (2026-11-09)
 
-- [ ] [3.7 H1-H5] Human checks: Chrome, Firefox, Safari speak T1 after a click with the reveal in step and the squeak before the voice; no `crossOriginIsolated` needed; pitch/speed of `duck_voice.tres` (pitch 6.0, speed 20.0, set without listening) and `SQUEAK_LEAD_S` 0.15 by ear; Esc mid-line cuts the voice and the text finishes silently.
+- [ ] [3.7 H1-H5] Human checks: Chrome, Firefox, Safari speak T1 after a click with the reveal in step and the squeak before the voice; no `crossOriginIsolated` needed; pitch/speed of `duck_voice.tres` (pitch 6.0, speed 20.0, set without listening) and `SQUEAK_LEAD_S` 0.15 by ear; Esc mid-line cuts the voice and the text finishes silently. (Chrome partly ✅ 2026-11-10: real flow title, intro, Fight 1 with the duck beats OK and the voice speaks on the MUMBLE backend; duck voice tuning by ear judged "per ora va bene così", acceptable for now, so revisit only if the playtest says otherwise. Firefox/Safari pending; Esc-mid-line not recorded.)
 - Pre-existing (not from 3.7): the 1.7 smoke run `SMOKE_QUERY="?debug" SMOKE_KEYS="F2 Escape Escape" SMOKE_EXPECT="pause off"` fails on a `console.error` from `[audio] play ignored before unlock` (Log.warn -> push_warning), because the F2 debug jump enters FIGHT before any unlock and the 3.6 duck squeak (or a shift click) plays. Either unlock on the F2 key press or drop the warn to debug.
 - The pre-rendered clips (`assets/audio/duck/*.wav`, about 276 KB imported QOA) ship in the web build even when MUMBLE works there; they are the AUTO fallback. Exclude them with an export filter only if the size budget gets tight (the VoiceService `CLIPS` preload must then become a guarded load).
 - The duck voice speaks letters only: punctuation and spaces after the last spoken letter show at `duck_line_finished` (up to 250 ms + 1 frame late on web Sample mode, per the addon docs).

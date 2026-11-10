@@ -89,7 +89,7 @@ story_location: "{project-root}/_bmad-output/implementation-artifacts"
 
 development_status:
   # Epic 1: Web Foundation — window Nov 6–7
-  epic-1: in-progress # DoD blocked: itch deploy + browser smoke deferred, see deferred-work.md "Deferred: itch.io deploy & browser smoke"
+  epic-1: in-progress # DoD blocked: itch deploy + browser smoke deferred, see deferred-work.md "Deferred: itch.io deploy & browser smoke"; itch deploy done 2026-11-10; Chrome smoke ✅; Firefox/Safari pending
   1-1-godot-project-skeleton-with-pixel-perfect-60-hz-setup: done
   1-2-test-framework-and-ci-pipeline: done
   1-3-web-export-and-itch-io-draft-deploy: done # includes I-6 mumble-speech web check; itch page, secret and first deploy are HUMAN steps
