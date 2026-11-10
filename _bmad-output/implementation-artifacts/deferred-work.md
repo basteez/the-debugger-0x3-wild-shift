@@ -30,10 +30,10 @@ Tiziano decided on 2026-11-07 that everything involving the itch.io page, the fi
 ## mumble-speech web support: UNBLOCKED by v0.3.0 (2026-11-07)
 
 Story 1.3 AC9 / I-6 ("mumble-speech web check, moved to 3.7") is UNBLOCKED. Tiziano released mumble-speech v0.3.0 on 2026-11-07, which closes basteez/mumble-speech#32. The Godot addon zip (`mumble-speech-godot-0.3.0.zip`, 3.9 MB) now ships `mumble_godot.wasm`. It works for Godot 4.3+ web exports with Extensions Support ON and Thread Support OFF (our preset), and there is also a threads build. Known issue: Firefox and Safari are not yet verified by hand. Do NOT vendor the addon now; that is Story 3.7's job. Checks for Story 3.7:
-- [ ] [3.7 / 1.3 I-6] Vendor `addons/mumble_speech` from the v0.3.0 zip and verify it against `SHA256SUMS.txt`.
-- [ ] [3.7 / 1.3 I-6] Confirm the stripped web template (`game/tools/build_web_template.sh`) still loads GDExtension side modules; CI uses the dlink/extensions template.
-- [ ] [3.7 / 1.3 I-6] Re-measure the web export against the 30,000,000-byte budget (currently about 28.45 MB, so the addon's wasm must fit).
-- [ ] [3.7 / 1.3 I-6] Smoke-test the duck voice in Chrome, Firefox and Safari.
+- [x] [3.7 / 1.3 I-6] Vendor `addons/mumble_speech` from the v0.3.0 zip and verify it against `SHA256SUMS.txt`. (Story 3.7: SHA-256 OK, vendored in `game/addons/mumble_speech/`.)
+- [x] [3.7 / 1.3 I-6] Confirm the stripped web template (`game/tools/build_web_template.sh`) still loads GDExtension side modules; CI uses the dlink/extensions template. (Story 3.7: yes, no module re-enabled; headless Chrome `?debug&smoke=voice` speaks T1 on the MUMBLE backend.)
+- [x] [3.7 / 1.3 I-6] Re-measure the web export against the 30,000,000-byte budget (currently about 28.45 MB, so the addon's wasm must fit). (Story 3.7: local release export 29,461,134 bytes, +1,013,872; headroom 538,866.)
+- [ ] [3.7 / 1.3 I-6] Smoke-test the duck voice in Chrome, Firefox and Safari. (Headless Chrome done in 3.7; real Chrome, Firefox and Safari are the 3.7 HUMAN checks H1-H5.)
 
 ---
 
@@ -249,3 +249,20 @@ Story 1.3 AC9 / I-6 ("mumble-speech web check, moved to 3.7") is UNBLOCKED. Tizi
 - Beats dropped by the `MAX_PENDING` cap are lost for the run (`requested` already advanced); unreachable with one beat per poll. Debug FIGHT->FIGHT jump does not clear the bubble nor reset `requested`.
 - `VoiceService.say` raw text: no empty/ASCII/12-col checks (only the catalogue is validated); double spaces desync the joined-text index; raw text equal to a known id resolves to the catalogue.
 - Layering: `DuckLineDef` (data) depends on `DuckBubble` constants and `wrap`; `DuckDirector.poll()` is not gated on `SimClock.paused`; `>o` glyph is hidden between lines (D-S36-4, confirm in H9); `AudioManager` missing from the isolation guard pattern (voice_service is scanned instead).
+
+
+## Deferred from: dev of story-3.7 (2026-11-09)
+
+- [ ] [3.7 H1-H5] Human checks: Chrome, Firefox, Safari speak T1 after a click with the reveal in step and the squeak before the voice; no `crossOriginIsolated` needed; pitch/speed of `duck_voice.tres` (pitch 6.0, speed 20.0, set without listening) and `SQUEAK_LEAD_S` 0.15 by ear; Esc mid-line cuts the voice and the text finishes silently.
+- Pre-existing (not from 3.7): the 1.7 smoke run `SMOKE_QUERY="?debug" SMOKE_KEYS="F2 Escape Escape" SMOKE_EXPECT="pause off"` fails on a `console.error` from `[audio] play ignored before unlock` (Log.warn -> push_warning), because the F2 debug jump enters FIGHT before any unlock and the 3.6 duck squeak (or a shift click) plays. Either unlock on the F2 key press or drop the warn to debug.
+- The pre-rendered clips (`assets/audio/duck/*.wav`, about 276 KB imported QOA) ship in the web build even when MUMBLE works there; they are the AUTO fallback. Exclude them with an export filter only if the size budget gets tight (the VoiceService `CLIPS` preload must then become a guarded load).
+- The duck voice speaks letters only: punctuation and spaces after the last spoken letter show at `duck_line_finished` (up to 250 ms + 1 frame late on web Sample mode, per the addon docs).
+- `render_duck_lines.gd` prints a "Failed to compile depended scripts" line from `DuckLineDef -> DuckBubble -> autoloads` when run with `-s`; the render still works. Re-run it whenever `duck_lines.tres` or `duck_voice.tres` changes (`test_duck_voice_data.gd` fails when a clip no longer matches its line).
+
+## Deferred from: code review of story-3.7 (2026-11-09)
+
+- Stale events: `VoiceService` guards only on `_speaking`, so a late `finished` / `character_spoken` from a stopped line could hit the next line (and a same-id restart can match the old `finished(false)`); add a per-line serial to the signals.
+- PRERENDER reveal/finish follow wall time, not `get_playback_position()`; web start latency can clip the tail via `_on_finished` -> `stop()`.
+- If `MumbleSpeaker.say` silently produces nothing (suspended AudioContext), only the watchdog (`len/cps + 3` s) recovers; consider a no-first-character fallback to the timer.
+- `use_speaker` does not free or disconnect a previous speaker (tests that swap in the fake leave the real speaker child when the addon loads).
+- `CLIPS` is preloaded even on MUMBLE; `test_voice_service` FakeSpeaker has no signals so `use_speaker` signal wiring is only covered by the real-addon test; `DuckBubble._voice_line` is write-only.

@@ -1,0 +1,36 @@
+[gd_resource type="Resource" script_class="DuckClipsDef" format=3]
+
+[ext_resource type="Script" path="res://src/ui/duck/duck_clip_def.gd" id="1_nlixs"]
+[ext_resource type="AudioStream" path="res://assets/audio/duck/t1_shift.wav" id="2_altxm"]
+[ext_resource type="AudioStream" path="res://assets/audio/duck/t2_semicolon.wav" id="3_55ltk"]
+[ext_resource type="AudioStream" path="res://assets/audio/duck/t3_dash_strike.wav" id="4_qhd1u"]
+[ext_resource type="AudioStream" path="res://assets/audio/duck/t4_phase_two.wav" id="5_grddf"]
+[ext_resource type="Script" path="res://src/ui/duck/duck_clips_def.gd" id="6_65bou"]
+
+[sub_resource type="Resource" id="Resource_a7f1e"]
+script = ExtResource("1_nlixs")
+id = &"t1_shift"
+stream = ExtResource("2_altxm")
+char_times = PackedFloat32Array(0, 0.1, 0.1, 0.15, 0.2, 0.3, 0.3, 0.4, 0.4, 0.45, 0.5, 0.55, 0.6, 0.7, 0.7, 0.75, 0.8, 0.85, 0.95, 0.95, 1, 1.05, 1.1, 1.4, 1.4, 1.4, 1.45, 1.5, 1.55, 1.65, 1.65, 1.7, 1.75, 1.85, 1.85, 1.9, 1.95, 2.05, 2.05, 2.1, 2.2, 2.2, 2.25, 2.3, 2.4, 2.4, 2.45, 2.5, 2.55, 2.65, 2.65, 2.7, 2.75, 2.85, 2.85, 2.9, 2.95, 3, 3.2, 3.2, 3.2, 3.25, 3.3, 3.4, 3.4, 3.45, 3.5, 3.55, 3.65, 3.65, 3.7, 3.75, 3.85, 3.85, 3.9, 4, 4, 4.05, 4.1, 4.15, 4.25, 4.25, 4.3, 4.35, 4.4, 4.45, 4.5, 4.575)
+
+[sub_resource type="Resource" id="Resource_qlkk5"]
+script = ExtResource("1_nlixs")
+id = &"t2_semicolon"
+stream = ExtResource("3_55ltk")
+char_times = PackedFloat32Array(0, 0.05, 0.1, 0.2, 0.2, 0.25, 0.3, 0.4, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 1.1, 1.1, 1.1, 1.15, 1.2, 1.25, 1.35, 1.35, 1.4, 1.45, 1.5, 1.55, 1.6, 1.7, 1.7, 1.75, 1.8, 1.9, 1.9, 1.95, 2, 2.05, 2.1, 2.15, 2.2, 2.25, 2.3, 2.6, 2.6, 2.6, 2.65, 2.7, 2.8, 2.8, 2.85, 2.95, 2.95, 3, 3.05, 3.1, 3.2, 3.2, 3.25, 3.35, 3.35, 3.4, 3.45, 3.5, 3.55, 3.625)
+
+[sub_resource type="Resource" id="Resource_1a20v"]
+script = ExtResource("1_nlixs")
+id = &"t3_dash_strike"
+stream = ExtResource("4_qhd1u")
+char_times = PackedFloat32Array(0, 0.1, 0.1, 0.15, 0.2, 0.25, 0.35, 0.35, 0.55, 0.55, 0.55, 0.6, 0.65, 0.7, 0.8, 0.8, 0.85, 0.9, 0.95, 1, 1.05, 1.35, 1.35, 1.35, 1.4, 1.45, 1.55, 1.55, 1.6, 1.65, 1.7, 1.9, 1.9, 1.9, 1.95, 2, 2.1, 2.1, 2.15, 2.2, 2.25, 2.3, 2.35, 2.425)
+
+[sub_resource type="Resource" id="Resource_cblg3"]
+script = ExtResource("1_nlixs")
+id = &"t4_phase_two"
+stream = ExtResource("5_grddf")
+char_times = PackedFloat32Array(0, 0.05, 0.15, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.7, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.25, 1.25, 1.25, 1.3, 1.35, 1.4, 1.5, 1.5, 1.55, 1.6, 1.7, 1.7, 1.75, 1.8, 1.85, 1.9, 2, 2, 2.05, 2.1, 2.15, 2.2, 2.25, 2.3, 2.35, 2.45, 2.45, 2.5, 2.6, 2.6, 2.65, 2.7, 2.8, 2.8, 2.85, 2.9, 3, 3, 3.05, 3.15, 3.15, 3.2, 3.25, 3.3, 3.35, 3.425)
+
+[resource]
+script = ExtResource("6_65bou")
+entries = Array[ExtResource("1_nlixs")]([SubResource("Resource_a7f1e"), SubResource("Resource_qlkk5"), SubResource("Resource_1a20v"), SubResource("Resource_cblg3")])

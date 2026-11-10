@@ -121,7 +121,7 @@ development_status:
   3-4-head-rush-and-constrict: done
   3-5-nested-loop-semicolon-spit-and-phase-3: done # phase 3 droppable under MVP fallback (Group P)
   3-6-duck-bubble-and-tutorial-beats: done
-  3-7-duck-voice-mumble-speech: backlog # NOT MVP-blocking; may slip past Nov 14; unblocked: basteez/mumble-speech#32 resolved in v0.3.0 (2026-11-07)
+  3-7-duck-voice-mumble-speech: done # NOT MVP-blocking; may slip past Nov 14; unblocked: basteez/mumble-speech#32 resolved in v0.3.0 (2026-11-07)
   3-8-boss-defeat-and-harvest: backlog
   3-9-mvp-playtest-and-tuning-pass: backlog # HUMAN CHECKPOINT Nov 14
   epic-3-retrospective: optional

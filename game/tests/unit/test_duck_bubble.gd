@@ -258,3 +258,187 @@ func test_line_start_advances_to_next_queued_line() -> void:
 	assert_eq(_bubble.current_id(), &"a")
 	_finish_line()
 	assert_eq(_bubble.current_id(), &"b")
+
+
+# --- Story 3.7 voice wiring (AC 4-6, D1-D4, G2) ---
+
+## Stands in for VoiceService: can_speak / speak_pending / stop, and stop emits like the real one.
+class FakeVoice:
+	extends Node
+	var speakable: bool = true
+	var starts: bool = true
+	var spoken: Array = []
+	var stops: int = 0
+	var _speaking_id: StringName = &""
+	var _speaking: bool = false
+
+	func can_speak() -> bool:
+		return speakable
+
+	func speak_pending(line_id: StringName, text: String) -> bool:
+		spoken.append([line_id, text])
+		_speaking = starts
+		_speaking_id = line_id
+		return starts
+
+	func stop() -> void:
+		stops += 1
+		if _speaking:
+			_speaking = false
+			EventBus.duck_line_finished.emit(_speaking_id, false)
+
+
+const T3 := "J then K: Dash Strike. Two bits, one commit."
+
+
+func _voiced() -> FakeVoice:
+	var fake := FakeVoice.new()
+	add_child_autofree(fake)
+	_bubble.voice = fake
+	return fake
+
+
+## Starts T3 on a voiced bubble and runs out the squeak lead.
+func _start_voiced(fake: FakeVoice) -> void:
+	_bubble.enqueue(T3, &"t3_dash_strike")
+	_bubble.step(DuckBubble.SQUEAK_LEAD_S + 0.001)
+	assert_eq(fake.spoken.size(), 1, "the voice started after the lead")
+
+
+func test_bubble_connects_the_voice_signals() -> void:
+	assert_true(EventBus.duck_character_spoken.is_connected(_bubble._on_duck_character_spoken))
+	assert_true(EventBus.duck_line_finished.is_connected(_bubble._on_duck_line_finished))
+	remove_child(_bubble)
+	assert_false(EventBus.duck_character_spoken.is_connected(_bubble._on_duck_character_spoken))
+	assert_false(EventBus.duck_line_finished.is_connected(_bubble._on_duck_line_finished))
+	add_child(_bubble)
+
+
+func test_squeak_first_then_the_voice_after_the_lead() -> void:
+	var fake: FakeVoice = _voiced()
+	assert_almost_eq(DuckBubble.SQUEAK_LEAD_S, 0.15, 0.0001)
+	_bubble.enqueue(T3, &"t3_dash_strike")
+	_bubble.step(0.1)
+	assert_eq(fake.spoken.size(), 0, "no voice during the squeak lead")
+	assert_eq(_bubble.reveal().revealed, 0, "nothing shows before the voice")
+	assert_true(_bubble.reveal().driven_externally, "the timer does not run on a voiced line")
+	_bubble.step(0.06)
+	assert_eq(fake.spoken, [[&"t3_dash_strike", T3]], "the joined wrapped text is spoken")
+	assert_true(_bubble.is_voice_speaking())
+
+
+func test_characters_drive_the_reveal_and_the_timer_stays_off() -> void:
+	var fake: FakeVoice = _voiced()
+	_start_voiced(fake)
+	EventBus.duck_character_spoken.emit(0)
+	assert_eq(_bubble.reveal().revealed, 1)
+	EventBus.duck_character_spoken.emit(6)
+	assert_eq(_bubble.reveal().revealed, 7, "char_index + 1")
+	_bubble.step(10.0)
+	assert_eq(_bubble.reveal().revealed, 7, "the 30 chars/s timer does not drive a voiced line")
+	assert_almost_eq(_bubble.hold_left(), DuckBubble.hold_seconds(T3.length()), 0.0001, "no hold yet")
+
+
+func test_completed_line_reveals_the_rest_and_holds() -> void:
+	var fake: FakeVoice = _voiced()
+	_start_voiced(fake)
+	EventBus.duck_character_spoken.emit(10)
+	EventBus.duck_line_finished.emit(&"t3_dash_strike", true)
+	assert_eq(_bubble.reveal().revealed, T3.length())
+	assert_false(_bubble.is_voice_speaking())
+	_bubble.step(DuckBubble.hold_seconds(T3.length()) - 0.1)
+	assert_true(_bubble.is_showing(), "holding")
+	_bubble.step(0.2)
+	assert_false(_bubble.is_showing())
+
+
+func test_the_hold_waits_for_the_finished_event() -> void:
+	var fake: FakeVoice = _voiced()
+	_start_voiced(fake)
+	EventBus.duck_character_spoken.emit(T3.length() - 1) # every character shown
+	assert_true(_bubble.reveal().is_done())
+	_bubble.step(100.0)
+	assert_true(_bubble.is_showing(), "no hold countdown while the voice speaks")
+	assert_almost_eq(_bubble.hold_left(), DuckBubble.hold_seconds(T3.length()), 0.0001)
+	EventBus.duck_line_finished.emit(&"t3_dash_strike", true)
+	_bubble.step(1.0)
+	assert_almost_eq(_bubble.hold_left(), DuckBubble.hold_seconds(T3.length()) - 1.0, 0.0001)
+
+
+func test_a_cut_line_hands_the_reveal_back_to_the_timer() -> void:
+	var fake: FakeVoice = _voiced()
+	_start_voiced(fake)
+	EventBus.duck_character_spoken.emit(9)
+	EventBus.duck_line_finished.emit(&"t3_dash_strike", false)
+	assert_eq(_bubble.reveal().revealed, 10, "keeps what the voice showed")
+	assert_false(_bubble.reveal().driven_externally)
+	_bubble.step(0.1)
+	assert_eq(_bubble.reveal().revealed, 13, "the timer continues from there, silently")
+	_bubble.step(100.0)
+	assert_true(_bubble.reveal().is_done())
+
+
+func test_finished_for_another_line_is_ignored() -> void:
+	var fake: FakeVoice = _voiced()
+	_start_voiced(fake)
+	EventBus.duck_line_finished.emit(&"other", true)
+	assert_true(_bubble.is_voice_speaking())
+	assert_eq(_bubble.reveal().revealed, 0)
+
+
+func test_clear_stops_the_voice_and_late_events_do_nothing() -> void:
+	var fake: FakeVoice = _voiced()
+	_start_voiced(fake)
+	EventBus.duck_character_spoken.emit(3)
+	_bubble.clear()
+	assert_eq(fake.stops, 1, "clear() calls VoiceService.stop()")
+	assert_false(_bubble.is_showing())
+	EventBus.duck_character_spoken.emit(8)
+	EventBus.duck_line_finished.emit(&"t3_dash_strike", true)
+	assert_false(_bubble.is_showing(), "a late event never revives a cleared bubble")
+	assert_eq(_bubble.reveal().revealed, 0)
+	assert_eq(_bubble.hold_left(), 0.0, "no hold running")
+
+
+func test_leaving_fight_stops_the_voice() -> void:
+	var fake: FakeVoice = _voiced()
+	_start_voiced(fake)
+	EventBus.flow_state_changed.emit(GameScript.FlowState.FIGHT, GameScript.FlowState.DEAD)
+	assert_eq(fake.stops, 1)
+	assert_false(_bubble.is_showing())
+
+
+func test_pause_stops_the_voice_once_and_the_text_finishes_silently() -> void:
+	var fake: FakeVoice = _voiced()
+	_start_voiced(fake)
+	EventBus.duck_character_spoken.emit(4)
+	SimClock.paused = true
+	_bubble.step(0.016)
+	_bubble.step(0.016)
+	_bubble.step(0.016)
+	assert_eq(fake.stops, 1, "one stop for the pause")
+	assert_eq(_bubble.reveal().revealed, 5, "frozen while paused")
+	assert_true(_bubble.is_showing())
+	SimClock.paused = false
+	_bubble.step(0.1)
+	assert_eq(_bubble.reveal().revealed, 8, "the timer finishes the rest after resume (D-S37-7)")
+	assert_eq(fake.spoken.size(), 1, "the voice does not resume")
+
+
+func test_a_voice_that_does_not_start_leaves_the_timer() -> void:
+	var fake: FakeVoice = _voiced()
+	fake.starts = false
+	_start_voiced(fake)
+	assert_false(_bubble.is_voice_speaking())
+	_bubble.step(0.1)
+	assert_eq(_bubble.reveal().revealed, 3, "silent line on the 3.6 timer")
+
+
+func test_unvoiced_lines_keep_the_3_6_timing() -> void:
+	var fake: FakeVoice = _voiced()
+	fake.speakable = false
+	_bubble.enqueue(T3, &"t3_dash_strike")
+	assert_eq(_bubble.lead_left(), 0.0)
+	_bubble.step(0.1)
+	assert_eq(_bubble.reveal().revealed, 3)
+	assert_eq(fake.spoken.size(), 0)

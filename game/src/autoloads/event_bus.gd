@@ -47,3 +47,13 @@ signal patched_applied(boss: StringName, frames: int)
 ## text) and the resolved text. Emitted only by VoiceService.say; DuckBubble shows it. No sim emitter.
 @warning_ignore("unused_signal")
 signal duck_line_requested(line_id: StringName, text: String)
+## The duck voice spoke one character of the line on the bubble (Story 3.7, D-S37-1): its 0-based
+## code point index in the spoken text (letters only on the mumble backend; the bubble reveals
+## char_index + 1). Emitted only by VoiceService; DuckBubble listens. No sim emitter.
+@warning_ignore("unused_signal")
+signal duck_character_spoken(char_index: int)
+## The duck voice line ended (Story 3.7, D-S37-1): its DuckLinesDef id (&"" for raw text) and
+## whether it played to the end (false when cut by VoiceService.stop or the watchdog). Emitted only
+## by VoiceService, once per spoken line; DuckBubble reveals the rest and starts the hold.
+@warning_ignore("unused_signal")
+signal duck_line_finished(line_id: StringName, completed: bool)

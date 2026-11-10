@@ -18,6 +18,8 @@
 #   SMOKE_QUERY="?debug" SMOKE_KEYS="F2 Escape Escape" SMOKE_EXPECT="pause off" bash game/tools/smoke_web.sh
 #   SMOKE_QUERY="?debug" SMOKE_KEYS="F2" SMOKE_TAB_SWITCH=1 SMOKE_EXPECT="pause on (focus)" bash game/tools/smoke_web.sh
 #   SMOKE_KEYS="Enter Escape" SMOKE_EXPECT="pause on (esc)" bash game/tools/smoke_web.sh
+# Story 3.7 run (the duck voice speaks T1 after a click, mumble-speech side module):
+#   SMOKE_QUERY='?debug&smoke=voice' SMOKE_CLICK=1 SMOKE_EXPECT='voice smoke: finished' bash game/tools/smoke_web.sh
 # Serves build/web on a local port, checks the files over HTTP, checks index.html for the
 # no-threads / no-cross-origin-isolation setup, prints the size, and, if Google Chrome is
 # installed, loads the page headless and fails on console errors or WASM load failures.
@@ -90,6 +92,18 @@ for f in "${REQUIRED[@]}"; do
 	echo "$ctype" | grep -qi "$want" || fail "$f: content type '$ctype' does not match '$want'"
 	echo "smoke_web: OK $f ($status, $ctype)"
 done
+
+# Story 3.7 (AC 2): every GDExtension side module the page loads (mumble_godot.wasm) is served too.
+ext_libs="$(grep -oE '"gdextensionLibs":\[[^]]*\]' "$WEB_DIR/index.html" | grep -oE '"[^"]+\.wasm"' | tr -d '"' || true)"
+for f in $ext_libs; do
+	headers="$(curl -fsI "$URL$f")" || fail "$f (GDExtension): HTTP request failed"
+	status="$(printf '%s\n' "$headers" | head -1 | tr -d '\r')"
+	ctype="$(printf '%s\n' "$headers" | grep -i '^content-type:' | head -1 | cut -d: -f2- | tr -d '\r ' || true)"
+	echo "$status" | grep -Eq '^HTTP/[0-9.]+ 200' || fail "$f: expected 200, got '$status'"
+	echo "$ctype" | grep -qi "application/wasm" || fail "$f: content type '$ctype' is not application/wasm"
+	echo "smoke_web: OK $f (GDExtension side module, $status, $ctype)"
+done
+echo "$ext_libs" | grep -q 'threads' && fail "the export picked a threads GDExtension library; Thread Support must stay off"
 
 grep -qF 'GODOT_THREADS_ENABLED = false' "$WEB_DIR/index.html" || fail "index.html does not set GODOT_THREADS_ENABLED = false"
 echo "smoke_web: OK GODOT_THREADS_ENABLED = false"

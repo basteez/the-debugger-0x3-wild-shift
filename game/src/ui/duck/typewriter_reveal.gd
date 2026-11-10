@@ -37,6 +37,12 @@ func set_revealed(n: int) -> void:
 	revealed = clampi(n, 0, length)
 
 
+## Hands the count back to the timer from where it is (Story 3.7: a voice line was cut, D-S37-7).
+func release() -> void:
+	driven_externally = false
+	elapsed_s = float(revealed) / chars_per_second if chars_per_second > 0.0 else 0.0
+
+
 func is_done() -> bool:
 	return revealed >= length
 

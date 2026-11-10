@@ -1,0 +1,8 @@
+[gd_resource type="MumbleVoice" format=3]
+
+[resource]
+style = 0
+pitch = 6.0
+speed = 20.0
+variation = 0.0
+seed = 20261101

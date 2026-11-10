@@ -23,6 +23,9 @@ func test_every_data_resource_validates() -> void:
 	var paths: PackedStringArray = _tres_under(DATA_ROOT)
 	assert_true(paths.has(PLAYER_DEF_PATH), "player_def.tres is found by the scan")
 	for path: String in paths:
+		# Story 3.7 (G3): the MumbleVoice resource needs the mumble_speech GDExtension.
+		if path.ends_with("/duck_voice.tres") and not ClassDB.class_exists(&"MumbleVoice"):
+			continue
 		var res: Resource = load(path)
 		assert_not_null(res, "loads: %s" % path)
 		if res != null and res.has_method(&"validate"):
