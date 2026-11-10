@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="DuckLinesDef" load_steps=8 format=3]
+[gd_resource type="Resource" script_class="DuckLinesDef" load_steps=10 format=3]
 
 [ext_resource type="Script" path="res://src/ui/duck/duck_lines_def.gd" id="1_dlines"]
 [ext_resource type="Script" path="res://src/ui/duck/duck_line_def.gd" id="2_dline"]
@@ -6,7 +6,7 @@
 [sub_resource type="Resource" id="Resource_t1"]
 script = ExtResource("2_dline")
 id = &"t1_shift"
-text = "Q and E shift your bits. Only the two on the left are live; the rest are in code review."
+text = "Q or E shifts your bits. Go on, shift. It's waiting. Only the two on the left are live; the rest are in code review."
 
 [sub_resource type="Resource" id="Resource_t2"]
 script = ExtResource("2_dline")
@@ -28,6 +28,16 @@ script = ExtResource("2_dline")
 id = &"harvest_shared"
 text = "Bug squashed. It dropped a bit: new windows, new combos."
 
+[sub_resource type="Resource" id="Resource_hint_a_d"]
+script = ExtResource("2_dline")
+id = &"hint_a_d"
+text = "Quack. Weak window: A→D."
+
+[sub_resource type="Resource" id="Resource_hint_d_a"]
+script = ExtResource("2_dline")
+id = &"hint_d_a"
+text = "Quack. Weak window: D→A."
+
 [resource]
 script = ExtResource("1_dlines")
-entries = Array[ExtResource("2_dline")]([SubResource("Resource_t1"), SubResource("Resource_t2"), SubResource("Resource_t3"), SubResource("Resource_t4"), SubResource("Resource_h1")])
+entries = Array[ExtResource("2_dline")]([SubResource("Resource_t1"), SubResource("Resource_t2"), SubResource("Resource_t3"), SubResource("Resource_t4"), SubResource("Resource_h1"), SubResource("Resource_hint_a_d"), SubResource("Resource_hint_d_a")])

@@ -116,7 +116,8 @@ func test_ring_stays_still_until_the_first_shift() -> void:
 	_player_px = Arena.SPAWN_PX + Vector2(6 * TILE, 3 * TILE) # far away: drift would show
 	var centre: Vector2 = b.body_center_px
 	var seg0: Vector2 = b.segment_px(0)
-	_tick(b, 300)
+	# Story 4.4 (D-S44-1): 299 ticks, the last tick before the 5 s auto-start (was 300 before 4.4).
+	_tick(b, InfiniteLoopBody.START_NUDGE_TICKS - 1)
 	assert_false(b.started)
 	assert_eq(b.travel_mtiles, 0)
 	assert_eq(b.iteration, 0)
@@ -437,3 +438,66 @@ func test_boss_view_draws_the_ring_without_writing_it() -> void:
 	assert_eq(b.travel_mtiles, travel)
 	assert_eq(b.body_center_px, centre)
 	assert_eq(b.iteration, 1)
+
+
+# --- Story 4.4 AC 12-13 (D-S44-1): the 5 s start nudge ---
+
+func test_no_shift_for_299_ticks_stays_still() -> void:
+	var b: InfiniteLoopBody = _body()
+	_tick(b, 299)
+	assert_eq(InfiniteLoopBody.START_NUDGE_TICKS, 300, "5 s at 60 Hz")
+	assert_false(b.started)
+	assert_eq(b.waiting_ticks, 299)
+	assert_eq(b.iteration, 0)
+	assert_false(b.is_open())
+
+
+func test_no_shift_for_300_ticks_starts_like_the_first_shift() -> void:
+	var b: InfiniteLoopBody = _body()
+	var shifted: InfiniteLoopBody = _body()
+	_start(shifted) # the first-shift path, for comparison
+	_shifts = 0 # back to b's captured count: b sees no shift
+	_tick(b, 300)
+	assert_true(b.started, "the ring starts on tick 300")
+	assert_eq(b.iteration, shifted.iteration, "i = 1, the same start path")
+	assert_eq(b.open_left, shifted.open_left, "the `;` opens")
+	assert_eq(b.open_ring, InfiniteLoopBody.OUTER)
+	assert_eq(b.travel_mtiles, 0, "the gate tick does not spin (D-S33-19)")
+	_tick(b)
+	assert_gt(b.travel_mtiles, 0, "the ring moves from the next tick")
+	assert_eq(b.waiting_ticks, 300, "the count stops once started")
+
+
+func test_a_shift_at_tick_10_starts_at_10() -> void:
+	var b: InfiniteLoopBody = _body()
+	_tick(b, 9)
+	assert_false(b.started)
+	_start(b) # tick 10 sees the shift
+	assert_true(b.started)
+	assert_eq(b.waiting_ticks, 9, "the shift path does not count")
+	assert_eq(b.iteration, 1)
+	_tick(b, 400)
+	assert_eq(b.iteration >= 1, true)
+
+
+func test_reset_for_fight_resets_the_nudge() -> void:
+	var b: InfiniteLoopBody = _body()
+	_tick(b, 250)
+	b.reset_for_fight()
+	assert_eq(b.waiting_ticks, 0, "a retry starts the 5 s again")
+	_tick(b, 299)
+	assert_false(b.started)
+	_tick(b)
+	assert_true(b.started)
+
+
+func test_the_nudge_counts_only_live_boss_ticks() -> void:
+	# The count runs in _tick_body, so anything that stops the boss tick (pause, the Breakpoint
+	# freeze, hit-stop: SimClock does not call tick) stops it too; a body that is not ticked never starts.
+	var b: InfiniteLoopBody = _body()
+	_tick(b, 100)
+	assert_eq(b.waiting_ticks, 100)
+	b.set_active(false)
+	_tick(b, 500)
+	assert_eq(b.waiting_ticks, 100, "an inactive boss does not count")
+	assert_false(b.started)

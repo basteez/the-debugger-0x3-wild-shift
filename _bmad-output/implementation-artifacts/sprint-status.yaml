@@ -131,7 +131,7 @@ development_status:
   4-1-loop-bit-echo: done
   4-2-echo-dash-combo: done
   4-3-breakpoint-skill: done # cut ladder #3 (FeatureFlags.breakpoint)
-  4-4-duck-hint-template: backlog
+  4-4-duck-hint-template: done
   epic-4-retrospective: optional
 
   # Epic 5: Null Pointer & Watch — window Nov 18–21 (music composition may start in parallel)

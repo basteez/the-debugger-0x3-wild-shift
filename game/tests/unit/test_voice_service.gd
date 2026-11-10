@@ -6,7 +6,8 @@ extends GutTest
 ## the pre-render backend's timings, and the single warning on a failure.
 
 const VoiceServiceScript := preload("res://src/autoloads/voice_service.gd")
-const T1 := "Q and E shift your bits. Only the two on the left are live; the rest are in code review."
+## Story 4.4 (D-S44-2): T1 rewritten for the start nudge.
+const T1 := "Q or E shifts your bits. Go on, shift. It's waiting. Only the two on the left are live; the rest are in code review."
 const T3 := "J then K: Dash Strike. Two bits, one commit."
 const B := VoiceServiceScript.Backend
 

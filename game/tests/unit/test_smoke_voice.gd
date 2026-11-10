@@ -18,7 +18,7 @@ func test_gate_closed_otherwise() -> void:
 
 
 func test_the_smoke_speaks_the_t1_line() -> void:
-	assert_eq(SmokeVoice.line_text(), "Q and E shift your bits. Only the two on the left are live; the rest are in code review.")
+	assert_eq(SmokeVoice.line_text(), "Q or E shifts your bits. Go on, shift. It's waiting. Only the two on the left are live; the rest are in code review.")
 	assert_eq(SmokeVoice.LINE_ID, &"t1_shift")
 
 
