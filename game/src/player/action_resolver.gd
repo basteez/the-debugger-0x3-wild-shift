@@ -75,6 +75,8 @@ static func _link(buffer: InputBuffer, frame: int, window: Vector2i, action: Act
 	var echo_blocked: bool = not startable_def(def, echo_ready)
 	if echo_blocked and not link.held:
 		return null
+	if combo != null and combo.gap_free:
+		return _gap_free_link(buffer, frame, window, action, action_frame, cooldowns, link, combo)
 	var startable: bool = not running or (in_recovery(action, action_frame) and action.cancel_into.has(target_bit))
 	var ready: bool = cooldowns.ready(target_bit)
 	if link.held:
@@ -96,6 +98,33 @@ static func _link(buffer: InputBuffer, frame: int, window: Vector2i, action: Act
 	if pushed >= 0:
 		return ActionRequest.link_instruction(ActionRequest.LinkOp.HOLD, K_SLOT, pushed)
 	return null
+
+
+## Story 4.2 (D-S42-4 resolved, D-S42-11): the K follow-up of a gap_free combo (Echo Dash). It starts
+## only while the running action's last executed frame is invulnerable, and replaces that action on
+## this tick (even mid-ACTIVE), so the combo's frame 1 (invulnerable) follows an invulnerable frame.
+## Any other K press on the window is consumed and dropped (DROP instruction, `held_frame` = the
+## press frame): no hold, no link_second, no solo fallback. A cooling-down K stays buffered as usual.
+static func _gap_free_link(buffer: InputBuffer, frame: int, window: Vector2i, action: ActionDef, action_frame: int, cooldowns: Cooldowns, link: LinkState, combo: ComboDef) -> ActionRequest:
+	var target_bit: int = window.y
+	if link.held:
+		return ActionRequest.link_instruction(ActionRequest.LinkOp.DROP, K_SLOT) # never held; belt and braces
+	if not cooldowns.ready(target_bit):
+		return null
+	if not gap_free_ok(action, action_frame):
+		var pushed: int = buffer.consume_pushed_frame(KEYS[K_SLOT], frame)
+		if pushed >= 0:
+			return ActionRequest.link_instruction(ActionRequest.LinkOp.DROP, K_SLOT, pushed)
+		return null
+	if buffer.consume(KEYS[K_SLOT], frame):
+		return ActionRequest.new(combo.action, target_bit, K_SLOT, false, action != null, combo, false)
+	return null
+
+
+## True when a gap_free combo may start now: an action runs and its last executed frame is
+## invulnerable (D-S42-4). Pure.
+static func gap_free_ok(action: ActionDef, action_frame: int) -> bool:
+	return action != null and action_frame >= 1 and action_frame < action.total_frames() and action.is_invulnerable_frame(action_frame)
 
 
 ## True when `action_frame` (the last executed frame) is a RECOVERY frame, the last one included.

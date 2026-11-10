@@ -129,7 +129,7 @@ development_status:
   # Epic 4: LOOP Combos & Breakpoint — window Nov 15–17
   epic-4: in-progress
   4-1-loop-bit-echo: done
-  4-2-echo-dash-combo: backlog
+  4-2-echo-dash-combo: done
   4-3-breakpoint-skill: backlog # cut ladder #3 (FeatureFlags.breakpoint)
   4-4-duck-hint-template: backlog
   epic-4-retrospective: optional

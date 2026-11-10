@@ -12,6 +12,8 @@ extends SimSystem
 ## post-patch state (DamageCalc only) -> take_hit / register_hit -> hit_landed -> one hit-stop
 ## request (HitFeedback.hitstop_for_boss_hit for the boss, hitstop_for for practice targets).
 ## Story 4.1 (D-S41-5): an Echo hit passes ActionStateMachine.echo_scale() (0.7) to DamageCalc.
+## Story 4.2 (D-S42-2): a pass_through action (Echo Dash) produces BossInteraction.PASS_THROUGH on a
+## boss overlap and nothing else (no damage, practice targets skipped).
 
 var actions: ActionStateMachine
 ## Unused (2.7 deferred, D-S32-13); kept so the constructor used by Arena and tests stays put.
@@ -37,6 +39,11 @@ func tick(_ctx: SimContext) -> void:
 	var serial: int = actions.action_serial
 	var origin: Vector2 = actions.action_origin_px
 	var facing: Vector2 = Vector2(actions.facing).normalized()
+	if def.pass_through:
+		# Story 4.2 (D-S42-2): no damage, no hit_landed, no hit-stop, no practice targets.
+		if boss_overlapped(def.hit_shape, origin, facing, boss, serial):
+			_resolve_pass_through(def, serial)
+		return
 	var hit: Array[PracticeTarget] = hits_for(def.hit_shape, origin, facing, targets, serial)
 	var boss_hit: bool = boss_overlapped(def.hit_shape, origin, facing, boss, serial)
 	if hit.is_empty() and not boss_hit:
@@ -74,6 +81,22 @@ func _resolve_boss_hit(def: ActionDef, serial: int, is_combo: bool) -> int:
 	Log.debug(&"combat", "boss hit %s dmg=%d state=%d" % [def.id, damage, state])
 	EventBus.hit_landed.emit(boss.hit_target_id(), damage, state, is_combo, pos)
 	return HitFeedback.hitstop_for_boss_hit(state, is_combo, def.hitstop_frames, applied)
+
+
+## The PASS_THROUGH of this tick (Story 4.2, NP-4): one interaction on the action's window, the
+## tracker decides Patched (the only writer), the boss is marked by the action's serial so one
+## pass-through action fires once. No damage path at all.
+func _resolve_pass_through(def: ActionDef, serial: int) -> void:
+	var interactions: Array[BossInteraction] = [
+		BossInteraction.new(BossInteraction.Kind.PASS_THROUGH, actions.action_window),
+	]
+	if WeakWindowTracker.process(interactions, boss.current_weak_window()):
+		boss.weak_window.apply_patched(WeakWindowTracker.PATCHED_FRAMES)
+		if Debug.enabled:
+			Log.debug(&"combat", "patched %s by %s (pass-through)" % [boss.def.boss_id, def.id])
+		EventBus.patched_applied.emit(boss.def.boss_id, WeakWindowTracker.PATCHED_FRAMES)
+	boss.mark_hit(serial)
+	Log.debug(&"combat", "boss pass-through %s" % def.id)
 
 
 ## The targets the shape overlaps that the action with `serial` has not hit yet (D-S27-4). A target

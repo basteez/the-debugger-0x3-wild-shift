@@ -77,7 +77,7 @@ func tick(ctx: SimContext) -> void:
 		_apply_link_op(request)
 		request = null
 	if request != null:
-		_start(request, serial, window)
+		_start(request, serial, window, ctx.move_dir)
 	elif action != null:
 		if action_frame >= action.total_frames():
 			_finish()
@@ -171,7 +171,7 @@ static func state_name(s: ActionState) -> String:
 	return ActionState.keys()[s]
 
 
-func _start(request: ActionRequest, serial: int, window: Vector2i = Vector2i.ZERO) -> void:
+func _start(request: ActionRequest, serial: int, window: Vector2i = Vector2i.ZERO, move_dir: Vector2i = Vector2i.ZERO) -> void:
 	# Story 4.1 (D-S41-2): an Echo request runs the remembered def itself; the resolver only offers
 	# Echo when memory is non-empty (D-S41-3), the null check is belt and braces.
 	var is_echo: bool = request.def.echo_action and request.combo == null
@@ -186,6 +186,11 @@ func _start(request: ActionRequest, serial: int, window: Vector2i = Vector2i.ZER
 	combo = request.combo
 	link_second = request.link_second
 	facing = _player.facing if _player != null else Player.DEFAULT_FACING
+	# Story 4.2 (D-S42-3): a redirectable action (Echo Dash) takes the input direction of its start
+	# tick, 8-way like movement; no input keeps the captured facing. Player.facing is not written.
+	var redirect: Vector2i = Player.sanitize_dir(move_dir)
+	if action.redirectable and redirect != Vector2i.ZERO:
+		facing = redirect
 	action_origin_px = _player.position_px if _player != null else Vector2.ZERO
 	action_serial += 1
 	_start_serial = serial
@@ -262,8 +267,11 @@ func _apply_link_op(request: ActionRequest) -> void:
 			link.hold(request.key, request.slot, request.held_frame)
 			Log.debug(&"action", "link holds K")
 		ActionRequest.LinkOp.DROP:
+			# A held press past its lifetime (cooldown / empty memory), or a K press refused by a
+			# gap_free combo outside its invulnerable frames (Story 4.2, D-S42-11).
+			var refused: bool = not link.held
 			link.clear_hold()
-			Log.debug(&"action", "link drops K (cooldown)")
+			Log.debug(&"action", "link drops K (%s)" % ("gap" if refused else "lifetime"))
 
 
 func _finish() -> void:

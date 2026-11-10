@@ -300,3 +300,13 @@ Story 1.3 AC9 / I-6 ("mumble-speech web check, moved to 3.7") is UNBLOCKED. Tizi
 - EchoMemory holds a reference to a shared ActionDef resource; revisit if Epic 5/6 mutates defs at runtime.
 - An echoed hit re-applies the original def's Patched/boss interactions at 70% damage; not pinned by a test.
 - `ActionDef.echoable` defaults to true (opt-out); new boss/garbage defs must set it deliberately.
+
+## Deferred from: code review of story-4-2-echo-dash-combo (2026-11-10)
+
+- PASS_THROUGH marks the boss hit on the first overlap even if the weak window does not match; a later phase/window change in the same dash cannot Patch (one chance per action).
+- The Echo Dash capsule is evaluated from `action_origin_px` along the full 4 tiles, not the player's clamped path (wall/corner redirects still pass through a boss within the unclamped capsule).
+- A redirect does not update `Player.facing`; sprite flip and the next action's captured facing may disagree with the dash direction.
+- A K press refused by the gap_free rule is silently dropped (log only); consider a UI/SFX cue if playtest shows confusion.
+- `ComboDef._solo_action` uses `load()` + `.call` on Defs (preload-cycle workaround); verify in a Web export.
+- Echo Dash's single `combo` start log is not asserted; `test_combo_def_validation_additions` mutates the shared `Defs.SLASH_1` (restored before the assert).
+
