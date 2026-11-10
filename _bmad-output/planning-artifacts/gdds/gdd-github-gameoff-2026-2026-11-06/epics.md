@@ -26,7 +26,7 @@ version: 1.0
 | ID | Story | Acceptance |
 |---|---|---|
 | 1.1 | Project setup: 640×360 base, integer scaling, 60 FPS simulation | Runs at 60 FPS with crisp pixels at 1280×720 |
-| 1.2 | Web export (single-threaded, Sample audio mode) uploaded to an itch.io draft page | Loads in Chrome, Firefox and Safari; build ≤ 30 MB |
+| 1.2 | Web export (single-threaded, Sample audio mode) uploaded to an itch.io draft page | Loads in Chrome, Firefox and Safari; build ≤ 32 MB (raised from 30 MB on 2026-11-10) |
 | 1.3 | Title screen with press-to-start (any key or click), which unlocks audio and leads into the Intro. This first input starts the 30-s first-shift clock (Gameplay Metrics) | No audio before the first input; a test SFX plays after it; the same input that starts the game does not skip the Intro |
 | 1.4 | Arena shell: The Clearing, 32×18 play area, tree-line walls, IDE HUD frame (register panel, log panel, line numbers) | Layout matches the GDD's Arena Design |
 | 1.5 | Scene flow with placeholders: Title → Intro → Fight 1 → Harvest → Fight 2 → Harvest → Fight 3 → Ending | Each screen is reachable with a debug key |

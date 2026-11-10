@@ -79,7 +79,7 @@ brief: '_bmad-output/planning-artifacts/briefs/brief-github-gameoff-2026-2026-11
 - **Frame rate:** 60 FPS sustained in Chrome/Firefox on a 2020 mid-range laptop (integrated GPU) at 1280×720, measured at Segfault phase 3
 - **Resolution:** 640×360 base, integer (pixel-perfect) scaling; fullscreen from an input event
 - **Particles:** ≤ 300 live glyph particles
-- **Load:** title interactive ≤ 10 s on 50 Mbps cold cache; web build ≤ 30 MB uncompressed
+- **Load:** title interactive ≤ 10 s on 50 Mbps cold cache; web build ≤ 32 MB uncompressed (raised from 30 MB on 2026-11-10, see deferred-work.md)
 - **Input latency:** no added frames; shift feedback on the input frame; 0-frame shift
 - **Determinism:** all gameplay timings are expressed in 60 Hz simulation frames
 - **Audio:** Sample playback mode (no live effects); no audio before first user gesture
@@ -137,7 +137,7 @@ Rationale for no template: the UI is a glyph-based IDE HUD that no menu template
 | Audio | `AudioStreamPlayer` / `AudioStreamPlayer2D`, bus layout | Sample playback mode on web: no live effects |
 | Input | `InputMap` actions; keyboard + gamepad | Custom buffer layer on top (8 frames) |
 | Scene management | `PackedScene` + `SceneTree.change_scene_to_*` / autoload-managed swap | Linear flow |
-| Build system | Godot export presets (Web) | Stripped custom export template only if > 30 MB |
+| Build system | Godot export presets (Web) | Stripped custom export template only if > 32 MB |
 | Persistence | `FileAccess` on `user://` (IndexedDB on web) | Silent fallback on failure |
 | Debug tooling | Remote debugger, Monitors, `print` | Plus in-game debug keys |
 

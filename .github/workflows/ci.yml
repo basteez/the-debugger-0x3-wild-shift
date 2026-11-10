@@ -19,7 +19,7 @@ env:
   GODOT_VERSION: 4.7.2
   GODOT_RELEASE: 4.7.2-stable
   GODOT_BIN: /home/runner/.local/share/godot/bin/godot
-  WEB_SIZE_BUDGET_BYTES: 30000000 # NFR4, decimal bytes (Story 1.3 DC4)
+  WEB_SIZE_BUDGET_BYTES: 32000000 # NFR4, decimal bytes (Story 1.3 DC4); raised from 30000000 on 2026-11-10, see deferred-work.md
 
 jobs:
   test-and-export:

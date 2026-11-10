@@ -608,7 +608,7 @@ row 39..44  console.log("-5") // resisted   ·   CRITICAL: 15 dmg   (6 lines)
 | SFX | About 20 |
 | Music | 4 loops, 3 glitch variants and 1 Breakpoint loop |
 | Text | 10 duck lines (the hint template counts as one), 3 fixed lines and 3 comments |
-| Build size | Web build ≤ 30 MB uncompressed. Use a stripped export template if the default exceeds it |
+| Build size | Web build ≤ 32 MB uncompressed (raised from 30 MB on 2026-11-10, see deferred-work.md). Use a stripped export template if the default exceeds it |
 
 ---
 
@@ -638,7 +638,7 @@ row 39..44  console.log("-5") // resisted   ·   CRITICAL: 15 dmg   (6 lines)
 ### Technical Metrics
 
 - 60 FPS sustained in Chrome and Firefox (see Performance Requirements); no crashes in Safari over a full run.
-- The title screen is interactive in ≤ 10 s on 50 Mbps; the web build is ≤ 30 MB.
+- The title screen is interactive in ≤ 10 s on 50 Mbps; the web build is ≤ 32 MB (raised from 30 MB on 2026-11-10, see deferred-work.md).
 - Zero blocking bugs across 3 consecutive full runs before submission.
 - Submitted by 2026-11-29 12:00 PST, ≥ 49 h before the deadline.
 

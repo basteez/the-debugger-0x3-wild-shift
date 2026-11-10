@@ -38,6 +38,13 @@ Tiziano decided on 2026-11-07 that everything involving the itch.io page, the fi
 - Still NOT verified: Firefox and Safari (all items), Ctrl+F6 on macOS, Firefox fullscreen behaviour. Duck voice tuning by ear is acceptable for now.
 - Open (unchanged): submission deadline mismatch between `README.md` and `epics.md`.
 
+## Decision 2026-11-10: web build budget raised to 32 MB (NFR4)
+
+- Tiziano decided on 2026-11-10 to raise the NFR4 web build budget from 30 MB to 32 MB (32,000,000 decimal bytes, uncompressed). Updated in `ci.yml` (`WEB_SIZE_BUDGET_BYTES`), `game/tools/smoke_web.sh`, and the planning and architecture docs.
+- Reason: the CI web build is 29,651,804 bytes (about 348 KB headroom) after Epic 4, and Epics 5 to 7 (two bosses, music) are still to come.
+- NFR3 is unaffected: the real compressed download from itch.io is about 12.3 MB, and the itch.io limit is far higher.
+- Historical records (story files, devlogs, the readiness report) keep the 30 MB figure.
+
 ## Open for the 3.9 playtest: new UX finding (2026-11-10)
 
 - [x] [3.9 UX] The Infinite Loop stays still until the first register shift (D-S33-6) and nothing tells the player that Q/E starts the fight. (Closed in Story 4.4: clearer T1 line plus a sim-side 300-tick auto-start, D-S44-1/D-S44-2. GDD Duck row 2 and the Boss 1 note still need the "or 5 s" edit after the playtest.)
