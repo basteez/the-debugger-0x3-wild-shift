@@ -292,3 +292,11 @@ Story 1.3 AC9 / I-6 ("mumble-speech web check, moved to 3.7") is UNBLOCKED. Tizi
 - `Hud.set_duck_only(false)` force-shows every HUD child; `is_duck_only` is inferred from `frame.visible`.
 - HarvestScreen: physics-frame flight vs sim-frame skip/cap diverge under hit-stop; bit flight starts at screen top-centre not the boss position; reassembly segments mapped to space cells vanish.
 - Test gaps: HarvestScreen `_unhandled_input` (key/click/modifier), F8 warn path, Main-level ENDING route after Fight 3, HP reset on the 480-frame cap path. F8 does not emit `boss_defeated`.
+
+## Deferred from: code review of story-4-1-loop-bit-echo (2026-11-10)
+
+- Echo as K `link_second` on a boss: no end-to-end test of weak-window completion (D-S41-6/D-S41-11); add with the 4.2 Echo Dash combo tests. Story 3.8's D-S38-6 (LOOP is NOP) is resolved by 4.1.
+- Echoed def with `cancel_into` can cancel into other bits, and an Echo run opens a link on (L, y); intended, untested; cover in 4.2.
+- EchoMemory holds a reference to a shared ActionDef resource; revisit if Epic 5/6 mutates defs at runtime.
+- An echoed hit re-applies the original def's Patched/boss interactions at 70% damage; not pinned by a test.
+- `ActionDef.echoable` defaults to true (opt-out); new boss/garbage defs must set it deliberately.

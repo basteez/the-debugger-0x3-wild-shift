@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="ActionDef" format=3]
+
+; Story 4.1 (NP-5, D-S41-2): Echo, the LOOP bit's solo action. Its frame data is a placeholder:
+; the ActionStateMachine runs the remembered ActionDef (EchoMemory.last) in its place, at 70%
+; damage (echo_damage_pct), and starts LOOP's 90-frame cooldown. Never stored as "last action".
+
+[ext_resource type="Script" path="res://src/player/action_def.gd" id="1_adef"]
+
+[resource]
+script = ExtResource("1_adef")
+id = &"echo"
+startup_frames = 0
+active_frames = 1
+recovery_frames = 0
+base_damage = 0
+cooldown_frames = 90
+move_tiles = 0.0
+hitstop_frames = 0
+echo_action = true
+echoable = false
+echo_damage_pct = 70

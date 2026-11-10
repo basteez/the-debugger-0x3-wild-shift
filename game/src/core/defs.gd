@@ -5,8 +5,11 @@ extends RefCounted
 
 const BIT_ATTACK: BitDef = preload("res://data/bits/bit_attack.tres")
 const BIT_DASH: BitDef = preload("res://data/bits/bit_dash.tres")
-## Story 3.8 (D-S38-6): LOOP, solo action NOP until Echo (Story 4.1).
+## Story 3.8 registered LOOP; Story 4.1: its solo action is Echo.
 const BIT_LOOP: BitDef = preload("res://data/bits/bit_loop.tres")
+## Story 4.1 (NP-5): LOOP's solo action; the FSM runs the remembered def in its place.
+const ECHO: ActionDef = preload("res://data/actions/echo.tres")
+## The Epic 6 garbage bit's action (NP-3); LOOP's placeholder in Story 3.8.
 const NOP: ActionDef = preload("res://data/actions/nop.tres")
 const SLASH_1: ActionDef = preload("res://data/actions/slash_1.tres")
 const SLASH_2: ActionDef = preload("res://data/actions/slash_2.tres")

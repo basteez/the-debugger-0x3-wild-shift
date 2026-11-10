@@ -11,6 +11,7 @@ extends SimSystem
 ## -> WeakWindowTracker.process (Patched applied, patched_applied emitted) -> damage with the
 ## post-patch state (DamageCalc only) -> take_hit / register_hit -> hit_landed -> one hit-stop
 ## request (HitFeedback.hitstop_for_boss_hit for the boss, hitstop_for for practice targets).
+## Story 4.1 (D-S41-5): an Echo hit passes ActionStateMachine.echo_scale() (0.7) to DamageCalc.
 
 var actions: ActionStateMachine
 ## Unused (2.7 deferred, D-S32-13); kept so the constructor used by Arena and tests stays put.
@@ -45,7 +46,7 @@ func tick(_ctx: SimContext) -> void:
 	if boss_hit:
 		hitstop = _resolve_boss_hit(def, serial, is_combo)
 	for target: PracticeTarget in hit:
-		var damage: int = DamageCalc.compute(def.base_damage, DamageState.multiplier(DamageState.Kind.BASE), false, 1.0)
+		var damage: int = DamageCalc.compute(def.base_damage, DamageState.multiplier(DamageState.Kind.BASE), false, actions.echo_scale())
 		target.register_hit(serial, SimClock.sim_frame, def.id, damage)
 		Log.debug(&"combat", "hit %s dmg=%d" % [def.id, damage])
 		EventBus.hit_landed.emit(target.hit_target_id(), damage, DamageState.Kind.BASE, is_combo, target.position_px)
@@ -66,7 +67,7 @@ func _resolve_boss_hit(def: ActionDef, serial: int, is_combo: bool) -> int:
 			Log.debug(&"combat", "patched %s by %s" % [boss.def.boss_id, def.id])
 		EventBus.patched_applied.emit(boss.def.boss_id, WeakWindowTracker.PATCHED_FRAMES)
 	var state: int = DamageState.Kind.PATCHED if boss.weak_window.is_patched() else DamageState.Kind.UNPATCHED
-	var damage: int = DamageCalc.compute(def.base_damage, DamageState.multiplier(state), false, 1.0)
+	var damage: int = DamageCalc.compute(def.base_damage, DamageState.multiplier(state), false, actions.echo_scale())
 	var pos: Vector2 = boss.hit_position() # Story 3.3 (D-S33-14): the `;` for the Infinite Loop
 	boss.mark_hit(serial)
 	boss.take_hit(damage)

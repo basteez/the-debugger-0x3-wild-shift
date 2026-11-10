@@ -42,6 +42,12 @@ var action_window: Vector2i = Vector2i.ZERO
 var combos: ComboTable = Defs.COMBOS
 ## Only an active FSM ticks: on in FIGHT, off elsewhere.
 var active: bool = false
+## Story 4.1 (NP-5, D-S41-8): Echo's memory, written only by _start, cleared by reset_for_fight.
+var echo: EchoMemory = EchoMemory.new()
+## True while the running action is an Echo (the remembered def run by LOOP's Echo).
+var echoing: bool = false
+## The Echo def that started the running echo (its echo_damage_pct); null when not echoing.
+var _echo_def: ActionDef = null
 
 ## The serial at the running J action's start; the link opens only if no shift happened since (review).
 var _start_serial: int = -1
@@ -96,7 +102,16 @@ func _resolve_input(poll_frame: int, window: Vector2i, serial: int) -> ResolveIn
 	input.cooldowns = cooldowns
 	input.link = link
 	input.combos = combos
+	input.echo_ready = echo.has_last()
 	return input
+
+
+## The running action's Echo damage factor for DamageCalc (Story 4.1, D-S41-5): the Echo def's
+## echo_damage_pct / 100 while echoing, else 1.0.
+func echo_scale() -> float:
+	if echoing and _echo_def != null:
+		return _echo_def.echo_damage_pct / 100.0
+	return 1.0
 
 
 ## True while the executing frame is inside the running action's invulnerable range (FR11).
@@ -121,6 +136,7 @@ func frame_in_state() -> int:
 ## Fight start (D-049 b): idle, no action, cooldowns, chain and link cleared, Player unlocked.
 func reset_for_fight() -> void:
 	_finish()
+	echo.clear() # Story 4.1 (NP-5, AC7): memory is per fight; retry also comes through here
 	cooldowns.reset()
 	link.close()
 	facing = Player.DEFAULT_FACING
@@ -156,7 +172,14 @@ static func state_name(s: ActionState) -> String:
 
 
 func _start(request: ActionRequest, serial: int, window: Vector2i = Vector2i.ZERO) -> void:
-	action = request.def
+	# Story 4.1 (D-S41-2): an Echo request runs the remembered def itself; the resolver only offers
+	# Echo when memory is non-empty (D-S41-3), the null check is belt and braces.
+	var is_echo: bool = request.def.echo_action and request.combo == null
+	if is_echo and not echo.has_last():
+		return
+	echoing = is_echo
+	_echo_def = request.def if is_echo else null
+	action = echo.last if is_echo else request.def
 	action_window = window
 	action_frame = 1
 	action_slot = request.slot
@@ -179,7 +202,16 @@ func _start(request: ActionRequest, serial: int, window: Vector2i = Vector2i.ZER
 	if request.combo != null:
 		_clear_chain()
 		Log.debug(&"action", "combo %s" % request.combo.display_name)
-	elif request.chain:
+		return # combos are never stored (D-S41-1)
+	if is_echo:
+		# D-S41-4: only LOOP's cooldown (started above from the Echo def); D-S41-7: no chain.
+		_clear_chain()
+		Log.debug(&"action", "%s echo %s" % [_start_verb(request), action.id])
+		return
+	# D-S41-1 / D-S41-10: every solo bit action (J/K solo, chain hits, cancels, link_second) is stored
+	# at its start, hit or whiff; NOP is filtered by echoable.
+	echo.remember(request.def)
+	if request.chain:
 		Log.debug(&"action", "chain %s" % request.def.id)
 	elif request.def.chain_next != null:
 		chain_key = request.key
@@ -243,6 +275,8 @@ func _finish() -> void:
 	combo = null
 	link_second = false
 	action_window = Vector2i.ZERO
+	echoing = false
+	_echo_def = null
 	_clear_chain()
 
 
