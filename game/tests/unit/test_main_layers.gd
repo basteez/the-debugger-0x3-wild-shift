@@ -72,8 +72,16 @@ func test_arena_and_hud_visible_only_in_fight() -> void:
 	for state: int in GameScript.FlowState.values():
 		main.apply_flow_state(state, 0)
 		var in_fight: bool = state == GameScript.FlowState.FIGHT
+		var harvest: bool = state == GameScript.FlowState.HARVEST
 		assert_eq(main.get_node(^"Arena").visible, in_fight, "arena in state %d" % state)
-		assert_eq(main.get_node(^"Hud").visible, in_fight, "hud in state %d" % state)
+		# Story 3.8 (D-S38-16): HARVEST shows the HUD in duck-only mode (the harvest line).
+		assert_eq(main.get_node(^"Hud").visible, in_fight or harvest, "hud in state %d" % state)
+		assert_eq(main.hud.is_duck_only(), harvest, "duck-only HUD in state %d" % state)
+		assert_true(main.hud.duck_bubble.visible, "the bubble itself is never hidden")
+		if harvest:
+			assert_false(main.hud.register_panel.visible, "no in-fight register in HARVEST (D-S38-5)")
+			assert_false(main.hp_readout.visible, "no HP readout in HARVEST")
+			assert_false(main.hud.frame.visible, "no boss header in HARVEST (D-S38-13)")
 
 
 func test_screen_for_each_state() -> void:
@@ -83,7 +91,6 @@ func test_screen_for_each_state() -> void:
 	var labels: Dictionary[int, String] = {
 		GameScript.FlowState.INTRO: "INTRO",
 		GameScript.FlowState.FIGHT: "FIGHT 2",
-		GameScript.FlowState.HARVEST: "HARVEST",
 		GameScript.FlowState.ENDING: "ENDING",
 	}
 	for state: int in labels:
@@ -95,6 +102,9 @@ func test_screen_for_each_state() -> void:
 		assert_eq(screen.lines[0], labels[state])
 		assert_eq(screen.get_parent(), main.get_node(^"Screens"))
 		assert_true(not is_instance_valid(old) or old.is_queued_for_deletion(), "old screen freed")
+	main.apply_flow_state(GameScript.FlowState.HARVEST, 1)
+	assert_true(_screen_of(main) is HarvestScreen, "HARVEST shows the real screen (3.8), no placeholder")
+	assert_eq(PlaceholderScreen.lines_for(GameScript.FlowState.HARVEST, 0).size(), 0, "no HARVEST placeholder text")
 	main.apply_flow_state(GameScript.FlowState.DEAD, 0)
 	assert_true(_screen_of(main) is DeadScreen, "DEAD shows the Process exited screen (2.9)")
 	assert_eq(_screen_of(main).get_parent(), main.get_node(^"Screens"))

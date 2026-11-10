@@ -16,6 +16,10 @@ const ROAR_FRAMES := 60
 ## Jitter steps (D-S31-9): level 1 at or below 66% HP, level 2 at or below 33%.
 const JITTER_STEP_1_PERCENT := 66
 const JITTER_STEP_2_PERCENT := 33
+## Story 3.8 (D-S38-1): hit-stop requested on the defeat, then DEFEAT_FRAMES world ticks of
+## reassembly counted in sim state (defeat_frames_elapsed) before presentation may leave FIGHT.
+const DEFEAT_HITSTOP_FRAMES := 20
+const DEFEAT_FRAMES := 60
 
 var def: BossDef
 ## Arena-local centre of the body hurtbox (D-S31-12). Set by the arena or the boss's body.
@@ -36,6 +40,9 @@ var second_last_pick: int = -1
 var weak_window: WeakWindowTracker = WeakWindowTracker.new()
 ## ActionStateMachine.action_serial of the last action that hit the boss; -1 = none (D-S32-10).
 var last_hit_serial: int = -1
+## Story 3.8 (A1, D-S38-1, D-S38-8): world ticks since the defeat, 0..DEFEAT_FRAMES. Counted in
+## tick() while DEFEATED even though `active` is false; reset in reset_for_fight. Sim state only.
+var defeat_frames_elapsed: int = 0
 
 var _health: PlayerHealth
 var _arena: ArenaContext
@@ -102,6 +109,7 @@ func reset_for_fight() -> void:
 	last_pick = -1
 	second_last_pick = -1
 	_defeat_emitted = false
+	defeat_frames_elapsed = 0
 	last_hit_serial = -1
 	weak_window.clear()
 	for attack: BossAttack in _attacks:
@@ -118,6 +126,11 @@ func set_active(on: bool) -> void:
 
 
 func tick(ctx: SimContext) -> void:
+	if state == BossState.DEFEATED and def != null:
+		# Story 3.8 (A1): the reassembly counter runs on its own; the body and the FSM stay stopped.
+		if defeat_frames_elapsed < DEFEAT_FRAMES:
+			defeat_frames_elapsed += 1
+		return
 	if not active:
 		return
 	weak_window.tick() # D-S32-22: Patched counts live sim frames, ROAR included
@@ -261,9 +274,17 @@ func _defeat() -> void:
 	_on_defeated()
 	if not _defeat_emitted:
 		_defeat_emitted = true
+		defeat_frames_elapsed = 0
+		SimClock.request_hitstop(DEFEAT_HITSTOP_FRAMES) # Story 3.8 (A2, AC 1)
 		if Debug.enabled:
 			Log.debug(&"boss", "defeated %s" % def.boss_id)
 		EventBus.boss_defeated.emit(def.boss_id)
+
+
+## Story 3.8 (A3): true once the defeat animation is over (DEFEATED and DEFEAT_FRAMES world ticks
+## counted). A pure read for presentation, which then asks Game.finish_defeat.
+func defeat_finished() -> bool:
+	return def != null and state == BossState.DEFEATED and defeat_frames_elapsed >= DEFEAT_FRAMES
 
 
 ## True while a player hit can affect the boss (D-S32-9): live, in GAP, TELL, ACTIVE or RECOVERY.

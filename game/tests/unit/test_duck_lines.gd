@@ -9,6 +9,10 @@ const GDD: Dictionary[StringName, String] = {
 	&"t3_dash_strike": "J then K: Dash Strike. Two bits, one commit.",
 	&"t4_phase_two": "It refactored itself. Have you tried shifting it off and on again?",
 }
+## Story 3.8 (E4, FR45 line 8): the shared harvest line.
+const HARVEST_TEXT := "Bug squashed. It dropped a bit: new windows, new combos."
+## GDD D-039: the duck speaks at most 10 lines in the whole game.
+const LINE_BUDGET := 10
 
 
 func _lines() -> DuckLinesDef:
@@ -25,11 +29,19 @@ func _line(id: StringName, text: String) -> DuckLineDef:
 func test_the_four_tutorial_lines_equal_the_gdd_strings() -> void:
 	var lines: DuckLinesDef = _lines()
 	assert_not_null(lines)
-	assert_eq(lines.entries.size(), 4, "only T1-T4 in this story (D-S36-3)")
+	assert_eq(lines.entries.size(), 5, "T1-T4 (D-S36-3) plus the 3.8 harvest line")
 	for i: int in DuckDirector.DUCK_IDS.size():
 		var id: StringName = DuckDirector.DUCK_IDS[i]
 		assert_eq(lines.entries[i].id, id, "order follows the beats")
 		assert_eq(lines.find(id).text, GDD[id], String(id))
+
+
+func test_harvest_line_is_the_fifth_entry_and_the_budget_holds() -> void:
+	var lines: DuckLinesDef = _lines()
+	assert_eq(lines.entries[4].id, &"harvest_shared")
+	assert_eq(lines.find(&"harvest_shared").text, HARVEST_TEXT)
+	assert_eq(lines.find(StringName(HarvestScreen.LINE_ID)).text, HARVEST_TEXT, "the screen's id resolves")
+	assert_lte(lines.entries.size(), LINE_BUDGET, "duck line budget (GDD D-039)")
 
 
 func test_ids_are_unique_and_text_is_ascii() -> void:

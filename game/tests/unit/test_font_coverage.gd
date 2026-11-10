@@ -45,6 +45,12 @@ func _used_codepoints() -> Dictionary[int, String]:
 	texts.append(DuckBubble.DUCK_GLYPH)
 	for entry: DuckLineDef in (load("res://data/duck/duck_lines.tres") as DuckLinesDef).entries:
 		texts.append_array(DuckBubble.wrap(entry.text))
+	# Story 3.8: the HARVEST screen rows and the Infinite Loop's fixed line (D4).
+	var harvest := HarvestScreen.new()
+	harvest.setup(0, (load("res://data/bosses/infinite_loop/boss_def.tres") as BossDef).fixed_line, Register.Bit.LOOP, Register.fight_start_for_boss(0))
+	texts.append_array(harvest.text_rows())
+	harvest.free()
+	texts.append(HarvestScreen.FIXED_FALLBACK)
 	var used: Dictionary[int, String] = {}
 	for t: String in texts:
 		for i: int in t.length():

@@ -203,3 +203,23 @@ func test_shift_serial_counts_applied_shifts() -> void:
 	assert_eq(_reg.shift_serial, 2, "a rejected shift does not count")
 	_reg.preview(Register.LEFT)
 	assert_eq(_reg.shift_serial, 2, "preview never counts")
+
+
+# --- Story 3.8 (G5): the harvest insertion ---
+
+func test_inserting_loop_into_a_d_gives_a_d_l_and_0x07() -> void:
+	_start([A, D])
+	assert_true(_reg.insert(L))
+	assert_eq(_reg.ring, _ring([A, D, L]))
+	assert_eq(_reg.byte_value(), 0x07)
+	assert_eq(_reg.ring, Register.fight_start_for_boss(1), "the Fight 2 start set")
+
+
+func test_inserting_into_a_full_ring_or_a_duplicate_is_rejected() -> void:
+	_start([A, D, L])
+	assert_false(_reg.insert(L))
+	assert_push_error("insert of owned bit")
+	_start([A, D, L, N])
+	assert_false(_reg.insert(L))
+	assert_push_error("insert into a full register")
+	assert_eq(_reg.ring, _ring([A, D, L, N]))

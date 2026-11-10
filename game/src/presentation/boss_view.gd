@@ -42,6 +42,9 @@ const COUNTER_INSET_TILES := 1.5
 ## Story 3.4: the Head Rush head glyph and the outline's segment count.
 const HEAD_GLYPH := "{"
 const OUTLINE_POINTS := 48
+## Story 3.8 (D1, D-S38-9): the reassembly swaps each ring glyph for its fixed-line character, and
+## the fixed line's extra cells (27 vs 24) pop in, at this progress (INK/BG only: no alpha fade).
+const REASSEMBLY_SWAP := 0.5
 
 var boss: BossController
 
@@ -62,8 +65,8 @@ func _process(_delta: float) -> void:
 	if _number_left > 0:
 		_number_left -= 1
 		queue_redraw()
-	if boss != null and boss.active:
-		queue_redraw()
+	if boss != null and (boss.active or boss.state == BossController.BossState.DEFEATED):
+		queue_redraw() # Story 3.8: the reassembly moves while the boss is inactive
 
 
 ## Story 3.2: a boss hit sets the damage number (presentation only): shown for DAMAGE_NUMBER_FRAMES _process frames.
@@ -117,6 +120,10 @@ func _draw_ring(body: InfiniteLoopBody) -> void:
 	var flash: bool = roar_flash_on(body.state == BossController.BossState.ROAR, body.frames_left)
 	var open: bool = body.is_open() and not defeated
 	var hidden: bool = not defeated and nested_flash_hidden(nested_telling(body), body.frames_left)
+	if defeated and body.def.fixed_line != "":
+		_draw_reassembly(body, cell)
+		_draw_number(Vector2(0, 0))
+		return
 	if not hidden:
 		var outer_open: bool = open and body.open_ring != InfiniteLoopBody.INNER
 		for k: int in body.outer_segments():
@@ -141,6 +148,56 @@ func _draw_ring(body: InfiniteLoopBody) -> void:
 	if not defeated:
 		_draw_attack(body.current_attack(), cell)
 	_draw_number(Vector2(0, 0))
+
+
+## Story 3.8 (D1, AC 7, D-S38-9): after the defeat every ring segment (outer, then inner) moves from
+## where the ring stopped to its cell of the boss's fixed line over BossController.DEFEAT_FRAMES
+## world ticks (sim progress, so the hit-stop and the pause freeze it). Segment k goes to cell k; the
+## cells past the last segment pop in at REASSEMBLY_SWAP. The `;` stays a plain (closed) glyph.
+func _draw_reassembly(body: InfiniteLoopBody, cell: Vector2) -> void:
+	var line: String = body.def.fixed_line
+	var progress: float = reassembly_progress(body.defeat_frames_elapsed)
+	var line_centre: Vector2 = fixed_line_centre(body.body_center_px, line.length())
+	var sources := PackedVector2Array()
+	for k: int in body.outer_segments():
+		sources.append(body.segment_px(k))
+	for k: int in body.inner_segment_count():
+		sources.append(body.inner_segment_px(k))
+	var swapped: bool = progress >= REASSEMBLY_SWAP
+	for k: int in sources.size():
+		if k >= line.length():
+			if not swapped: # a segment with no cell (never with 24 segments) leaves at the swap
+				_draw_ring_cell(sources[k], ring_glyph(k), false, cell, Vector2.ZERO)
+			continue
+		var target: Vector2 = fixed_cell_centre(line_centre, k, line.length())
+		var glyph: String = line[k] if swapped else ring_glyph(k)
+		if glyph != " ":
+			_draw_ring_cell(sources[k].lerp(target, progress), glyph, false, cell, Vector2.ZERO)
+	if swapped:
+		for k: int in range(sources.size(), line.length()):
+			if line[k] != " ":
+				_draw_ring_cell(fixed_cell_centre(line_centre, k, line.length()), line[k], false, cell, Vector2.ZERO)
+
+
+## Story 3.8: 0..1 reassembly progress after `elapsed` defeat ticks. Pure.
+static func reassembly_progress(elapsed: int) -> float:
+	return clampf(float(elapsed) / float(BossController.DEFEAT_FRAMES), 0.0, 1.0)
+
+
+## Story 3.8: the centre of the reassembled fixed line of `n` glyphs: the ring's centre, pushed in so
+## the whole line stays inside the play area. Pure.
+static func fixed_line_centre(ring_centre: Vector2, n: int) -> Vector2:
+	var half: float = n * GlyphFont.CELL * GLYPH_SCALE / 2.0
+	var area: Rect2 = Arena.play_area()
+	var x: float = ring_centre.x
+	if half * 2.0 <= area.size.x:
+		x = clampf(x, area.position.x + half, area.end.x - half)
+	return Vector2(x, ring_centre.y)
+
+
+## Story 3.8: the centre of cell `index` of a fixed line of `n` glyphs centred on `line_centre`. Pure.
+static func fixed_cell_centre(line_centre: Vector2, index: int, n: int) -> Vector2:
+	return line_centre + Vector2((index - (n - 1) / 2.0) * GlyphFont.CELL * GLYPH_SCALE, 0.0)
 
 
 ## One ring glyph cell: inverted (INK block, BG glyph) when `lit`, plain INK otherwise.

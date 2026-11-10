@@ -266,3 +266,14 @@ Story 1.3 AC9 / I-6 ("mumble-speech web check, moved to 3.7") is UNBLOCKED. Tizi
 - If `MumbleSpeaker.say` silently produces nothing (suspended AudioContext), only the watchdog (`len/cps + 3` s) recovers; consider a no-first-character fallback to the timer.
 - `use_speaker` does not free or disconnect a previous speaker (tests that swap in the fake leave the real speaker child when the addon loads).
 - `CLIPS` is preloaded even on MUMBLE; `test_voice_service` FakeSpeaker has no signals so `use_speaker` signal wiring is only covered by the real-addon test; `DuckBubble._voice_line` is write-only.
+
+## Deferred from: code review of story-3.8 (2026-11-10)
+
+- Dying inside the 80-frame defeat window (D-S38-3) discards the kill: retry restarts the boss at full HP and no bit is granted; decide at the MVP playtest (3.9).
+- Release build: FIGHT 2/3 have no boss and no exit until Epic 5/6; the run dead-ends there.
+- An F11 recording left running through FIGHT -> HARVEST -> FIGHT does not reproduce fight 2 (new seed, HARVEST idle frames); stop or segment the recorder on the flow change.
+- Test hygiene: defeat hit-stop leaks across suites (test_camera_shake, others); suites poke private `SimClock._pending_hitstop`; add a shared reset helper.
+- `Game.finish_harvest` has no bounds check on `boss_index + 1` and does not enforce the 2 s skip gate (only the screen does).
+- `Hud.set_duck_only(false)` force-shows every HUD child; `is_duck_only` is inferred from `frame.visible`.
+- HarvestScreen: physics-frame flight vs sim-frame skip/cap diverge under hit-stop; bit flight starts at screen top-centre not the boss position; reassembly segments mapped to space cells vanish.
+- Test gaps: HarvestScreen `_unhandled_input` (key/click/modifier), F8 warn path, Main-level ENDING route after Fight 3, HP reset on the 480-frame cap path. F8 does not emit `boss_defeated`.

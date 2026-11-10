@@ -3,6 +3,7 @@ extends Node
 ## calls unlock() on that input. Buses come from res://default_bus_layout.tres, not from code.
 ## Music crossfade and pooled SFX arrive with the real assets (7.1, 7.2).
 
+const GameFlow := preload("res://src/autoloads/game.gd")
 const SFX_BUS := &"SFX"
 const MASTER_BUS := &"Master"
 const BLIP_HZ := 880.0
@@ -34,6 +35,10 @@ var _chime: AudioStreamWAV = null
 var _squeak_player: AudioStreamPlayer = null
 ## Placeholder squeak stream (make_blip until 7.2), made once and shared.
 static var _squeak_stream: AudioStreamWAV = null
+## Story 3.8 (D2, AC 1, D-S38-12): defeat squeaks requested this session, and the once-per-fight
+## guard (a second boss_defeated in the same fight never squeaks twice; reset on FIGHT entry).
+var defeat_squeak_count: int = 0
+var _defeat_squeaked: bool = false
 
 
 func _ready() -> void:
@@ -43,6 +48,22 @@ func _ready() -> void:
 	EventBus.boss_tell_started.connect(_on_boss_tell_started)
 	EventBus.hit_landed.connect(_on_hit_landed)
 	EventBus.patched_applied.connect(_on_patched_applied)
+	EventBus.boss_defeated.connect(on_boss_defeated)
+	EventBus.flow_state_changed.connect(_on_flow_state_changed)
+
+
+## Story 3.8 (D2, AC 1): the duck squeaks once when the boss is defeated. Presentation only.
+func on_boss_defeated(_boss: StringName) -> void:
+	if _defeat_squeaked:
+		return
+	_defeat_squeaked = true
+	defeat_squeak_count += 1
+	play_squeak()
+
+
+func _on_flow_state_changed(_from: int, to: int) -> void:
+	if to == GameFlow.FlowState.FIGHT:
+		_defeat_squeaked = false
 
 
 ## Story 3.1 (AC 4): every boss tell plays its cue on the SFX bus. Presentation only.

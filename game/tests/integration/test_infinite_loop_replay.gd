@@ -140,6 +140,7 @@ static func _hash(h: int, arena: Arena, body: InfiniteLoopBody) -> int:
 		rng_state & 0x7FFFFFFF, (rng_state >> 31) & 0x7FFFFFFF, (rng_state >> 62) & 0x3,
 		int(body.split), body.next_ring, body.open_ring, body.ring_timer, int(body.nested_done),
 		body.inner_travel_mtiles, body.inner_travel_rem, body.inner_speed_mtps(), body.spit.timer,
+		body.defeat_frames_elapsed, SimClock.hitstop_frames, # Story 3.8 (A4, AC 8)
 	]
 	for k: int in body.spit.slot_active.size():
 		values.append(body.spit.slot_active[k])
@@ -154,8 +155,9 @@ static func _hash(h: int, arena: Arena, body: InfiniteLoopBody) -> int:
 
 ## One FIGHT session: a fresh Arena in the tree, the clock re-seeded, `frames` polls. With
 ## `attacks` (Story 3.4) the phase-2 skip runs at SKIP_AT and the recovery choreography is on.
-func _session(source: InputSource, seed_value: int, frames: int = FRAMES, attacks: bool = false, p3: bool = false) -> Dictionary:
+func _session(source: InputSource, seed_value: int, frames: int = FRAMES, attacks: bool = false, p3: bool = false, kill_at: int = -1) -> Dictionary:
 	_boss_hits = [0]
+	var defeat_tick: Array[int] = [-1]
 	_recovery_hits = [0]
 	var tells: Dictionary[StringName, int] = {}
 	var on_tell: Callable = func(id: StringName, _sfx: StringName) -> void: tells[id] = tells.get(id, 0) + 1
@@ -169,6 +171,8 @@ func _session(source: InputSource, seed_value: int, frames: int = FRAMES, attack
 	assert_not_null(body, "the Infinite Loop is loaded")
 	_body = body
 	var start_frame: int = SimClock.sim_frame
+	var on_defeat: Callable = func(_id: StringName) -> void: defeat_tick[0] = SimClock.sim_frame - start_frame
+	EventBus.boss_defeated.connect(on_defeat)
 	var hashes := PackedInt64Array()
 	var h: int = 17
 	var rng_off_tell: int = 0
@@ -180,6 +184,8 @@ func _session(source: InputSource, seed_value: int, frames: int = FRAMES, attack
 		if p3 and i == P3_SKIP_AT:
 			body.debug_skip_phase() # Shift+F6 twice (D-S34-19), test only
 			body.debug_skip_phase()
+		if i == kill_at:
+			body.debug_kill() # Story 3.8 (G7): the F6 path, test only
 		if attacks:
 			_recovery_choreography(arena, body, i)
 			if i == SKIP_AT:
@@ -217,7 +223,11 @@ func _session(source: InputSource, seed_value: int, frames: int = FRAMES, attack
 		&"recovery_openings_split": recovery_openings_split,
 		&"ring_openings": ring_openings,
 		&"spit_shots": body.spit.shots,
+		&"defeat_tick": defeat_tick[0],
+		&"defeat_finished": body.defeat_finished(),
+		&"defeat_frames": body.defeat_frames_elapsed,
 	}
+	EventBus.boss_defeated.disconnect(on_defeat)
 	EventBus.boss_tell_started.disconnect(on_tell)
 	_body = null
 	arena.leave_fight()
@@ -323,5 +333,32 @@ func test_a_recorded_fight_through_phase_3_replays_bit_identically() -> void:
 	assert_eq(again[&"ring_openings"], live[&"ring_openings"])
 	assert_eq(again[&"spit_shots"], live[&"spit_shots"])
 	assert_eq(again[&"boss_hp"], live[&"boss_hp"])
+	assert_eq(again[&"hashes"], live[&"hashes"], "same integer-state hash on every tick")
+	assert_eq(again[&"rng_state"], live[&"rng_state"])
+
+
+
+## Story 3.8 (G7, AC 8, D-S38-8): a fight that ends in a defeat (killed on loop index KILL_AT through
+## the F6 path) replays bit-identically: same per-tick hash (it covers defeat_frames_elapsed and the
+## hit-stop counter), same defeat tick, and the 60-tick reassembly completes in sim state.
+const KILL_AT := 200
+const DEFEAT_SEED := 38038
+
+
+func test_a_recorded_fight_ending_in_defeat_replays_bit_identically() -> void:
+	var rec := InputRecorder.new()
+	rec.start(DEFEAT_SEED)
+	SimClock.recorder = rec
+	var live: Dictionary = _session(LoopScript.new(), DEFEAT_SEED, 360, false, false, KILL_AT)
+	SimClock.recorder = null
+	assert_true(InputRecorder.save(rec.stop(), TMP_PATH))
+	var replay := ReplayInput.from_file(TMP_PATH)
+	var again: Dictionary = _session(replay, replay.seed_value, 360, false, false, KILL_AT)
+	assert_eq(live[&"boss_hp"], 0)
+	assert_gte(live[&"defeat_tick"], 0, "boss_defeated was emitted")
+	assert_true(live[&"defeat_finished"], "the reassembly finished within the run")
+	assert_eq(live[&"defeat_frames"], BossController.DEFEAT_FRAMES)
+	assert_eq(again[&"defeat_tick"], live[&"defeat_tick"], "same defeat tick")
+	assert_eq(again[&"ticks"], live[&"ticks"], "same sim_frame (the 20-frame hit-stop included)")
 	assert_eq(again[&"hashes"], live[&"hashes"], "same integer-state hash on every tick")
 	assert_eq(again[&"rng_state"], live[&"rng_state"])
