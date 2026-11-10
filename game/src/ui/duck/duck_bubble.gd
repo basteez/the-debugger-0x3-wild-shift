@@ -4,7 +4,7 @@ extends Node2D
 ## duck at cell (0, 22) and the current line word-wrapped at 12 columns from row 23, revealed by a
 ## typewriter (TypewriterReveal) with a squeak on every line start (D-046, D-S36-6). Lines arrive
 ## through EventBus.duck_line_requested (VoiceService.say); up to MAX_PENDING wait in FIFO order.
-## Clears whenever the flow leaves FIGHT (D-S36-8) and freezes while SimClock.paused (D-S36-12).
+## Clears whenever the flow leaves FIGHT or HARVEST (D-S36-8, Story 3.8 D-S38-11) and freezes while SimClock.paused (D-S36-12).
 ## Story 3.7: when VoiceService can speak, the squeak plays first and the voice starts after
 ## SQUEAK_LEAD_S (D-S37-6); the voice then drives the reveal through
 ## EventBus.duck_character_spoken (set_revealed(char_index + 1), D-S37-4) and the hold starts at
@@ -85,9 +85,9 @@ func enqueue(text: String, line_id: StringName = &"") -> void:
 
 
 ## Drops the queue and hides the bubble. Hidden first, then the voice is stopped, so the
-## duck_line_finished that stop() emits finds no showing line (AC 6).
+## duck_line_finished that stop() emits finds no showing line (AC 6). Story 3.8 (AC 9, D-S38-11):
+## the voice is always stopped (a no-op when nothing speaks), so no line outlives a flow exit.
 func clear() -> void:
-	var was_showing: bool = _showing
 	_showing = false
 	_voice_line = false
 	_voice_speaking = false
@@ -98,8 +98,7 @@ func clear() -> void:
 	_current_id = &""
 	_reveal.set_line(0)
 	_hold_s = 0.0
-	if was_showing:
-		voice.stop()
+	voice.stop()
 	queue_redraw()
 
 
@@ -252,8 +251,11 @@ func _sync_draw() -> void:
 		queue_redraw()
 
 
-func _on_flow_state_changed(_from: int, to: int) -> void:
-	if to != Game.FlowState.FIGHT:
+## Story 3.8 (AC 9, D-S38-11): leaving FIGHT clears the bubble and cuts the voice, so a fight line
+## never finishes into HARVEST; leaving HARVEST does the same for the harvest line (E5). The HARVEST
+## screen requests its line after this (deferred), so the line survives its own entry.
+func _on_flow_state_changed(from: int, to: int) -> void:
+	if to != Game.FlowState.FIGHT or from == Game.FlowState.HARVEST:
 		clear()
 
 

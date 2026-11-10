@@ -298,10 +298,19 @@ func test_f6_kills_the_boss_and_shift_f6_skips_a_phase() -> void:
 	assert_eq(boss.hp, 0)
 	assert_eq(boss.state, BossController.BossState.DEFEATED)
 	assert_signal_emitted_with_parameters(EventBus, "boss_defeated", [&"test_boss"])
-	assert_eq(Game.flow_state, GameScript.FlowState.FIGHT, "no flow change until 3.8")
+	# Story 3.8 (G3): F6 goes through the real defeat path: FIGHT holds during the animation.
+	assert_eq(Game.flow_state, GameScript.FlowState.FIGHT, "FIGHT holds during the defeat animation")
 	assert_eq(main.hud.top_bar_text(), "void testBoss() // hp 0")
 	assert_false(keys.handle_key(_key(KEY_F6)), "a dead boss is not killed twice")
 	assert_signal_emit_count(EventBus, "boss_defeated", 1)
+	assert_false(main.poll_defeat(), "not before the animation ends")
+	for i: int in 1 + BossController.DEFEAT_HITSTOP_FRAMES + BossController.DEFEAT_FRAMES:
+		SimClock.tick()
+	assert_true(boss.defeat_finished())
+	assert_true(main.poll_defeat(), "Main leaves FIGHT after the tick")
+	assert_eq(Game.flow_state, GameScript.FlowState.HARVEST, "Fight 1 -> HARVEST")
+	assert_true(main.current_screen is HarvestScreen)
+	SimClock.begin_fight(0)
 
 
 func test_boss_keys_do_nothing_without_a_boss_or_outside_fight() -> void:
@@ -365,3 +374,45 @@ func test_shift_f2_practice_has_no_boss_and_f6_keeps_working_on_the_loop() -> vo
 	assert_true(keys.handle_key(_key(KEY_F6)), "F6 kills the Infinite Loop")
 	assert_signal_emitted_with_parameters(EventBus, "boss_defeated", [&"infinite_loop"])
 	assert_eq(main.hud.top_bar_text(), "void infiniteLoop() // hp 0")
+
+
+
+# --- Story 3.8 (G3, AC 4): F8 grants the drop bit without the fight ---
+
+func test_f8_grants_the_loop_on_fight_1_and_goes_to_harvest() -> void:
+	var main: Node2D = _main_with_debug()
+	var keys: DebugKeys = main.get_node(^"DebugKeys")
+	keys.handle_key(_key(KEY_F2))
+	assert_true(main.arena.boss is InfiniteLoopBody)
+	assert_false(keys.handle_key(_key(KEY_F8, true, false, true)), "Shift+F8 is not the grant key")
+	assert_true(keys.handle_key(_key(KEY_F8)), "F8 is consumed")
+	assert_eq(Game.flow_state, GameScript.FlowState.HARVEST)
+	var screen := main.current_screen as HarvestScreen
+	assert_not_null(screen)
+	assert_eq(screen.bit, Register.Bit.LOOP)
+	assert_eq(screen.shown_ring, PackedInt32Array([Register.Bit.ATTACK, Register.Bit.DASH, Register.Bit.LOOP]))
+	Game.finish_harvest(SimClock.sim_frame)
+	assert_eq(Game.run.boss_index, 1)
+	assert_eq(main.arena.register.ring, PackedInt32Array([Register.Bit.ATTACK, Register.Bit.DASH, Register.Bit.LOOP]), "Fight 2 loadout [A, D, L]")
+
+
+func test_f8_is_a_no_op_on_fight_2_and_outside_fight() -> void:
+	var main: Node2D = _main_with_debug()
+	var keys: DebugKeys = main.get_node(^"DebugKeys")
+	keys.handle_key(_key(KEY_F3)) # FIGHT boss 1: no body, NULL has no BitDef (D-S38-15)
+	assert_true(keys.handle_key(_key(KEY_F8)))
+	assert_eq(Game.flow_state, GameScript.FlowState.FIGHT, "no grant on Fight 2")
+	keys.handle_key(_key(KEY_F1))
+	assert_true(keys.handle_key(_key(KEY_F8)))
+	assert_eq(Game.flow_state, GameScript.FlowState.TITLE, "no grant outside FIGHT")
+
+
+func test_f8_does_nothing_in_release() -> void:
+	Debug.enabled = false
+	var main: Node2D = (load("res://src/main/main.tscn") as PackedScene).instantiate()
+	add_child_autofree(main)
+	assert_null(main.get_node_or_null(^"DebugKeys"), "no debug node in release")
+	main.apply_flow_state(GameScript.FlowState.FIGHT, 0)
+	Game.flow_state = GameScript.FlowState.FIGHT
+	assert_false(Game.debug_grant_bit(main.arena.boss), "the Game gate refuses too")
+	assert_eq(Game.flow_state, GameScript.FlowState.FIGHT)

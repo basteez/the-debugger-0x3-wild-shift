@@ -263,3 +263,24 @@ func test_ring_def_rejects_bad_attack_numbers() -> void:
 	var too_big_for_split := RingDef.new()
 	too_big_for_split.constrict_radius_tiles = 3 # < 3.82 but >= the 2.55-tile split outer ring
 	assert_eq(too_big_for_split.validate().size(), 1, "3 >= 2.55")
+
+
+# --- Story 3.8 (G4, C1-C3): the LOOP bit and its NOP action ---
+
+func test_bit_loop_and_nop_validate_and_resolve() -> void:
+	var bit := load("res://data/bits/bit_loop.tres") as BitDef
+	var nop := load("res://data/actions/nop.tres") as ActionDef
+	assert_eq(bit.validate(), PackedStringArray())
+	assert_eq(nop.validate(), PackedStringArray())
+	assert_eq(bit.id, Register.Bit.LOOP)
+	assert_eq(bit.glyph, "L")
+	assert_eq(bit.solo_action, nop)
+	assert_eq(nop.id, &"nop")
+	assert_eq(nop.base_damage, 0)
+	assert_null(nop.hit_shape)
+	assert_eq(nop.cooldown_frames, 0)
+	assert_eq(nop.hitstop_frames, 0)
+	assert_eq(nop.total_frames(), 1)
+	assert_not_null(Defs.bit(Register.Bit.LOOP))
+	assert_eq(Defs.solo_action(Register.Bit.LOOP), Defs.NOP)
+	assert_null(Defs.bit(Register.Bit.NULL_BIT), "NULL waits for Epic 5")

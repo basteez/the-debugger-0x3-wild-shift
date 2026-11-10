@@ -25,7 +25,9 @@ func test_run_state_starts_at_boss_zero() -> void:
 	assert_eq(_game().run.boss_index, 0)
 
 
-func test_full_sequence_and_boss_index() -> void:
+## Story 3.8 (D-S38-14): advance() is the placeholder navigation for boss-less fights only; real
+## defeats leave FIGHT through finish_defeat (tests below).
+func test_full_sequence_and_boss_index_via_placeholder_advance() -> void:
 	var game: Node = _game()
 	watch_signals(EventBus)
 	game.start_run_from_title(10)
@@ -387,3 +389,132 @@ func test_dead_is_not_pausable() -> void:
 	game.record_death(10)
 	assert_false(game.set_paused(true, &"esc"))
 	assert_false(SimClock.paused)
+
+
+# --- Story 3.8 (G2): defeat routing and the HARVEST exit ---
+
+const TEST_BOSS: BossDef = preload("res://data/bosses/test_boss/boss_def.tres")
+const IL_BOSS: BossDef = preload("res://data/bosses/infinite_loop/boss_def.tres")
+
+
+## A real controller killed and ticked through its defeat animation (`finished` = all 60 ticks).
+func _dead_boss(def: BossDef = TEST_BOSS, finished: bool = true) -> BossController:
+	var c := BossController.new()
+	assert_true(c.setup(def, null, ArenaContext.new()))
+	c.reset_for_fight()
+	c.debug_kill()
+	SimClock.set(&"_pending_hitstop", 0)
+	var ctx := SimContext.new()
+	for i: int in (BossController.DEFEAT_FRAMES if finished else BossController.DEFEAT_FRAMES - 1):
+		c.tick(ctx)
+	return c
+
+
+func test_route_after_defeat() -> void:
+	assert_eq(GameScript.route_after_defeat(0), S.HARVEST)
+	assert_eq(GameScript.route_after_defeat(1), S.HARVEST)
+	assert_eq(GameScript.route_after_defeat(2), S.ENDING, "the Segfault drops nothing (GDD D-012)")
+
+
+func test_finish_defeat_fight_1_goes_to_harvest_only_after_the_animation() -> void:
+	var game: Node = _game()
+	_fight(game, 0)
+	assert_false(game.finish_defeat(null), "no boss")
+	var live := BossController.new()
+	live.setup(TEST_BOSS, null, ArenaContext.new())
+	live.reset_for_fight()
+	assert_false(game.finish_defeat(live), "a live boss")
+	assert_false(game.finish_defeat(_dead_boss(TEST_BOSS, false)), "tick 59: not yet")
+	assert_eq(game.flow_state, S.FIGHT)
+	var frame_before: int = SimClock.sim_frame
+	assert_true(game.finish_defeat(_dead_boss()))
+	assert_eq(game.flow_state, S.HARVEST)
+	assert_eq(game.run.boss_index, 0)
+	assert_eq(game.harvest_start_frame, frame_before)
+
+
+func test_finish_defeat_fight_3_goes_to_ending_with_no_harvest() -> void:
+	var game: Node = _game()
+	_fight(game, 2)
+	watch_signals(EventBus)
+	assert_true(game.finish_defeat(_dead_boss()))
+	assert_eq(game.flow_state, S.ENDING)
+	assert_signal_emit_count(EventBus, "flow_state_changed", 1)
+	assert_signal_emitted_with_parameters(EventBus, "flow_state_changed", [S.FIGHT, S.ENDING])
+
+
+func test_finish_defeat_refused_outside_fight_and_while_paused() -> void:
+	var game: Node = _game()
+	var boss: BossController = _dead_boss()
+	assert_false(game.finish_defeat(boss), "TITLE")
+	_fight(game, 0)
+	SimClock.paused = true
+	assert_false(game.finish_defeat(boss), "paused")
+	SimClock.paused = false
+	game.record_death(SimClock.sim_frame)
+	assert_false(game.finish_defeat(boss), "DEAD (a death in the defeat window wins, D-S38-3)")
+	assert_eq(game.flow_state, S.DEAD)
+
+
+func test_harvest_skip_and_cap_frames() -> void:
+	assert_eq(GameScript.HARVEST_MAX_FRAMES, 480)
+	assert_eq(GameScript.HARVEST_SKIP_FRAMES, 120)
+	assert_false(GameScript.harvest_skip_open_at(100, 219))
+	assert_true(GameScript.harvest_skip_open_at(100, 220))
+	assert_false(GameScript.harvest_timed_out_at(100, 579))
+	assert_true(GameScript.harvest_timed_out_at(100, 580))
+	assert_false(GameScript.harvest_timed_out_at(-1, 9999), "outside HARVEST")
+	var game: Node = _game()
+	assert_false(game.harvest_timed_out(99999), "not in HARVEST")
+	assert_false(game.harvest_skip_open(99999))
+
+
+func test_finish_harvest_starts_fight_2_with_the_loop_and_resets_deaths() -> void:
+	var game: Node = _game()
+	_fight(game, 0)
+	game.record_death(SimClock.sim_frame)
+	game.retry(SimClock.sim_frame + GameScript.RETRY_DELAY_FRAMES)
+	SimClock.set(&"_swallow_presses", false)
+	assert_eq(game.run.deaths_on_boss, 1)
+	var attempt: int = game.run.fight_attempt
+	var seed_before: int = game.run.run_seed
+	assert_false(game.finish_harvest(0), "refused outside HARVEST")
+	assert_true(game.finish_defeat(_dead_boss()))
+	assert_true(game.finish_harvest(SimClock.sim_frame))
+	assert_eq(game.flow_state, S.FIGHT)
+	assert_eq(game.run.boss_index, 1)
+	assert_eq(game.run.deaths_on_boss, 0, "a new boss")
+	assert_eq(game.run.fight_start_ring, PackedInt32Array([Register.Bit.ATTACK, Register.Bit.DASH, Register.Bit.LOOP]), "[A, D, L] (D-S38-5)")
+	assert_eq(game.run.fight_start_ring, Register.fight_start_for_boss(1))
+	assert_eq(game.run.fight_attempt, attempt + 1, "one attempt per FIGHT entry")
+	assert_eq(game.run.run_seed, seed_before, "run seed kept")
+	assert_eq(game.harvest_start_frame, -1, "reset on leaving HARVEST")
+
+
+func test_debug_grant_bit_routes_like_a_defeat() -> void:
+	var game: Node = _game()
+	_fight(game, 0)
+	var boss := BossController.new()
+	boss.setup(IL_BOSS, null, ArenaContext.new())
+	boss.reset_for_fight()
+	Debug.enabled = false
+	assert_false(game.debug_grant_bit(boss), "release: nothing")
+	assert_eq(game.flow_state, S.FIGHT)
+	Debug.enabled = true
+	assert_true(game.debug_grant_bit(boss), "a live boss: granted without the fight")
+	assert_eq(game.flow_state, S.HARVEST)
+	assert_false(game.debug_grant_bit(boss), "outside FIGHT")
+
+
+func test_debug_grant_bit_refuses_a_boss_without_a_bit_def_or_an_owned_bit() -> void:
+	var game: Node = _game()
+	_fight(game, 0)
+	var test_boss := BossController.new()
+	test_boss.setup(TEST_BOSS, null, ArenaContext.new())
+	assert_false(game.debug_grant_bit(test_boss), "drop_bit 0 has no BitDef")
+	assert_false(game.debug_grant_bit(null), "no boss (Fight 2 placeholder, D-S38-15)")
+	game.debug_jump(S.FIGHT, 1) # [A, D, L]: LOOP already owned
+	var il := BossController.new()
+	il.setup(IL_BOSS, null, ArenaContext.new())
+	assert_false(game.debug_grant_bit(il), "bit already owned")
+	assert_eq(game.flow_state, S.FIGHT)

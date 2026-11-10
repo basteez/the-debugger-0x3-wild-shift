@@ -2,7 +2,7 @@ class_name DebugKeys
 extends Node
 ## F1-F5 debug jump keys (Story 1.6 AC4, DC6, DC7), Shift+F2 practice target (Story 2.7), the F9 frame overlay (Story 2.5 AC7),
 ## the F10 perf overlay (Story 2.8 AC6), the F11 input recorder (Story 2.1 AC5), the Ctrl+F6 debug damage key (Story 2.9 AC8,
-## moved from F6 by Story 3.1 D-S31-2), and the Story 3.1 boss keys: Shift+F3 test boss, F6 kill, Shift+F6 next phase.
+## moved from F6 by Story 3.1 D-S31-2), and the Story 3.1 boss keys: Shift+F3 test boss, F6 kill, Shift+F6 next phase; F8 bit grant (Story 3.8).
 ## Main adds this node only when Debug.enabled, so release builds without `?debug` never see it. Keys are consumed in _input, before any screen.
 
 const GameFlow := preload("res://src/autoloads/game.gd")
@@ -17,6 +17,9 @@ const PERF_KEY := KEY_F10
 ## queues one hit on the player (the Story 2.9 key, D-S29-11). FIGHT only, not while paused.
 const BOSS_KEY := KEY_F6
 const DAMAGE_KEY := KEY_F6
+## F8 (Story 3.8, D-S38-7, no modifiers): grant the current boss's drop bit without the fight
+## (Game.debug_grant_bit routes like a finished defeat).
+const GRANT_KEY := KEY_F8
 ## Shift+F3 (Story 3.1, D-S31-3): FIGHT boss 0 with the framework test boss. Plain F3 is unchanged.
 const TEST_BOSS_KEY := KEY_F3
 ## Shift+F2 (Story 2.7, D-S27-3): FIGHT boss 0 with the practice target. Plain F2 is unchanged.
@@ -86,6 +89,11 @@ func handle_key(event: InputEvent) -> bool:
 			return false
 		perf_overlay.toggle()
 		return true
+	if code == GRANT_KEY:
+		if key.shift_pressed or key.ctrl_pressed or key.alt_pressed or key.meta_pressed:
+			return false
+		debug_grant_bit()
+		return true
 	if code == BOSS_KEY:
 		if key.alt_pressed or key.meta_pressed or (key.shift_pressed and key.ctrl_pressed):
 			return false
@@ -118,8 +126,8 @@ func queue_debug_hit() -> bool:
 	return true
 
 
-## F6 (Story 3.1 AC 7): kills the fight's boss (boss_defeated, no flow change until 3.8). True when
-## a live boss was killed.
+## F6 (Story 3.1 AC 7): kills the fight's boss. Story 3.8: the kill goes through the real defeat path
+## (hit-stop, reassembly, then Main asks Game.finish_defeat). True when a live boss was killed.
 func debug_boss_kill() -> bool:
 	var boss: BossController = _live_boss()
 	if boss == null:
@@ -127,6 +135,12 @@ func debug_boss_kill() -> bool:
 	boss.debug_kill()
 	Log.debug(&"debug", "F6 boss killed")
 	return true
+
+
+## F8 (Story 3.8, AC 4): Game.debug_grant_bit on the arena's boss (warns and does nothing when it
+## cannot grant). True when the flow moved.
+func debug_grant_bit() -> bool:
+	return Game.debug_grant_bit(arena.boss if arena != null else null)
 
 
 ## Shift+F6 (Story 3.1 AC 7): drops the boss's HP to its next phase (one roar). True when it did.

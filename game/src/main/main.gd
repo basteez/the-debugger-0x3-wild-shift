@@ -9,6 +9,7 @@ const TitleScreenScript := preload("res://src/ui/screens/title/title_screen.gd")
 const PlaceholderScreenScript := preload("res://src/ui/screens/placeholder/placeholder_screen.gd")
 const PauseScreenScript := preload("res://src/ui/screens/pause/pause_screen.gd")
 const DeadScreenScript := preload("res://src/ui/screens/dead/dead_screen.gd")
+const HarvestScreenScript := preload("res://src/ui/screens/harvest/harvest_screen.gd")
 const DebugKeysScript := preload("res://src/debug/debug_keys.gd")
 const GameFlow := preload("res://src/autoloads/game.gd")
 const HudScene := preload("res://src/ui/hud/hud.tscn")
@@ -200,7 +201,10 @@ func apply_flow_state(state: int, boss_index: int) -> void:
 	if in_fight:
 		hud.log_panel.clear()
 	arena.visible = in_fight
-	hud.visible = in_fight
+	# Story 3.8 (D-S38-16): HARVEST shows the HUD's duck bubble only (the harvest line).
+	var harvest: bool = state == GameFlow.FlowState.HARVEST
+	hud.visible = in_fight or harvest
+	hud.set_duck_only(harvest)
 	if in_fight:
 		var practice: bool = wants_practice()
 		arena.enter_fight(fight_start_ring(Game.run, boss_index), practice, boss_def_path_for(wants_test_boss(), boss_index, practice))
@@ -208,6 +212,21 @@ func apply_flow_state(state: int, boss_index: int) -> void:
 		arena.leave_fight()
 	_attach_practice_target()
 	_attach_boss(in_fight)
+
+
+## Story 3.8 (B4, D-S38-8, D-S38-11): the defeat exit is polled here, after SimClock's tick of the
+## same physics frame (SimClock is an autoload, so it processes first), never inside the tick.
+func _physics_process(_delta: float) -> void:
+	poll_defeat()
+
+
+## Asks Game to leave FIGHT once the arena's boss has finished its defeat animation. True if it moved.
+func poll_defeat() -> bool:
+	if Game.flow_state != GameFlow.FlowState.FIGHT or not is_instance_valid(arena) or arena.boss == null:
+		return false
+	if not arena.boss.defeat_finished():
+		return false
+	return Game.finish_defeat(arena.boss)
 
 
 ## The register ring a fight starts from (Story 2.9, AC 6): the RunState snapshot Game captured on
@@ -287,7 +306,9 @@ func _make_screen(state: int, boss_index: int) -> Node:
 			var title: TitleScreen = TitleScreenScript.new()
 			title.name = &"TitleScreen"
 			return title
-		GameFlow.FlowState.INTRO, GameFlow.FlowState.FIGHT, GameFlow.FlowState.HARVEST, GameFlow.FlowState.ENDING:
+		GameFlow.FlowState.HARVEST:
+			return make_harvest_screen(boss_index)
+		GameFlow.FlowState.INTRO, GameFlow.FlowState.FIGHT, GameFlow.FlowState.ENDING:
 			var screen: PlaceholderScreen = PlaceholderScreenScript.new()
 			screen.setup(state, boss_index)
 			return screen
@@ -296,6 +317,29 @@ func _make_screen(state: int, boss_index: int) -> Node:
 			dead.name = &"DeadScreen"
 			return dead
 	return null
+
+
+## Story 3.8 (E3): the HARVEST screen for the defeated boss (the arena keeps the controller after the
+## fight, so its def gives the fixed line and the drop bit). Without a boss def (a placeholder fight
+## left with advance()), the drop is the bit the next fight's start set adds.
+func make_harvest_screen(boss_index: int) -> HarvestScreen:
+	var def: BossDef = arena.boss.def if is_instance_valid(arena) and arena.boss != null else null
+	var bit: int = def.drop_bit if def != null else harvest_bit_for(boss_index)
+	var previous: PackedInt32Array = fight_start_ring(Game.run, boss_index)
+	var screen: HarvestScreen = HarvestScreenScript.new()
+	screen.setup(boss_index, def.fixed_line if def != null else "", bit, previous)
+	return screen
+
+
+## The bit the fight after `boss_index` adds to its start set (0 = none). Pure.
+static func harvest_bit_for(boss_index: int) -> int:
+	if boss_index < 0 or boss_index >= GameFlow.LAST_BOSS_INDEX:
+		return 0
+	var before: PackedInt32Array = Register.fight_start_for_boss(boss_index)
+	for b: int in Register.fight_start_for_boss(boss_index + 1):
+		if not before.has(b):
+			return b
+	return 0
 
 
 ## DebugKeys exists only when the debug gate is open (AC5).

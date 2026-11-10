@@ -1,5 +1,5 @@
 # generated: 2026-11-06
-# last_updated: 2026-11-09
+# last_updated: 2026-11-10
 # project: github-gameoff-2026
 # project_key: NOKEY
 # tracking_system: file-system
@@ -81,7 +81,7 @@
 #     basteez/mumble-speech#32 resolved in v0.3.0 (2026-11-07); fallback = pre-render backend.
 
 generated: 2026-11-06
-last_updated: 2026-11-09
+last_updated: 2026-11-10
 project: github-gameoff-2026
 project_key: NOKEY
 tracking_system: file-system
@@ -122,7 +122,7 @@ development_status:
   3-5-nested-loop-semicolon-spit-and-phase-3: done # phase 3 droppable under MVP fallback (Group P)
   3-6-duck-bubble-and-tutorial-beats: done
   3-7-duck-voice-mumble-speech: done # NOT MVP-blocking; may slip past Nov 14; unblocked: basteez/mumble-speech#32 resolved in v0.3.0 (2026-11-07)
-  3-8-boss-defeat-and-harvest: backlog
+  3-8-boss-defeat-and-harvest: done
   3-9-mvp-playtest-and-tuning-pass: backlog # HUMAN CHECKPOINT Nov 14
   epic-3-retrospective: optional
 

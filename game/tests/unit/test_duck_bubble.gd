@@ -36,7 +36,7 @@ func _finish_line() -> void:
 # --- wrap (B1) ---
 
 func test_wrap_fits_every_tutorial_line() -> void:
-	var expected_lines: Array[int] = [8, 7, 4, 7]
+	var expected_lines: Array[int] = [8, 7, 4, 7, 6] # Story 3.8: + harvest_shared
 	var texts: PackedStringArray = _texts()
 	for i: int in texts.size():
 		var lines: PackedStringArray = DuckBubble.wrap(texts[i], DuckBubble.WRAP_WIDTH)
@@ -398,6 +398,15 @@ func test_clear_stops_the_voice_and_late_events_do_nothing() -> void:
 	assert_false(_bubble.is_showing(), "a late event never revives a cleared bubble")
 	assert_eq(_bubble.reveal().revealed, 0)
 	assert_eq(_bubble.hold_left(), 0.0, "no hold running")
+
+
+## Story 3.8 (E5, AC 9): leaving HARVEST clears the harvest line and cuts the voice.
+func test_leaving_harvest_stops_the_voice() -> void:
+	var fake: FakeVoice = _voiced()
+	_start_voiced(fake)
+	EventBus.flow_state_changed.emit(GameScript.FlowState.HARVEST, GameScript.FlowState.FIGHT)
+	assert_false(_bubble.is_showing(), "no harvest line in the next fight")
+	assert_gte(fake.stops, 1)
 
 
 func test_leaving_fight_stops_the_voice() -> void:

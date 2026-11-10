@@ -1,6 +1,8 @@
 extends Node
 ## Game flow state machine (AD-08). Only Game changes flow_state, through _set_flow_state.
 ## Presentation calls start_run_from_title, finish_intro, advance (and debug_jump in debug).
+## Story 3.8: finish_defeat (FIGHT -> HARVEST / ENDING after the defeat animation), finish_harvest
+## (HARVEST -> next FIGHT) and debug_grant_bit (F8), all called from presentation after the tick.
 ## Game is also the only writer of SimClock.paused (Story 1.7 DC2): Esc and focus loss.
 
 enum FlowState { TITLE, INTRO, FIGHT, DEAD, HARVEST, ENDING }
@@ -11,6 +13,10 @@ const LAST_BOSS_INDEX := 2
 ## Story 2.9 (D-049 c, D-S29-3): the DEAD screen accepts a new press only this many sim frames
 ## after the death frame.
 const RETRY_DELAY_FRAMES := 20
+## Story 3.8 (D-S38-10): the HARVEST screen lasts at most HARVEST_MAX_FRAMES sim frames and accepts
+## a skip press from HARVEST_SKIP_FRAMES after its entry.
+const HARVEST_MAX_FRAMES := 480
+const HARVEST_SKIP_FRAMES := 120
 ## Boss ids by boss_index (I-5): the `player_died` payload and the boss signatures.
 const BOSS_IDS: Array[StringName] = [&"infinite_loop", &"null_pointer", &"segfault"]
 ## States where Esc and focus loss pause (Story 1.7 DC1): the 60 Hz clock drives the Intro cap and the fight.
@@ -24,6 +30,8 @@ var intro_start_frame: int = -1
 var run: RunState = RunState.new()
 ## Sim frame of the last death (Story 2.9); -1 when not dead.
 var death_frame: int = -1
+## Sim frame on which HARVEST was entered (Story 3.8, B3); -1 outside HARVEST.
+var harvest_start_frame: int = -1
 ## True only while retry() re-enters FIGHT: the snapshot is restored, not re-captured (D-S29-4).
 var _retrying: bool = false
 ## Web only: the JS focus callback, kept alive for the session (a freed callback is never called).
@@ -165,6 +173,84 @@ func advance() -> void:
 			Log.warn(&"flow", "advance ignored in DEAD")
 
 
+## Pure (Story 3.8, D-S38-2): where a finished defeat of boss `index` goes. Fights 1 and 2 drop a bit
+## (HARVEST); the last boss drops nothing and goes straight to ENDING (GDD D-012).
+static func route_after_defeat(index: int) -> FlowState:
+	return FlowState.ENDING if index >= LAST_BOSS_INDEX else FlowState.HARVEST
+
+
+## Story 3.8 (B1, AC 5, AC 6, D-S38-11): FIGHT -> HARVEST / ENDING once `boss` (the arena's boss) has
+## finished its defeat animation. Called by presentation after the tick (Main), never from inside
+## SimClock.tick(). Refused (false, no log: it is polled) outside FIGHT, while paused, or before
+## the animation ends. True if it moved.
+func finish_defeat(boss: BossController) -> bool:
+	if SimClock.paused or flow_state != FlowState.FIGHT:
+		return false
+	if boss == null or not boss.defeat_finished():
+		return false
+	var to: FlowState = route_after_defeat(run.boss_index)
+	Log.info(&"flow", "boss %d defeated -> %s" % [run.boss_index, FlowState.keys()[to]])
+	_set_flow_state(to)
+	return true
+
+
+## Pure (Story 3.8, D-S38-10): true once HARVEST has run for HARVEST_MAX_FRAMES sim frames.
+static func harvest_timed_out_at(start_frame: int, frame: int) -> bool:
+	return start_frame >= 0 and frame - start_frame >= HARVEST_MAX_FRAMES
+
+
+## Pure (Story 3.8, D-S38-10): true once a press may end HARVEST early.
+static func harvest_skip_open_at(start_frame: int, frame: int) -> bool:
+	return start_frame >= 0 and frame - start_frame >= HARVEST_SKIP_FRAMES
+
+
+func harvest_timed_out(frame: int) -> bool:
+	return flow_state == FlowState.HARVEST and harvest_timed_out_at(harvest_start_frame, frame)
+
+
+func harvest_skip_open(frame: int) -> bool:
+	return flow_state == FlowState.HARVEST and harvest_skip_open_at(harvest_start_frame, frame)
+
+
+## Story 3.8 (B2, AC 3): HARVEST -> FIGHT boss_index + 1. The screen checks the skip gate or the cap
+## before calling; this only checks the state. The next fight captures its fight-start snapshot
+## (Register.fight_start_for_boss, D-S38-5) and resets HP and cooldowns (D-049 b). True if it moved.
+func finish_harvest(frame: int) -> bool:
+	if flow_state != FlowState.HARVEST:
+		return false
+	Log.info(&"flow", "harvest -> fight %d at f=%d" % [run.boss_index + 2, frame])
+	run.start_boss(run.boss_index + 1)
+	_set_flow_state(FlowState.FIGHT)
+	if not SimClock.paused: # the press that skipped HARVEST must not fire in the new fight (D-S29-12)
+		SimClock.swallow_presses_next_poll()
+	return true
+
+
+## Story 3.8 (B5, AC 4, D-S38-7): F8 grants the current boss's drop bit without the fight: the same
+## route as a finished defeat, without the animation. Debug only. Needs FIGHT, a boss whose drop_bit
+## has a BitDef and a bit the run does not own yet; otherwise Log.warn and false.
+func debug_grant_bit(boss: BossController) -> bool:
+	if not Debug.enabled:
+		return false
+	if flow_state != FlowState.FIGHT or SimClock.paused:
+		Log.warn(&"debug", "F8 ignored outside a running FIGHT")
+		return false
+	if boss == null or boss.def == null:
+		Log.warn(&"debug", "F8 ignored: no boss in this fight")
+		return false
+	var bit: int = boss.def.drop_bit
+	if Defs.bit(bit) == null:
+		Log.warn(&"debug", "F8 ignored: %s drops no bit with a BitDef" % boss.def.boss_id)
+		return false
+	if run.fight_start_ring.has(bit):
+		Log.warn(&"debug", "F8 ignored: bit %s already owned" % Register.glyph_of(bit))
+		return false
+	var to: FlowState = route_after_defeat(run.boss_index)
+	Log.info(&"debug", "F8 grant %s -> %s" % [Register.glyph_of(bit), FlowState.keys()[to]])
+	_set_flow_state(to)
+	return true
+
+
 ## Debug jump (F1-F5, DC6): TITLE, FIGHT boss 0-2 or ENDING, only while Debug.enabled.
 func debug_jump(target: FlowState, boss_index: int) -> void:
 	if not Debug.enabled:
@@ -200,6 +286,7 @@ func _set_flow_state(to: FlowState) -> void:
 		EventBus.pause_toggled.emit(false)
 	if to != FlowState.DEAD:
 		death_frame = -1
+	harvest_start_frame = SimClock.sim_frame if to == FlowState.HARVEST else -1
 	if to == FlowState.FIGHT:
 		if not _retrying: # D-S29-4: every FIGHT entry but a retry captures the snapshot
 			run.fight_start_ring = Register.fight_start_for_boss(run.boss_index)

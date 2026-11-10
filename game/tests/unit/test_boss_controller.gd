@@ -85,6 +85,7 @@ func before_each() -> void:
 func after_each() -> void:
 	Game.flow_state = _saved_state as GameScript.FlowState
 	SimClock.set(&"_pending_hitstop", 0)
+	SimClock.hitstop_frames = 0 # Story 3.8: a defeat requests 20 frames; never leak into the next suite
 
 
 func _attack(id: StringName, tell: int, active: int, recovery: int, attack_script: Script = RecordingAttack) -> AttackDef:
@@ -864,3 +865,53 @@ func test_boss_view_number_clears_on_fight_restart() -> void:
 	assert_eq(view.damage_number(), "7")
 	EventBus.boss_hp_changed.emit(100, 100)
 	assert_eq(view.damage_number(), "")
+
+
+# --- Story 3.8 (G1, AC 1, 7, 8): the defeat sequence in the simulation ---
+
+func test_defeat_requests_20_frames_of_hitstop_once() -> void:
+	var c: BossController = _controller(_timing_def())
+	SimClock.set(&"_pending_hitstop", 0)
+	watch_signals(EventBus)
+	c.take_hit(100)
+	assert_eq(SimClock.get(&"_pending_hitstop"), BossController.DEFEAT_HITSTOP_FRAMES)
+	assert_eq(BossController.DEFEAT_HITSTOP_FRAMES, 20)
+	SimClock.set(&"_pending_hitstop", 0)
+	c.take_hit(5)
+	c.debug_kill()
+	assert_eq(SimClock.get(&"_pending_hitstop"), 0, "no second hit-stop after the defeat")
+	assert_signal_emit_count(EventBus, "boss_defeated", 1)
+
+
+func test_defeat_counter_reaches_60_and_finished_flips_exactly_then() -> void:
+	var c: BossController = _controller(_timing_def())
+	assert_false(c.defeat_finished(), "a live boss is not finished")
+	c.take_hit(100)
+	assert_eq(c.defeat_frames_elapsed, 0)
+	assert_false(c.active, "inactive, yet the counter runs")
+	for i: int in BossController.DEFEAT_FRAMES - 1:
+		_tick(c)
+		assert_false(c.defeat_finished(), "tick %d" % (i + 1))
+	assert_eq(c.defeat_frames_elapsed, BossController.DEFEAT_FRAMES - 1)
+	_tick(c)
+	assert_true(c.defeat_finished(), "finished on tick 60")
+	_tick(c, 30)
+	assert_eq(c.defeat_frames_elapsed, BossController.DEFEAT_FRAMES, "clamped")
+	assert_eq(c.state, BossController.BossState.DEFEATED, "no transition out of DEFEATED")
+	assert_false(c.is_hittable())
+
+
+func test_a_hit_after_defeat_changes_nothing_and_reset_clears_the_counter() -> void:
+	var c: BossController = _controller(_timing_def())
+	c.take_hit(100)
+	_tick(c, 10)
+	watch_signals(EventBus)
+	c.take_hit(40)
+	assert_eq(c.hp, 0)
+	assert_eq(c.defeat_frames_elapsed, 10, "a late hit does not restart the animation")
+	assert_signal_emit_count(EventBus, "boss_defeated", 0)
+	assert_signal_emit_count(EventBus, "boss_hp_changed", 0)
+	c.reset_for_fight()
+	assert_eq(c.defeat_frames_elapsed, 0)
+	assert_false(c.defeat_finished())
+	assert_eq(c.state, BossController.BossState.GAP)

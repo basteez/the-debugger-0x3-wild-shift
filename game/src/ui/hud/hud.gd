@@ -46,6 +46,22 @@ func _ready() -> void:
 	EventBus.boss_defeated.connect(_on_boss_defeated)
 
 
+## Story 3.8 (D-S38-16): HARVEST shows only the duck bubble of the HUD (the harvest line), with the
+## frame (top bar and boss header, D-S38-13), the register panel, the log and the HP readout hidden.
+## Off in every other state. Main calls it on every flow change.
+func set_duck_only(on: bool) -> void:
+	for child: Node in get_children():
+		if child == duck_bubble or child == grid_overlay:
+			continue
+		if child is CanvasItem:
+			(child as CanvasItem).visible = not on
+
+
+## True while only the duck bubble shows (HARVEST).
+func is_duck_only() -> bool:
+	return not frame.visible
+
+
 ## Main hands the arena's boss (or null) on every flow change.
 func set_boss(p_boss: BossController) -> void:
 	boss = p_boss
