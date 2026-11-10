@@ -28,6 +28,22 @@ extends Def
 @export var constrict_chase_tps: int = 8
 ## Story 3.4 (D-S34-7): Constrict's radius at the end of its ACTIVE window, in tiles (< the ring radius).
 @export var constrict_radius_tiles: int = 2
+## Story 3.5 (D-S35-4, D-S35-13): the phase-3 split. Segments of the outer ring after the split.
+@export var split_outer_segments: int = 16
+## Segments of the inner ring after the split (concentric, 1 tile each).
+@export var split_inner_segments: int = 8
+## Inner ring speed in percent of the outer ring's (derived each tick, capped, D-S35-5).
+@export var split_inner_speed_percent: int = 150
+## Ticks between two timed `;` openings after the split (D-S35-6). Longer than any opening.
+@export var opening_period_frames: int = 180
+## The `;` Spit cycle in ticks (D-S35-9): one shot per cycle in phase 3.
+@export var spit_period_frames: int = 360
+## The Spit tell: the origin `;` glows for the last this-many ticks of the cycle (>= 1, < period).
+@export var spit_tell_frames: int = 20
+## Spit projectile speed in tiles/s (D-S35-10): 6 tiles/s = 100 milli-tiles per tick.
+@export var spit_tps: int = 6
+## Preallocated Spit projectile slots (D-S35-10).
+@export var spit_slots: int = 16
 
 
 func validate() -> PackedStringArray:
@@ -52,9 +68,32 @@ func validate() -> PackedStringArray:
 		out.append("head_charge_tiles must be > 0 (got %d)" % head_charge_tiles)
 	if constrict_chase_tps <= 0:
 		out.append("constrict_chase_tps must be > 0 (got %d)" % constrict_chase_tps)
-	if constrict_radius_tiles <= 0 or float(constrict_radius_tiles) >= radius_tiles():
-		out.append("constrict_radius_tiles must be > 0 and < the ring radius %.2f (got %d)" % [radius_tiles(), constrict_radius_tiles])
+	# Story 3.5 (D-S35-12): Constrict also shrinks from the split outer ring, so the smaller radius bounds it.
+	var smallest: float = minf(radius_tiles(), split_radius_tiles(split_outer_segments))
+	if constrict_radius_tiles <= 0 or float(constrict_radius_tiles) >= smallest:
+		out.append("constrict_radius_tiles must be > 0 and < the ring radius %.2f (got %d)" % [smallest, constrict_radius_tiles])
+	if split_outer_segments != 16:
+		out.append("split_outer_segments must be 16 (got %d)" % split_outer_segments)
+	if split_inner_segments != 8:
+		out.append("split_inner_segments must be 8 (got %d)" % split_inner_segments)
+	if split_inner_speed_percent != 150:
+		out.append("split_inner_speed_percent must be 150 (got %d)" % split_inner_speed_percent)
+	if opening_period_frames <= open_frames:
+		out.append("opening_period_frames must be > open_frames %d (got %d)" % [open_frames, opening_period_frames])
+	if spit_period_frames < 2:
+		out.append("spit_period_frames must be >= 2 (got %d)" % spit_period_frames)
+	if spit_tell_frames < 1 or spit_tell_frames >= spit_period_frames:
+		out.append("spit_tell_frames must be >= 1 and < spit_period_frames (got %d)" % spit_tell_frames)
+	if spit_tps <= 0:
+		out.append("spit_tps must be > 0 (got %d)" % spit_tps)
+	if spit_slots < 1:
+		out.append("spit_slots must be >= 1 (got %d)" % spit_slots)
 	return out
+
+
+## Radius in tiles of a ring of `count` 1-tile segments (D-S35-4). Pure.
+static func split_radius_tiles(count: int) -> float:
+	return float(count) / TAU
 
 
 ## Ring radius in tiles: the circumference (one tile per segment) over 2π (D-S33-3).

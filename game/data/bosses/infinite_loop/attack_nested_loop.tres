@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="AttackDef" format=3]
+
+[ext_resource type="Script" path="res://src/bosses/framework/attack_def.gd" id="1_adef"]
+[ext_resource type="Script" path="res://src/bosses/infinite_loop/attacks/nested_loop.gd" id="2_nested"]
+
+[resource]
+script = ExtResource("1_adef")
+id = &"nested_loop"
+tell = 40
+active = 1
+recovery = 0
+attack_script = ExtResource("2_nested")
+tell_sfx = &"tell_nested_loop"
