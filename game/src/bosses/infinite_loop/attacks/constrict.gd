@@ -45,7 +45,7 @@ func on_recovery(_ctx: ArenaContext) -> void:
 		return
 	body.set_attack_radius_mtiles(0)
 	if body.current != null:
-		body.open_semicolon(body.current.recovery)
+		body.open_semicolon(BossController.effective_recovery(body.current, body.breakpoint_on))
 
 
 ## The disc goes with the attack; the body restores the nominal radius in its cancel hook (D5).

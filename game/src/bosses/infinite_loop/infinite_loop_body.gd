@@ -4,7 +4,8 @@ extends BossController
 ## of 24 `{ }` segments that spins in place, speeds up 5% per lap (capped), drifts toward the
 ## player, and opens its `;` (the loop condition, at the junction) for 90 ticks at each lap start.
 ## The `;` is the only hurtbox (D-S33-4); every segment is a contact hazard (D-S33-3). The ring
-## stays still until the player's first shift of the fight (D-S33-6).
+## stays still until the player's first shift of the fight (D-S33-6), or until START_NUDGE_TICKS
+## live ticks pass without one (Story 4.4, D-S44-1: the same start path, sim ticks only).
 ## Motion state is integer (D-S33-2): milli-tiles along the ring plus a remainder, so 8 tiles/s is
 ## exactly 180 ticks per lap. Positions (centre, segments, `;`) are floats derived from it, used
 ## for drawing and circle math only, never hashed. Reads the arena only through ArenaContext
@@ -40,6 +41,8 @@ const PHASE_3 := 2
 ## Ring indices (Story 3.5).
 const OUTER := 0
 const INNER := 1
+## Story 4.4 (D-S44-1): live ticks without a shift after which the ring starts on its own (5 s).
+const START_NUDGE_TICKS := 300
 const SemicolonSpit := preload("res://src/bosses/infinite_loop/attacks/semicolon_spit.gd")
 
 ## The ring numbers (D-S33-15). Tests may swap it before setup.
@@ -58,6 +61,10 @@ var open_left: int = 0
 var started: bool = false
 ## ArenaContext.read_shift_count() captured at reset_for_fight.
 var shift_at_fight_start: int = 0
+## Story 4.4 (D-S44-1): live ticks spent waiting for the first shift; the ring starts at
+## START_NUDGE_TICKS. Counts only while not started; reset in reset_for_fight. Frozen with the
+## boss tick (pause, Breakpoint, hit-stop).
+var waiting_ticks: int = 0
 ## Story 3.4 (D-S34-7): the ring radius set by an attack (Constrict), milli-tiles; 0 = nominal.
 var attack_radius_mtiles: int = 0
 
@@ -105,6 +112,7 @@ func reset_for_fight() -> void:
 	iteration = 0
 	open_left = 0
 	started = false
+	waiting_ticks = 0
 	attack_radius_mtiles = 0
 	shift_at_fight_start = _arena.read_shift_count() if _arena != null else 0
 	body_center_px = clamp_centre(SPAWN_TILES * Const.TILE_PX, radius_px())
@@ -116,14 +124,18 @@ func reset_for_fight() -> void:
 ## (BossController.tick stops when inactive).
 func _tick_body(_ctx: SimContext) -> void:
 	if not started:
-		if _arena == null or _arena.read_shift_count() == shift_at_fight_start:
-			return
+		var shifted: bool = _arena != null and _arena.read_shift_count() != shift_at_fight_start
+		if not shifted:
+			# D-S44-1: no shift yet; after START_NUDGE_TICKS live ticks the ring starts anyway.
+			waiting_ticks += 1
+			if waiting_ticks < START_NUDGE_TICKS:
+				return
 		started = true
 		# The gate tick itself does not spin: i = 1 and the `;` opens here, the ring moves from the
 		# next tick (D-S33-19), so the first lap is one tick longer than the rest.
 		_start_lap(false)
 		if Debug.enabled:
-			Log.debug(&"boss", "loop started")
+			Log.debug(&"boss", "loop started (%s)" % ("shift" if shifted else "nudge"))
 		_rebuild_units()
 		return
 	if open_left > 0:

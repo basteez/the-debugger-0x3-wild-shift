@@ -57,3 +57,12 @@ signal duck_character_spoken(char_index: int)
 ## by VoiceService, once per spoken line; DuckBubble reveals the rest and starts the hold.
 @warning_ignore("unused_signal")
 signal duck_line_finished(line_id: StringName, completed: bool)
+## Breakpoint started (Story 4.3, FR24, AD-05): the world is frozen, shifts stay allowed. Emitted
+## once per start by the Breakpoint module from SimClock's poll; JuiceDirector dithers the screen,
+## the overlay draws the red dot and line, AudioManager switches music (placeholder until 7.1).
+@warning_ignore("unused_signal")
+signal breakpoint_started()
+## Breakpoint ended (Story 4.3): on J/K, at the 120-frame cap, or when the fight is reset or left.
+## Emitted once per end; the gate is already cleared.
+@warning_ignore("unused_signal")
+signal breakpoint_ended()

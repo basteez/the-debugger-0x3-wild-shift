@@ -13,6 +13,8 @@ const HarvestScreenScript := preload("res://src/ui/screens/harvest/harvest_scree
 const DebugKeysScript := preload("res://src/debug/debug_keys.gd")
 const GameFlow := preload("res://src/autoloads/game.gd")
 const HudScene := preload("res://src/ui/hud/hud.tscn")
+## Story 4.3 (AD-12, D-S43-2): the Breakpoint overlay, loaded by path only when the module is on.
+const BREAKPOINT_OVERLAY_PATH := "res://src/skills/breakpoint/breakpoint_overlay.gd"
 ## Render layer order (AD-07): Arena -> Entities -> Particles -> HUD -> Pause -> ScreenFX.
 const LAYER_ORDER: Array[StringName] = [&"Arena", &"Entities", &"Particles", &"Hud", &"Pause", &"ScreenFX"]
 const HUD_LAYER := 10
@@ -50,6 +52,13 @@ var hp_readout: HpReadout
 var boss_view: BossView
 ## Tutorial beats T1-T4 (Story 3.6): reads the arena, requests lines through VoiceService.
 var duck_director: DuckDirector
+## Story 4.3 (AD-12): the cut-ladder flags the startup wiring reads. A test may swap it before the
+## node enters the tree (flag-off runs).
+var feature_flags: FeatureFlags = Defs.FEATURE_FLAGS
+## Story 4.3: the red Breakpoint dot and line (a child of the Arena); null when the module is off.
+var breakpoint_overlay: Node2D
+## Story 4.3 (AC 10): the HUD `brk` cooldown readout; null when the module is off.
+var breakpoint_readout: BreakpointReadout
 
 
 func _ready() -> void:
@@ -89,6 +98,7 @@ func _build_layers() -> void:
 	arena = Arena.new()
 	arena.name = &"Arena"
 	arena.visible = false
+	arena.set_breakpoint_enabled(feature_flags.breakpoint_enabled) # D-S43-1: the one startup read
 	add_child(arena)
 	# The player view lives in presentation/, so Main (not the arena/ sim folder) attaches it.
 	var player_view := PlayerView.new(arena.player)
@@ -139,6 +149,7 @@ func _build_layers() -> void:
 	hp_readout.name = &"HpReadout"
 	hp_readout.health = arena.health
 	hud.add_child(hp_readout)
+	_build_breakpoint_views()
 	pause_layer = CanvasLayer.new()
 	pause_layer.name = &"Pause"
 	pause_layer.layer = PAUSE_LAYER
@@ -164,6 +175,7 @@ func _build_layers() -> void:
 	duck_director = DuckDirector.new()
 	duck_director.name = &"DuckDirector"
 	duck_director.arena = arena
+	duck_director.bubble = hud.duck_bubble # Story 4.4 (D-S44-4): request only when it has room
 	add_child(duck_director)
 	# Story 2.8 combo shake: the camera is a child of the Arena, placed at the canvas origin so
 	# offset zero keeps today's framing exactly (D-S28-5). The driver lives in presentation/, so
@@ -173,6 +185,24 @@ func _build_layers() -> void:
 	add_child(camera_shake)
 	camera_shake.camera.position = -Vector2(Arena.ORIGIN_CELL * GlyphFont.CELL)
 	arena.add_child(camera_shake.camera)
+
+
+## Story 4.3 (AC 9, AC 10, AC 13): the overlay and the HUD readout exist only when the arena built
+## the Breakpoint module (flag on). The overlay sits above the player and boss views in the Arena.
+func _build_breakpoint_views() -> void:
+	if arena.breakpoint_skill == null:
+		return
+	var script := load(BREAKPOINT_OVERLAY_PATH) as GDScript
+	if script != null:
+		breakpoint_overlay = script.new() as Node2D
+		breakpoint_overlay.name = &"BreakpointWarning"
+		breakpoint_overlay.set(&"skill", arena.breakpoint_skill)
+		breakpoint_overlay.set(&"player", arena.player)
+		arena.add_child(breakpoint_overlay)
+	breakpoint_readout = BreakpointReadout.new()
+	breakpoint_readout.name = &"BreakpointReadout"
+	breakpoint_readout.skill = arena.breakpoint_skill
+	hud.add_child(breakpoint_readout)
 
 
 func _on_flow_state_changed(_from: int, to: int) -> void:
@@ -207,7 +237,7 @@ func apply_flow_state(state: int, boss_index: int) -> void:
 	hud.set_duck_only(harvest)
 	if in_fight:
 		var practice: bool = wants_practice()
-		arena.enter_fight(fight_start_ring(Game.run, boss_index), practice, boss_def_path_for(wants_test_boss(), boss_index, practice))
+		arena.enter_fight(fight_start_ring(Game.run, boss_index), practice, boss_def_path_for(wants_test_boss(), boss_index, practice), breakpoint_unlocked_for(boss_index))
 	else:
 		arena.leave_fight()
 	_attach_practice_target()
@@ -236,6 +266,11 @@ static func fight_start_ring(run: RunState, boss_index: int) -> PackedInt32Array
 	if run != null and run.boss_index == boss_index and not run.fight_start_ring.is_empty():
 		return run.fight_start_ring
 	return Register.fight_start_for_boss(boss_index)
+
+
+## Breakpoint is usable from Fight 2 on, i.e. after Boss 1 (Story 4.3, AC 3, D-S43-6). Pure.
+static func breakpoint_unlocked_for(boss_index: int) -> bool:
+	return boss_index >= 1
 
 
 ## The boss def a FIGHT loads (Story 3.3, D-S33-11, D-S33-13): the framework test boss on

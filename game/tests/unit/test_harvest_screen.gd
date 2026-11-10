@@ -59,7 +59,8 @@ func test_windows_and_new_windows() -> void:
 func test_texts() -> void:
 	assert_eq(HarvestScreen.register_text(_ring([A, D, L])), "[A, D, L] = 0x07")
 	assert_eq(HarvestScreen.window_text(Vector2i(A, D)), "A>D  Dash Strike")
-	assert_eq(HarvestScreen.window_text(Vector2i(D, L)), "D>L  --")
+	assert_eq(HarvestScreen.window_text(Vector2i(D, L)), "D>L  Echo Dash", "Story 4.2 shipped D->L")
+	assert_eq(HarvestScreen.window_text(Vector2i(L, A)), "L>A  --")
 	var text: String = HarvestScreen.register_text(_ring([A, D, L]))
 	assert_eq(text[HarvestScreen.slot_char_index(2)], "L", "slot index points at the glyph")
 	assert_eq(text[HarvestScreen.slot_char_index(0)], "A")

@@ -3,6 +3,7 @@ extends ColorRect
 ## Full-screen effect rect in the ScreenFX CanvasLayer (Story 2.8 AC5, AD-07): the `invert` and
 ## `dither` uniforms of screen_fx.gdshader. Only JuiceDirector calls set_invert and set_dither.
 ## Hidden while no effect is on, so the screen copy costs nothing in normal play.
+## Story 4.3 (AC 11): the shader leaves the warning red unchanged; ScreenFxRule mirrors it on the CPU.
 
 const SHADER: Shader = preload("res://src/presentation/screen_fx.gdshader")
 
@@ -43,3 +44,4 @@ func dither_level() -> float:
 func _update_visible() -> void:
 	# The shader only dithers at 0.5 and above; below that the screen copy would be wasted.
 	visible = is_inverted() or dither_level() >= 0.5
+

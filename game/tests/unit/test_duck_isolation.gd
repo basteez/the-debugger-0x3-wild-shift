@@ -31,7 +31,7 @@ const DUCK_FORBIDDEN: Array[String] = [
 	"\\brand(i|f|i_range|f_range|fn|omize)?\\s*\\(",
 	"\\bregister\\.(?!active_window\\b)\\w+\\s*\\(",
 	"\\b(player|health|actions|combat)\\.\\w+\\s*\\(",
-	"\\bboss\\.\\w+\\s*\\(",
+	"\\bboss\\.(?!current_weak_window\\b)\\w+\\s*\\(", # Story 4.4: the hint reads the window
 	"\\barena\\.\\w+\\s*\\(",
 	"\\b(arena|register|player|health|boss|loop)\\.[\\w.]+\\s*([-+*/]?=[^=])",
 	"\\bSimClock\\.(?!paused\\b)\\w+",
@@ -88,7 +88,7 @@ static func violations(code: String, patterns: Array[String]) -> PackedStringArr
 
 func test_the_scans_find_their_files() -> void:
 	var duck: PackedStringArray = gd_files_under(DUCK_DIR)
-	for name: String in ["duck_bubble.gd", "duck_director.gd", "duck_line_def.gd", "duck_lines_def.gd", "typewriter_reveal.gd"]:
+	for name: String in ["duck_bubble.gd", "duck_director.gd", "duck_hint.gd", "duck_line_def.gd", "duck_lines_def.gd", "typewriter_reveal.gd"]:
 		assert_true(duck.has(DUCK_DIR.path_join(name)), name)
 	var sim := PackedStringArray()
 	for d: String in SIM_DIRS:
@@ -130,6 +130,7 @@ func test_the_guards_catch_violations() -> void:
 	assert_eq(violations("var p: int = boss.phase_index if boss != null else 0", DUCK_FORBIDDEN).size(), 0)
 	assert_eq(violations("if SimClock.paused:", DUCK_FORBIDDEN).size(), 0)
 	assert_eq(violations("if boss.phase_index == 1:", DUCK_FORBIDDEN).size(), 0)
+	assert_eq(violations("var w: Vector2i = boss.current_weak_window()", DUCK_FORBIDDEN).size(), 0)
 
 
 func test_mumble_names_only_in_the_voice_files() -> void:

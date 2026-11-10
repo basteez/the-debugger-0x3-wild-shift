@@ -4,7 +4,7 @@ extends GutTest
 const A := Register.Bit.ATTACK
 const D := Register.Bit.DASH
 const L := Register.Bit.LOOP
-## Story 3.8: LOOP has a BitDef (solo NOP), so the "no action" slot is NULL_BIT until Epic 5.
+## Story 3.8: LOOP has a BitDef (solo Echo since 4.1), so the "no action" slot is NULL_BIT until Epic 5.
 const N := Register.Bit.NULL_BIT
 const J := &"action_1"
 const K := &"action_2"
@@ -78,12 +78,18 @@ func test_slot_without_action_does_nothing() -> void:
 	assert_eq(_buf.size(), 1, "not consumed")
 
 
-## Story 3.8 (C3, D-S38-6): LOOP's solo action is the NOP action, so J on L starts a no-op.
-func test_loop_slot_starts_the_nop_action() -> void:
+## Story 3.8 put NOP on LOOP; Story 4.1 (D-S41-3): LOOP's solo action is Echo, which is not
+## startable with an empty memory (the press stays buffered) and starts Echo once memory is set.
+func test_loop_slot_starts_echo_only_with_memory() -> void:
 	_buf.push(J, 0)
-	var r: ActionRequest = _idle(0, Vector2i(L, A))
+	assert_null(_idle(0, Vector2i(L, A)), "empty memory: no action")
+	assert_eq(_buf.size(), 1, "not consumed")
+	var input: ResolveInput = _req_input(0, Vector2i(L, A))
+	input.echo_ready = true
+	var r: ActionRequest = ActionResolver.resolve(input)
 	assert_not_null(r)
-	assert_eq(r.def, Defs.NOP)
+	assert_eq(r.def, Defs.ECHO)
+	assert_eq(r.bit, L)
 	assert_eq(r.def.base_damage, 0)
 	assert_null(r.def.hit_shape)
 

@@ -1,9 +1,9 @@
 extends Node
 ## Fixed 60 Hz simulation clock (AD-01, NP-2). Each physics frame: gate on pause, poll the
 ## InputSource (presses into the InputBuffer stamped with poll_frame, held direction into
-## ctx.move_dir, ctx.poll_frame), advance poll_frame, gate on
-## Breakpoint then hit-stop, else tick the registered SimSystems by phase and advance
-## sim_frame. Only SimClock calls tick().
+## ctx.move_dir, ctx.poll_frame), advance poll_frame, call every system's poll hook (Story 4.3),
+## gate on Breakpoint (only the SHIFTS phase ticks) then hit-stop, else tick the registered
+## SimSystems by phase and advance sim_frame. Only SimClock calls tick().
 
 ## World ticks since the session started (not paused or gated frames, D-S21-2). Monotonic.
 var sim_frame: int = 0
@@ -17,7 +17,9 @@ var paused: bool = false
 var input_source: InputSource = null
 var buffer: InputBuffer = InputBuffer.new()
 var ctx: SimContext = SimContext.new()
-## Breakpoint gate hook (Story 4.3 owns its body). While true the world and hit-stop are frozen.
+## Breakpoint gate (Story 4.3, D-S43-4). Written only by the Breakpoint module (a leaf, through this
+## generic bool). While true the world and hit-stop are frozen: only SHIFTS-phase systems tick
+## (register shifts stay allowed, AD-01) and sim_frame does not advance.
 var breakpoint_gate_active: bool = false
 ## Remaining hit-stop frames. Counts down once per physics frame outside pause and Breakpoint.
 var hitstop_frames: int = 0
@@ -56,7 +58,13 @@ func tick() -> void:
 	if recorder != null:
 		recorder.record(presses, ctx.move_dir)
 	poll_frame += 1 # counts this polled frame even when a gate below freezes the world
+	for system: SimSystem in _systems: # D-S43-3: runs before the gates (may set or clear them)
+		system.poll(presses, ctx)
 	if breakpoint_gate_active: # world frozen, hit-stop counter untouched (NP-2, D-S21-11)
+		for system: SimSystem in _systems: # D-S43-4: shifts apply while frozen
+			if system.phase != SimSystem.SimPhase.SHIFTS:
+				continue # robust to registration order
+			system.tick(ctx)
 		return
 	if hitstop_frames > 0:
 		hitstop_frames -= 1

@@ -141,6 +141,7 @@ static func _hash(h: int, arena: Arena, body: InfiniteLoopBody) -> int:
 		int(body.split), body.next_ring, body.open_ring, body.ring_timer, int(body.nested_done),
 		body.inner_travel_mtiles, body.inner_travel_rem, body.inner_speed_mtps(), body.spit.timer,
 		body.defeat_frames_elapsed, SimClock.hitstop_frames, # Story 3.8 (A4, AC 8)
+		body.waiting_ticks, # Story 4.4 (D-S44-1, AC 14): the start nudge count
 	]
 	for k: int in body.spit.slot_active.size():
 		values.append(body.spit.slot_active[k])

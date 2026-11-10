@@ -106,6 +106,12 @@ func is_showing() -> bool:
 	return _showing
 
 
+## Story 4.4 (D-S44-4): true when a line requested now would be shown or queued, not dropped (idle,
+## or the queue below MAX_PENDING). DuckDirector requests only while this holds. Read-only.
+func has_room() -> bool:
+	return not _showing or _queue.size() < MAX_PENDING
+
+
 func current_lines() -> PackedStringArray:
 	return _current_lines
 

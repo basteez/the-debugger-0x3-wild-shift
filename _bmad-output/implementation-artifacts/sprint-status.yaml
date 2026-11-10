@@ -127,11 +127,11 @@ development_status:
   epic-3-retrospective: optional
 
   # Epic 4: LOOP Combos & Breakpoint — window Nov 15–17
-  epic-4: backlog
-  4-1-loop-bit-echo: backlog
-  4-2-echo-dash-combo: backlog
-  4-3-breakpoint-skill: backlog # cut ladder #3 (FeatureFlags.breakpoint)
-  4-4-duck-hint-template: backlog
+  epic-4: in-progress
+  4-1-loop-bit-echo: done
+  4-2-echo-dash-combo: done
+  4-3-breakpoint-skill: done # cut ladder #3 (FeatureFlags.breakpoint)
+  4-4-duck-hint-template: done
   epic-4-retrospective: optional
 
   # Epic 5: Null Pointer & Watch — window Nov 18–21 (music composition may start in parallel)

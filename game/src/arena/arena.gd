@@ -27,6 +27,9 @@ const TEST_BOSS_PX := SPAWN_PX + Vector2(0, -5 * TILE_PX)
 ## Boss 1 (Story 3.3, D-S33-11, D-S33-13): the Infinite Loop, the boss of FIGHT boss 0. Its def
 ## path picks the InfiniteLoopBody class; any other path gets a plain BossController.
 const INFINITE_LOOP_DEF_PATH := "res://data/bosses/infinite_loop/boss_def.tres"
+## Story 4.3 (AD-12, D-S43-2): the Breakpoint leaf module, loaded by path only when its flag is on,
+## so the arena never names its class (held as a FightSkill).
+const BREAKPOINT_SKILL_PATH := "res://src/skills/breakpoint/breakpoint_skill.gd"
 ## Inset of the player's glyph centre from the play-area edge: half a tile, so the whole `@` cell
 ## stays inside the 32x18 play area (D-S22-2). One more tile inward makes the tree ring a wall.
 const PLAYER_EDGE_INSET_PX := TILE_PX / 2.0
@@ -76,6 +79,12 @@ var arena_context: ArenaContext = _make_arena_context()
 var boss: BossController = null
 ## The def path `boss` was built from ("" = none), so a retry reuses the controller.
 var boss_def_path: String = ""
+## Story 4.3 (D-S43-1, D-S43-11): FeatureFlags.breakpoint, read once here at construction (Main or a
+## test may override it with set_breakpoint_enabled before the first fight). Bosses get it injected.
+var breakpoint_enabled: bool = Defs.FEATURE_FLAGS.breakpoint_enabled
+## The Breakpoint module (cut #3), null when the flag is off. TIMERS phase; registered with SimClock
+## while the arena is in the tree.
+var breakpoint_skill: FightSkill = make_breakpoint_skill(breakpoint_enabled)
 
 
 func _enter_tree() -> void:
@@ -87,6 +96,8 @@ func _enter_tree() -> void:
 	SimClock.register_system(arena_context.player_effects)
 	if boss != null:
 		SimClock.register_system(boss)
+	if breakpoint_skill != null:
+		SimClock.register_system(breakpoint_skill)
 
 
 ## Detach from the autoload clock so re-instancing Main (tests) never double-ticks (D-S22-10).
@@ -99,16 +110,21 @@ func _exit_tree() -> void:
 	SimClock.unregister_system(arena_context.player_effects)
 	if boss != null:
 		SimClock.unregister_system(boss)
+	if breakpoint_skill != null:
+		breakpoint_skill.end_fight() # never leave the autoload clock frozen (AC 12)
+		SimClock.unregister_system(breakpoint_skill)
 
 
 ## Every route into FIGHT (D-S22-5, Story 2.3 AC9): reset the player to spawn and the register to
 ## `fight_start`, then start ticking both. `with_practice` (Story 2.7, debug Shift+F2 only) places
 ## the practice target, reset; without it the fight has no target. Story 2.9: the caller passes the
-## RunState snapshot ring (a retry restores it), and the player is back to full HP. Hooks for later
-## stories: the Echo memory clear (Epic 4) belongs here. Story 3.1/3.3: `p_boss_def_path` places
+## RunState snapshot ring (a retry restores it), and the player is back to full HP. Story 4.1: the
+## Echo memory clear lives in ActionStateMachine.reset_for_fight (called below). Story 3.1/3.3: `p_boss_def_path` places
 ## that boss (Main.boss_def_path_for: the Infinite Loop for boss 0, the test boss on Shift+F3),
 ## reset to full HP, phase 1, GAP (AC 8); an empty path means the fight has no boss.
-func enter_fight(fight_start: PackedInt32Array, with_practice: bool = false, p_boss_def_path: String = "") -> void:
+## Story 4.3 (AC 3, AC 12, D-S43-6): `breakpoint_unlocked` (Fight 2 or later, computed by Main from
+## RunState) resets the Breakpoint module: gate off, cooldown 0, not active.
+func enter_fight(fight_start: PackedInt32Array, with_practice: bool = false, p_boss_def_path: String = "", breakpoint_unlocked: bool = false) -> void:
 	player.reset_for_fight(SPAWN_PX)
 	player.set_active(true)
 	if not register.set_fight_start(fight_start):
@@ -122,6 +138,8 @@ func enter_fight(fight_start: PackedInt32Array, with_practice: bool = false, p_b
 	_set_practice(with_practice)
 	arena_context.player_effects.clear()
 	_set_boss(p_boss_def_path)
+	if breakpoint_skill != null:
+		breakpoint_skill.reset_for_fight(breakpoint_unlocked)
 	_redraw_player_view()
 
 
@@ -147,6 +165,8 @@ func leave_fight() -> void:
 	combat.boss = null # D-S32-23
 	if boss != null:
 		boss.set_active(false)
+	if breakpoint_skill != null:
+		breakpoint_skill.end_fight() # clears the gate, emits breakpoint_ended if running (AC 12)
 
 
 ## Places (reset) or removes the fight's boss (D-S33-13). The controller and its attack scripts
@@ -168,8 +188,34 @@ func _set_boss(path: String) -> void:
 		boss.body_center_px = TEST_BOSS_PX # the Infinite Loop places itself in reset (D-S33-18)
 		if is_inside_tree():
 			SimClock.register_system(boss)
+	boss.breakpoint_on = breakpoint_enabled # D-S43-11: the SIGSEGV fallback reads the flag
 	boss.reset_for_fight() # also clears Patched (D-S32-23)
 	combat.boss = boss
+
+
+## Builds the Breakpoint module when `enabled` (AD-12): loaded by path, bound to the SimClock
+## autoload's gate. Null when off, so nothing under src/skills/breakpoint/ is instantiated.
+static func make_breakpoint_skill(enabled: bool) -> FightSkill:
+	if not enabled:
+		return null
+	var script := load(BREAKPOINT_SKILL_PATH) as GDScript
+	return script.new(SimClock) as FightSkill if script != null else null
+
+
+## Turns the Breakpoint module on or off (Main's startup wiring, flag-off tests). Off ends a running
+## Breakpoint and drops the module; on builds it. Bosses pick the flag up on the next fight entry.
+func set_breakpoint_enabled(on: bool) -> void:
+	breakpoint_enabled = on
+	if on and breakpoint_skill == null:
+		breakpoint_skill = make_breakpoint_skill(true)
+		if is_inside_tree() and breakpoint_skill != null:
+			SimClock.register_system(breakpoint_skill)
+	elif not on and breakpoint_skill != null:
+		breakpoint_skill.end_fight()
+		SimClock.unregister_system(breakpoint_skill)
+		breakpoint_skill = null
+	if boss != null:
+		boss.breakpoint_on = on
 
 
 ## The controller class for a boss def path (D-S33-13). Pure.
