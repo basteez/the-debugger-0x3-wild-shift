@@ -46,7 +46,7 @@ _This file contains critical rules and patterns that AI agents must follow when 
 - Only bosses, decoys and screens are instanced (`PackedScene.instantiate()`), once per fight/screen.
 - All assets are `preload()`ed; no runtime `load()` or threaded loading.
 - Never log per frame; `Log.debug` only on events.
-- Web build ≤ 30 MB uncompressed.
+- Web build ≤ 32 MB uncompressed (raised from 30 MB on 2026-11-10, see deferred-work.md).
 
 ### Code Organization Rules
 

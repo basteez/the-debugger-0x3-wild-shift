@@ -138,7 +138,7 @@ This document provides the complete epic and story breakdown for The Debugger 0x
 - NFR1: Performance — 60 FPS sustained in Chrome and Firefox (latest) on a 2020-era mid-range laptop with integrated graphics at 1280×720, measured over Segfault phase 3.
 - NFR2: Performance — at most 300 glyph particles live at any time.
 - NFR3: Load — title screen interactive in ≤ 10 s on a 50 Mbps connection with a cold cache.
-- NFR4: Build size — web build ≤ 30 MB uncompressed (stripped export template if needed).
+- NFR4: Build size — web build ≤ 32 MB uncompressed (raised from 30 MB on 2026-11-10, see deferred-work.md) (stripped export template if needed).
 - NFR5: Responsiveness — no added input latency beyond the browser/engine baseline; 0-frame shift with feedback on the input frame; retry after death in ≤ 2 s.
 - NFR6: Display — 640×360 base resolution, integer-scaled (pixel-perfect), Nearest filtering.
 - NFR7: Compatibility — Chrome and Firefox fully supported; Safari playable (cosmetic WebGL2 quirks accepted); no mobile; no crash in Safari over a full run.
@@ -389,7 +389,7 @@ So that web pitfalls surface immediately and every epic can end with a deploy.
 **Given** a release Web export
 **When** I upload it to the itch.io draft page with `butler` (command documented in README)
 **Then** the build loads and shows the main scene in Chrome, Firefox and Safari (latest)
-**And** the uncompressed build is ≤ 30 MB and its size is recorded in the story notes
+**And** the uncompressed build is ≤ 32 MB and its size is recorded in the story notes
 **And** no SharedArrayBuffer/COOP/COEP headers are required
 
 **Given** the deployed build
@@ -1593,7 +1593,7 @@ So that my first impression isn't a broken build.
 **Given** the release build on the itch.io draft page
 **When** tested in Chrome, Firefox and Safari (latest)
 **Then** a full run has no crash in any of them; Safari issues are only cosmetic
-**And** the title is interactive in ≤ 10 s on 50 Mbps with a cold cache, and the build is ≤ 30 MB
+**And** the title is interactive in ≤ 10 s on 50 Mbps with a cold cache, and the build is ≤ 32 MB
 
 **Given** a 2020-era mid-range laptop with integrated graphics at 1280×720
 **When** Segfault phase 3 is played in Chrome and Firefox

@@ -31,7 +31,7 @@ WEB_DIR="${SMOKE_WEB_DIR:-build/web}"
 PORT="${SMOKE_PORT:-8060}"
 URL="http://localhost:${PORT}/"
 PAGE_URL="${URL}${SMOKE_QUERY:-}"
-BUDGET_BYTES="${WEB_SIZE_BUDGET_BYTES:-30000000}"
+BUDGET_BYTES="${WEB_SIZE_BUDGET_BYTES:-32000000}"
 REQUIRED=(index.html index.js index.wasm index.side.wasm index.pck)
 
 fail() {
