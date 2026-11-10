@@ -24,6 +24,9 @@ const PRACTICE_TARGET_PX := SPAWN_PX + Vector2(4 * TILE_PX, 0)
 ## a fight without it never touches the data. Body centre 5 tiles above spawn.
 const TEST_BOSS_DEF_PATH := "res://data/bosses/test_boss/boss_def.tres"
 const TEST_BOSS_PX := SPAWN_PX + Vector2(0, -5 * TILE_PX)
+## Boss 1 (Story 3.3, D-S33-11, D-S33-13): the Infinite Loop, the boss of FIGHT boss 0. Its def
+## path picks the InfiniteLoopBody class; any other path gets a plain BossController.
+const INFINITE_LOOP_DEF_PATH := "res://data/bosses/infinite_loop/boss_def.tres"
 ## Inset of the player's glyph centre from the play-area edge: half a tile, so the whole `@` cell
 ## stays inside the 32x18 play area (D-S22-2). One more tile inward makes the tree ring a wall.
 const PLAYER_EDGE_INSET_PX := TILE_PX / 2.0
@@ -67,9 +70,12 @@ var practice_target: PracticeTarget = null
 ## Echo decoy replaces target_source in 6.1), the player's own position for body contact, and the
 ## PlayerEffects queue (NP-3), ticked in PLAYER_EFFECTS while the arena is in the tree.
 var arena_context: ArenaContext = _make_arena_context()
-## The boss of the fight (Story 3.1): null unless a fight was entered with_test_boss (debug only).
-## Registered with SimClock (BOSS_HAZARDS) only while it exists and the arena is in the tree.
+## The boss of the fight (Story 3.1; Story 3.3 loader, D-S33-13): null unless the fight was
+## entered with a boss def path. Registered with SimClock (BOSS_HAZARDS) only while it exists and
+## the arena is in the tree.
 var boss: BossController = null
+## The def path `boss` was built from ("" = none), so a retry reuses the controller.
+var boss_def_path: String = ""
 
 
 func _enter_tree() -> void:
@@ -99,10 +105,10 @@ func _exit_tree() -> void:
 ## `fight_start`, then start ticking both. `with_practice` (Story 2.7, debug Shift+F2 only) places
 ## the practice target, reset; without it the fight has no target. Story 2.9: the caller passes the
 ## RunState snapshot ring (a retry restores it), and the player is back to full HP. Hooks for later
-## stories: the Echo memory clear (Epic 4) belongs here. Story 3.1: `with_test_boss` (debug Shift+F3
-## only) places the framework test boss, reset to full HP, phase 1, GAP (AC 8); without it the
-## fight has no boss.
-func enter_fight(fight_start: PackedInt32Array, with_practice: bool = false, with_test_boss: bool = false) -> void:
+## stories: the Echo memory clear (Epic 4) belongs here. Story 3.1/3.3: `p_boss_def_path` places
+## that boss (Main.boss_def_path_for: the Infinite Loop for boss 0, the test boss on Shift+F3),
+## reset to full HP, phase 1, GAP (AC 8); an empty path means the fight has no boss.
+func enter_fight(fight_start: PackedInt32Array, with_practice: bool = false, p_boss_def_path: String = "") -> void:
 	player.reset_for_fight(SPAWN_PX)
 	player.set_active(true)
 	if not register.set_fight_start(fight_start):
@@ -115,7 +121,7 @@ func enter_fight(fight_start: PackedInt32Array, with_practice: bool = false, wit
 	health.set_active(true)
 	_set_practice(with_practice)
 	arena_context.player_effects.clear()
-	_set_test_boss(with_test_boss)
+	_set_boss(p_boss_def_path)
 	_redraw_player_view()
 
 
@@ -143,38 +149,53 @@ func leave_fight() -> void:
 		boss.set_active(false)
 
 
-## Places (reset) or removes the test boss. The controller and its attack scripts are built once
-## and kept across retries (no allocation per fight, D-S31-18).
-func _set_test_boss(on: bool) -> void:
-	if not on:
+## Places (reset) or removes the fight's boss (D-S33-13). The controller and its attack scripts
+## are built once per def path and kept across retries (no allocation per fight, D-S31-18); a
+## different path replaces it. An empty path, or a def that fails to load or validate, leaves the
+## fight without a boss.
+func _set_boss(path: String) -> void:
+	if path == "":
 		_remove_boss()
 		return
-	if boss == null:
-		var def := load(TEST_BOSS_DEF_PATH) as BossDef
-		var controller := BossController.new()
+	if boss == null or boss_def_path != path:
+		_remove_boss()
+		var def := load(path) as BossDef
+		var controller: BossController = boss_class_for(path).new()
 		if not controller.setup(def, health, arena_context):
 			return
 		boss = controller
-		boss.body_center_px = TEST_BOSS_PX
+		boss_def_path = path
+		boss.body_center_px = TEST_BOSS_PX # the Infinite Loop places itself in reset (D-S33-18)
 		if is_inside_tree():
 			SimClock.register_system(boss)
 	boss.reset_for_fight() # also clears Patched (D-S32-23)
 	combat.boss = boss
 
 
+## The controller class for a boss def path (D-S33-13). Pure.
+static func boss_class_for(path: String) -> GDScript:
+	if path == INFINITE_LOOP_DEF_PATH:
+		return InfiniteLoopBody
+	return BossController
+
+
 func _remove_boss() -> void:
 	combat.boss = null
+	boss_def_path = ""
 	if boss == null:
 		return
+	boss.set_active(false)
 	SimClock.unregister_system(boss)
 	boss = null
 
 
-## The default arena context: aim and contact both follow the player.
+## The default arena context: aim and contact both follow the player; the boss reads the register's
+## shift count (Story 3.3).
 func _make_arena_context() -> ArenaContext:
 	var ctx := ArenaContext.new()
 	ctx.target_source = func() -> Vector2: return player.position_px
 	ctx.player_source = func() -> Vector2: return player.position_px
+	ctx.shift_count = func() -> int: return register.shift_serial # read-only (D-S33-6, NP-3)
 	return ctx
 
 

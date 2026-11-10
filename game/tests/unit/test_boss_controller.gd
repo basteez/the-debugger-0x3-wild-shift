@@ -481,6 +481,7 @@ func test_phase_def_rules() -> void:
 	var b: AttackDef = _attack(&"b", 20, 1, 0)
 	assert_eq(_phase(100, 1, [a, b]).validate().size(), 0)
 	assert_true(_has_message(_phase(100, 1, [a]).validate(), "at least 2"), "pool of one")
+	assert_eq(_phase(100, 1, []).validate().size(), 0, "Story 3.3 (D-S33-9): an empty pool is valid")
 	assert_true(_has_message(_phase(100, 1, [a, a]).validate(), "twice"), "same attack twice")
 	assert_true(_has_message(_phase(100, 1, [a, a]).validate(), "at least 2"))
 	assert_true(_has_message(_phase(100, 0, [a, b]).validate(), "gap_frames"))

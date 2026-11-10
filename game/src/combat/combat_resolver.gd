@@ -67,7 +67,7 @@ func _resolve_boss_hit(def: ActionDef, serial: int, is_combo: bool) -> int:
 		EventBus.patched_applied.emit(boss.def.boss_id, WeakWindowTracker.PATCHED_FRAMES)
 	var state: int = DamageState.Kind.PATCHED if boss.weak_window.is_patched() else DamageState.Kind.UNPATCHED
 	var damage: int = DamageCalc.compute(def.base_damage, DamageState.multiplier(state), false, 1.0)
-	var pos: Vector2 = boss.body_center_px
+	var pos: Vector2 = boss.hit_position() # Story 3.3 (D-S33-14): the `;` for the Infinite Loop
 	boss.mark_hit(serial)
 	boss.take_hit(damage)
 	Log.debug(&"combat", "boss hit %s dmg=%d state=%d" % [def.id, damage, state])
@@ -90,8 +90,9 @@ static func hits_for(shape: HitShape, origin: Vector2, facing: Vector2, p_target
 
 
 ## True when the shape hits `p_boss` for the action with `serial` (D-S32-9, D-S32-10): the boss is
-## hittable, not yet hit by that action, and its body circle overlaps the shape. Pure.
+## hittable, not yet hit by that action, and its hurtbox overlaps the shape (Story 3.3: through
+## BossController.overlaps_shape, D-S33-14; a miss never marks the action, D-S33-5). Pure.
 static func boss_overlapped(shape: HitShape, origin: Vector2, facing: Vector2, p_boss: BossController, serial: int) -> bool:
 	if shape == null or p_boss == null or not p_boss.is_hittable() or p_boss.was_hit_by(serial):
 		return false
-	return shape.overlaps(origin, facing, p_boss.body_center_px, p_boss.body_radius_px())
+	return p_boss.overlaps_shape(shape, origin, facing)

@@ -8,6 +8,10 @@ extends Node2D
 ## Story 3.2 (AC 5, D-S32-18, D-S32-22): while Patched, a `// patched` tag and a countdown bar
 ## (frames_left / 180) float above the body; the last boss hit's damage number shows over it for
 ## DAMAGE_NUMBER_FRAMES presentation frames, 1x unpatched, 2x patched. Reads only.
+## Story 3.3 (D1, D-S33-16): an InfiniteLoopBody is drawn as its ring: 24 glyph cells at the segment
+## positions (`{` / `}` alternating, the `;` at the junction: a lit, inverted cell while open, a
+## plain `;` while closed, D-S33-24), and the `i = N` counter inside the ring above its centre
+## (D-S33-23). The `// patched` stack is clamped to the arena's top edge (D3).
 
 const GLYPH_SCALE := 2
 const TELL_MARK := "!"
@@ -20,6 +24,13 @@ const BAR_HEIGHT := 2
 const STACK_GAP := 2
 ## Damage number lifetime in presentation (_process) frames, not sim frames (D-S32-18).
 const DAMAGE_NUMBER_FRAMES := 30
+## Ring glyphs (Story 3.3).
+const OPEN_BRACE := "{"
+const CLOSE_BRACE := "}"
+const SEMICOLON := ";"
+const COUNTER_SCALE := 1
+## The `i = N` counter sits this many tiles inside the ring's top (D-S33-23).
+const COUNTER_INSET_TILES := 1.5
 
 var boss: BossController
 
@@ -62,6 +73,9 @@ func damage_number() -> String:
 func _draw() -> void:
 	if boss == null or boss.def == null:
 		return
+	if boss is InfiniteLoopBody:
+		_draw_ring(boss as InfiniteLoopBody)
+		return
 	var text: String = boss.def.name_signature
 	var size := Vector2(GlyphFont.text_width(text, GLYPH_SCALE), GlyphFont.CELL * GLYPH_SCALE)
 	if boss.state == BossController.BossState.DEFEATED:
@@ -82,6 +96,32 @@ func _draw() -> void:
 	_draw_number(size)
 
 
+## The Infinite Loop's ring (Story 3.3, D1, D2): the segment cells with the HP jitter and the ROAR
+## flash, the `;`, the `i = N` counter, then the Patched stack and the damage number. After defeat
+## the ring stays where it stopped, `;` closed, no flash (D-S33-17).
+func _draw_ring(body: InfiniteLoopBody) -> void:
+	var defeated: bool = body.state == BossController.BossState.DEFEATED
+	var cell := Vector2(GlyphFont.CELL * GLYPH_SCALE, GlyphFont.CELL * GLYPH_SCALE)
+	var jitter := Vector2(0.0 if defeated else jitter_offset(body.jitter_level(), SimClock.sim_frame), 0.0)
+	var flash: bool = roar_flash_on(body.state == BossController.BossState.ROAR, body.frames_left)
+	var open: bool = body.is_open() and not defeated
+	for k: int in body.ring.segments:
+		var top_left: Vector2 = line_top_left(body.segment_px(k), cell) + jitter
+		var glyph: String = ring_glyph(k)
+		if flash != (k == 0 and open):
+			draw_rect(Rect2(top_left, cell), Palette.INK)
+			GlyphFont.draw_at(self, top_left, glyph, Palette.BG, GLYPH_SCALE)
+		else:
+			GlyphFont.draw_at(self, top_left, glyph, Palette.INK, GLYPH_SCALE)
+	var counter: String = counter_text(body.iteration)
+	var counter_size := Vector2(GlyphFont.text_width(counter, COUNTER_SCALE), GlyphFont.CELL * COUNTER_SCALE)
+	var counter_left: Vector2 = line_top_left(counter_centre(body.body_center_px, body.radius_px()), counter_size) + jitter
+	GlyphFont.draw_at(self, counter_left, counter, Palette.INK, COUNTER_SCALE)
+	if body.weak_window.is_patched() and not defeated:
+		_draw_patched(counter_left, counter_size, body.weak_window.frames_left)
+	_draw_number(Vector2(0, 0))
+
+
 func _draw_number(size: Vector2) -> void:
 	if _number_left > 0:
 		var num_size := Vector2(GlyphFont.text_width(_number_text, _number_scale), GlyphFont.CELL * _number_scale)
@@ -93,8 +133,9 @@ func _draw_number(size: Vector2) -> void:
 func _draw_patched(top_left: Vector2, size: Vector2, frames_left: int) -> void:
 	var bar_full: float = float(GlyphFont.text_width(PATCHED_TAG, TAG_SCALE))
 	var centre_x: float = top_left.x + size.x / 2.0
-	var bar_top: float = top_left.y - size.y - STACK_GAP - BAR_HEIGHT
-	var tag_top: float = bar_top - STACK_GAP - GlyphFont.CELL * TAG_SCALE
+	var tops: Vector2 = patched_stack_tops(top_left.y, size.y)
+	var tag_top: float = tops.x
+	var bar_top: float = tops.y
 	var left: float = roundf(centre_x - bar_full / 2.0)
 	GlyphFont.draw_at(self, Vector2(left, tag_top), PATCHED_TAG, Palette.INK, TAG_SCALE)
 	draw_rect(Rect2(left, bar_top, bar_full, BAR_HEIGHT), Palette.INK, false, 1.0)
@@ -110,6 +151,34 @@ func _on_boss_hp(hp: int, max_hp: int) -> void:
 		_number_left = 0
 		_number_text = ""
 	queue_redraw()
+
+
+## Top y of the `// patched` tag (x) and of its bar (y), stacked above a line whose top is
+## `line_top` and height `line_h` (over the tell mark's row), pushed down as one block so the tag
+## never leaves the arena's top edge (Story 3.3, D3). Pure.
+static func patched_stack_tops(line_top: float, line_h: float) -> Vector2:
+	var bar_top: float = line_top - line_h - STACK_GAP - BAR_HEIGHT
+	var tag_top: float = bar_top - STACK_GAP - GlyphFont.CELL * TAG_SCALE
+	var push: float = maxf(0.0, Arena.play_area().position.y - tag_top)
+	return Vector2(tag_top + push, bar_top + push)
+
+
+## The glyph of ring segment `k` (Story 3.3, D1): the `;` at the junction (k = 0), then `}` and `{`
+## alternating. Pure.
+static func ring_glyph(k: int) -> String:
+	if k == 0:
+		return SEMICOLON
+	return CLOSE_BRACE if k % 2 == 1 else OPEN_BRACE
+
+
+## The loop counter text (AC 1). Pure.
+static func counter_text(iteration: int) -> String:
+	return "i = %d" % iteration
+
+
+## Centre of the `i = N` counter: inside the ring, COUNTER_INSET_TILES below its top (D-S33-23). Pure.
+static func counter_centre(centre: Vector2, ring_radius_px: float) -> Vector2:
+	return centre - Vector2(0.0, ring_radius_px - COUNTER_INSET_TILES * Const.TILE_PX)
 
 
 ## Countdown bar fill (AC 5): frames_left / PATCHED_FRAMES, clamped to 0..1. Pure.

@@ -186,11 +186,12 @@ func apply_flow_state(state: int, boss_index: int) -> void:
 	arena.visible = in_fight
 	hud.visible = in_fight
 	if in_fight:
-		arena.enter_fight(fight_start_ring(Game.run, boss_index), wants_practice(), wants_test_boss())
+		var practice: bool = wants_practice()
+		arena.enter_fight(fight_start_ring(Game.run, boss_index), practice, boss_def_path_for(wants_test_boss(), boss_index, practice))
 	else:
 		arena.leave_fight()
 	_attach_practice_target()
-	_attach_boss()
+	_attach_boss(in_fight)
 
 
 ## The register ring a fight starts from (Story 2.9, AC 6): the RunState snapshot Game captured on
@@ -202,6 +203,20 @@ static func fight_start_ring(run: RunState, boss_index: int) -> PackedInt32Array
 	return Register.fight_start_for_boss(boss_index)
 
 
+## The boss def a FIGHT loads (Story 3.3, D-S33-11, D-S33-13): the framework test boss on
+## Shift+F3 (takes precedence), no boss in the Shift+F2 practice sandbox (D-S33-22), the Infinite
+## Loop for boss 0 in every build, none (placeholder header) for boss 1 and 2 until their stories.
+## Pure.
+static func boss_def_path_for(debug_test_boss: bool, boss_index: int, practice: bool = false) -> String:
+	if debug_test_boss:
+		return Arena.TEST_BOSS_DEF_PATH
+	if practice:
+		return ""
+	if boss_index == 0:
+		return Arena.INFINITE_LOOP_DEF_PATH
+	return ""
+
+
 ## True when the fight should have the practice target: Shift+F2 was the last jump (Story 2.7,
 ## D-S27-3). Always false without the debug gate (no DebugKeys node).
 func wants_practice() -> bool:
@@ -209,17 +224,21 @@ func wants_practice() -> bool:
 
 
 ## True when the fight should have the framework test boss: Shift+F3 was the last jump (Story 3.1,
-## D-S31-3). Always false without the debug gate (no DebugKeys node), so release and replays never
-## run a boss.
+## D-S31-3). Always false without the debug gate (no DebugKeys node), so release never runs it.
 func wants_test_boss() -> bool:
 	return Debug.enabled and is_instance_valid(debug_keys) and debug_keys.test_boss_requested
 
 
-## Hands the arena's boss (or null) to the boss view and the HUD header (Story 3.1).
-func _attach_boss() -> void:
-	boss_view.boss = arena.boss
-	boss_view.queue_redraw()
-	hud.set_boss(arena.boss)
+## Hands the arena's boss (or null) to the boss view and the HUD header (Story 3.1). Story 3.3
+## (B6): null-safe, and outside FIGHT the views are detached (the arena keeps the controller for
+## the retry).
+func _attach_boss(in_fight: bool = true) -> void:
+	var b: BossController = arena.boss if in_fight else null
+	if is_instance_valid(boss_view):
+		boss_view.boss = b
+		boss_view.queue_redraw()
+	if is_instance_valid(hud):
+		hud.set_boss(b)
 
 
 ## Hands the arena's practice target (or null) to the debug views.

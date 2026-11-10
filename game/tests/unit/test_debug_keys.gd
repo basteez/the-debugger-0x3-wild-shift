@@ -197,7 +197,7 @@ func test_ctrl_f6_queues_a_hit_only_in_fight() -> void:
 	Game.flow_state = GameScript.FlowState.TITLE
 	assert_false(keys.handle_key(_key(KEY_F6, true, false, false, true)), "Ctrl+F6 does nothing outside FIGHT")
 	assert_false(health.get(&"_pending"))
-	keys.handle_key(_key(KEY_F2))
+	keys.handle_key(_key(KEY_F3)) # Story 3.3: boss 1 has no boss yet (boss 0 is the Infinite Loop)
 	assert_eq(Game.flow_state, GameScript.FlowState.FIGHT)
 	assert_false(keys.handle_key(_key(KEY_F6)), "plain F6 is the boss kill: no boss, not consumed")
 	assert_false(keys.handle_key(_key(KEY_F6, true, false, true)), "Shift+F6 is not the damage key")
@@ -258,10 +258,14 @@ func test_main_places_the_test_boss_only_on_shift_f3_and_keeps_it_on_retry() -> 
 	var keys: DebugKeys = main.get_node(^"DebugKeys")
 	var arena: Arena = main.arena
 	assert_eq(keys.arena, arena, "Main injects the arena")
-	keys.handle_key(_key(KEY_F2))
-	assert_null(arena.boss, "plain F2: no boss")
+	keys.handle_key(_key(KEY_F3))
+	assert_null(arena.boss, "plain F3 (boss 1): no boss")
 	assert_eq(main.hud.top_bar_text(), Hud.TOP_BAR)
+	keys.handle_key(_key(KEY_F2))
+	assert_true(arena.boss is InfiniteLoopBody, "Story 3.3: plain F2 (boss 0) is the Infinite Loop")
+	assert_eq(main.hud.top_bar_text(), "void infiniteLoop() // hp 400")
 	keys.handle_key(_key(KEY_F3, true, false, true))
+	assert_false(arena.boss is InfiniteLoopBody, "Shift+F3 wins over boss 0 (AC 9)")
 	var boss: BossController = arena.boss
 	assert_not_null(boss)
 	assert_true(boss.active)
@@ -272,7 +276,7 @@ func test_main_places_the_test_boss_only_on_shift_f3_and_keeps_it_on_retry() -> 
 	main.apply_flow_state(GameScript.FlowState.FIGHT, 0) # a retry re-enters FIGHT
 	assert_same(arena.boss, boss, "a retry keeps the controller (cached attacks)")
 	assert_eq(boss.hp, 20, "and resets it")
-	keys.handle_key(_key(KEY_F2))
+	keys.handle_key(_key(KEY_F3))
 	assert_null(arena.boss)
 	assert_null(main.boss_view.boss)
 	assert_eq(main.hud.top_bar_text(), Hud.TOP_BAR)
@@ -303,7 +307,7 @@ func test_f6_kills_the_boss_and_shift_f6_skips_a_phase() -> void:
 func test_boss_keys_do_nothing_without_a_boss_or_outside_fight() -> void:
 	var main: Node2D = _main_with_debug()
 	var keys: DebugKeys = main.get_node(^"DebugKeys")
-	keys.handle_key(_key(KEY_F2))
+	keys.handle_key(_key(KEY_F3)) # boss 1: no boss yet (Story 3.3)
 	assert_false(keys.handle_key(_key(KEY_F6)), "F6 without a boss")
 	assert_false(keys.handle_key(_key(KEY_F6, true, false, true)), "Shift+F6 without a boss")
 	keys.handle_key(_key(KEY_F3, true, false, true))
@@ -320,6 +324,44 @@ func test_release_gate_has_no_test_boss() -> void:
 	var main: Node2D = (load("res://src/main/main.tscn") as PackedScene).instantiate()
 	add_child_autofree(main)
 	assert_false(main.wants_test_boss())
-	main.apply_flow_state(GameScript.FlowState.FIGHT, 0)
-	assert_null(main.arena.boss)
+	main.apply_flow_state(GameScript.FlowState.FIGHT, 1)
+	assert_null(main.arena.boss, "boss 1: placeholder, no boss")
 	assert_eq(main.hud.top_bar_text(), Hud.TOP_BAR)
+	# Story 3.3 (AC 9, D-S33-11, G3): the Infinite Loop is boss 0 in release too.
+	main.apply_flow_state(GameScript.FlowState.FIGHT, 0)
+	assert_true(main.arena.boss is InfiniteLoopBody)
+	assert_eq(main.hud.top_bar_text(), "void infiniteLoop() // hp 400")
+	main.apply_flow_state(GameScript.FlowState.TITLE, 0)
+	assert_eq(main.hud.top_bar_text(), Hud.TOP_BAR, "leaving FIGHT detaches the header (B6)")
+	assert_null(main.boss_view.boss, "and the view")
+
+
+# --- Story 3.3: which boss a FIGHT loads (AC 9, D-S33-11, D-S33-13, D-S33-22) ---
+
+func test_boss_def_path_for_precedence() -> void:
+	assert_eq(MainScript.boss_def_path_for(false, 0), Arena.INFINITE_LOOP_DEF_PATH, "boss 0: the Infinite Loop")
+	assert_eq(MainScript.boss_def_path_for(false, 1), "", "boss 1: placeholder")
+	assert_eq(MainScript.boss_def_path_for(false, 2), "", "boss 2: placeholder")
+	assert_eq(MainScript.boss_def_path_for(true, 0), Arena.TEST_BOSS_DEF_PATH, "Shift+F3 wins over boss 0")
+	assert_eq(MainScript.boss_def_path_for(true, 0, true), Arena.TEST_BOSS_DEF_PATH, "test boss wins over practice")
+	assert_eq(MainScript.boss_def_path_for(false, 0, true), "", "Shift+F2 practice: no boss")
+	assert_eq(Arena.boss_class_for(Arena.INFINITE_LOOP_DEF_PATH), InfiniteLoopBody)
+	assert_eq(Arena.boss_class_for(Arena.TEST_BOSS_DEF_PATH), BossController)
+
+
+func test_shift_f2_practice_has_no_boss_and_f6_keeps_working_on_the_loop() -> void:
+	var main: Node2D = _main_with_debug()
+	var keys: DebugKeys = main.get_node(^"DebugKeys")
+	keys.handle_key(_key(KEY_F2, true, false, true))
+	assert_null(main.arena.boss, "practice sandbox: no boss")
+	assert_not_null(main.arena.practice_target)
+	keys.handle_key(_key(KEY_F2))
+	var boss: BossController = main.arena.boss
+	assert_true(boss is InfiniteLoopBody)
+	watch_signals(EventBus)
+	assert_true(keys.handle_key(_key(KEY_F6, true, false, true)), "Shift+F6 skips to phase 2")
+	assert_eq(boss.phase_index, 1)
+	assert_eq(boss.hp, 264)
+	assert_true(keys.handle_key(_key(KEY_F6)), "F6 kills the Infinite Loop")
+	assert_signal_emitted_with_parameters(EventBus, "boss_defeated", [&"infinite_loop"])
+	assert_eq(main.hud.top_bar_text(), "void infiniteLoop() // hp 0")

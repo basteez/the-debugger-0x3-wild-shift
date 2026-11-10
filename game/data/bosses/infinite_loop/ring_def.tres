@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="RingDef" format=3]
+
+[ext_resource type="Script" path="res://src/bosses/infinite_loop/ring_def.gd" id="1_ring"]
+
+[resource]
+script = ExtResource("1_ring")
+segments = 24
+base_speed_tps = 8
+speed_cap_tps = 12
+ramp_percent = 5
+drift_tps = 2
+open_frames = 90
+contact_radius_tiles = 0.5
+hurt_radius_tiles = 0.5
