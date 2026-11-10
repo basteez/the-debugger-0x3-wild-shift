@@ -39,6 +39,8 @@ static var _squeak_stream: AudioStreamWAV = null
 ## guard (a second boss_defeated in the same fight never squeaks twice; reset on FIGHT entry).
 var defeat_squeak_count: int = 0
 var _defeat_squeaked: bool = false
+## Story 4.3: breakpoint_started / breakpoint_ended events handled this session (tests).
+var breakpoint_music_events: int = 0
 
 
 func _ready() -> void:
@@ -50,6 +52,8 @@ func _ready() -> void:
 	EventBus.patched_applied.connect(_on_patched_applied)
 	EventBus.boss_defeated.connect(on_boss_defeated)
 	EventBus.flow_state_changed.connect(_on_flow_state_changed)
+	EventBus.breakpoint_started.connect(on_breakpoint_started)
+	EventBus.breakpoint_ended.connect(on_breakpoint_ended)
 
 
 ## Story 3.8 (D2, AC 1): the duck squeaks once when the boss is defeated. Presentation only.
@@ -59,6 +63,18 @@ func on_boss_defeated(_boss: StringName) -> void:
 	_defeat_squeaked = true
 	defeat_squeak_count += 1
 	play_squeak()
+
+
+## Story 4.3 (AC 9, D-S43-9): the muffled Breakpoint loop arrives in 7.1; until then the events are
+## handled with a debug log only (no audible change).
+func on_breakpoint_started() -> void:
+	breakpoint_music_events += 1
+	Log.debug(&"audio", "breakpoint started: muffled music (placeholder until 7.1)")
+
+
+func on_breakpoint_ended() -> void:
+	breakpoint_music_events += 1
+	Log.debug(&"audio", "breakpoint ended: normal music (placeholder until 7.1)")
 
 
 func _on_flow_state_changed(_from: int, to: int) -> void:

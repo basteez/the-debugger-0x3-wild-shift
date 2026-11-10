@@ -118,6 +118,7 @@ Story 1.3 AC9 / I-6 ("mumble-speech web check, moved to 3.7") is UNBLOCKED. Tizi
 ## Deferred from: code review of story-2-1 (2026-11-07)
 
 - InputBuffer grows while the world is frozen (hit-stop/Breakpoint keep sim_frame fixed, so nothing expires); bounded by key presses, fine until a long Breakpoint with key mashing. Revisit with 4.3.
+  - [x] Covered by Story 4.3: buffer bound over a 119-poll Breakpoint with key mashing is asserted (AC 15).
 - A recording started before FIGHT entry (or mid-fight) does not hold the RNG state reached; exact replay needs F11 right at fight start (already a known limitation in the story notes). Revisit with 2.2+.
 - LiveInput `is_action_just_pressed` at display rates above 60 Hz is unverified headlessly (human check H3, fallback: `_unhandled_input` queue).
 - Recording `seed` is stored as a JSON number: exact up to 2^53, ample for `get_ticks_usec`.
@@ -189,6 +190,7 @@ Story 1.3 AC9 / I-6 ("mumble-speech web check, moved to 3.7") is UNBLOCKED. Tizi
 - 2.7 temporary arena readout: RESOLVED in Story 2.8 (removed; LogPanel shows hits).
 - `JuiceDirector` effects run from `_process`: a 1-frame inversion or the 6-frame shake start can be skipped when one render frame spans 2+ physics ticks (web hitch); shake offset and inversion stay applied while paused mid-effect. Cosmetic; revisit if H1/H2 show it.
 - ScreenFX shader: dither checker assumes the viewport equals `Const.BASE_RES`; invert maps every non-palette pixel (red warning lines, Epic 3/4) to INK or BG. `JuiceDirector.reset()` clears dither on each fight entry; revisit with Breakpoint (Epic 4).
+  - [x] Covered by Story 4.3: the shader exempts Palette.WARN (red dot and line) from dither and invert; real-GPU/web check still pending as a human check.
 - Solo hits ignore `ActionDef.hitstop_frames` by design (D-S28-1); generalise or document with crit/Patched states (Epic 3). "Max wins" resolver test cannot fail because one action per tick; pure `HitFeedback` test covers it.
 - Guards: hit-stop regex is evadable (`set`/`call`, `main/`); nothing enforces "only JuiceDirector calls ScreenFX setters" or "sim never reads ParticlePool".
 - Camera2D shake also jitters Particles and PerfOverlay; no explicit `make_current`/limits (boss camera, later). Burst particles read as a clump during hit-stop [design call: judge by feel in H1].
@@ -310,3 +312,15 @@ Story 1.3 AC9 / I-6 ("mumble-speech web check, moved to 3.7") is UNBLOCKED. Tizi
 - `ComboDef._solo_action` uses `load()` + `.call` on Defs (preload-cycle workaround); verify in a Web export.
 - Echo Dash's single `combo` start log is not asserted; `test_combo_def_validation_additions` mutates the shared `Defs.SLASH_1` (restored before the assert).
 
+## Deferred from: code review of story-4-3-breakpoint-skill (2026-11-10)
+
+- Breakpoint can start during the boss DEFEATED animation (can_start ignores boss state); it delays HARVEST by up to about 2 s and burns the cooldown on a dead boss. Cosmetic/pacing; gate it from Arena if playtest shows it.
+- The start poll counts as frozen poll 1, so the world freezes for 119 ticks, not 120 (D-S43-16, "at most 120"). Confirm with the GDD owner whether 120 frozen frames is meant.
+- Readout text is `brk READY` / `brk 12s` (GDD HUD label), AC 10 wording says `READY` / seconds only; amend the AC text.
+- Spec/AC 1 field name `breakpoint` is `breakpoint_enabled` in code (reserved word, D-S43-17); later stories (6.5, 7.4) must use the new name.
+- The ending J/K press sits in the buffer if hit-stop is pending on the end poll; hit-stop of 8+ frames drops it (D-S43-12 accepted).
+- Flag-off full suite is a manual run (flip `feature_flags.tres`); only `test_shipped_flags_are_all_on_and_valid` fails by design. No CI matrix job for it.
+- Arena builds then drops a BreakpointSkill when Main injects a flag-off resource differing from Defs.FEATURE_FLAGS (not reachable in shipped play).
+- ScreenFX exemption uses an exact match (epsilon 0.002) on screen_texture; anti-aliased dot rim or sRGB differences on the Web Compatibility renderer may dither the rim. Human check in browser; fallback: draw_rect dot or a wider threshold.
+- check_guards leaf rule: does not cover BreakpointReadout (in ui/hud), .tscn/.tres references, or trailing `#` comments on code lines.
+- `_gate.set(&"breakpoint_gate_active")` on an untyped Object is silent if renamed or null; replay test hashes no player position; wiring test reads private `_systems`; assorted weak/tautological tests; `breakpoint_music_events` counter merges started and ended.

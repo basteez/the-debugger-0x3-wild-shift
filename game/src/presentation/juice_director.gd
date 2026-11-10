@@ -9,11 +9,15 @@ extends Node
 ## inversion for N physics frames) and set_dither. Gameplay in 2.8 requests neither (crit inversion
 ## is Epic 3, Breakpoint dither Epic 4). Presentation never requests hit-stop (D-S28-12).
 ## Story 3.2 (AC 4, D-S32-18): a Patched (crit) hit inverts the screen for 1 frame.
+## Story 4.3 (AC 9, D-S43-14): breakpoint_started dithers the screen at BREAKPOINT_DITHER,
+## breakpoint_ended clears it.
 
 const CLICK_LEFT: AudioStream = preload(ShiftJuice.CLICK_LEFT)
 const CLICK_RIGHT: AudioStream = preload(ShiftJuice.CLICK_RIGHT)
 ## Full-screen inversion frames of a crit (FR27, D-S32-18).
 const CRIT_INVERT_FRAMES := 1
+## Screen dither while Breakpoint runs (GDD "50% ink", D-S43-14).
+const BREAKPOINT_DITHER := 0.5
 
 ## Injected by Main. Either may be null (nothing is applied to a missing node).
 var register_panel: RegisterPanel
@@ -35,6 +39,10 @@ func _enter_tree() -> void:
 		EventBus.register_shifted.connect(_on_register_shifted)
 	if not EventBus.hit_landed.is_connected(_on_hit_landed):
 		EventBus.hit_landed.connect(_on_hit_landed)
+	if not EventBus.breakpoint_started.is_connected(_on_breakpoint_started):
+		EventBus.breakpoint_started.connect(_on_breakpoint_started)
+	if not EventBus.breakpoint_ended.is_connected(_on_breakpoint_ended):
+		EventBus.breakpoint_ended.connect(_on_breakpoint_ended)
 
 
 func _exit_tree() -> void:
@@ -42,6 +50,10 @@ func _exit_tree() -> void:
 		EventBus.register_shifted.disconnect(_on_register_shifted)
 	if EventBus.hit_landed.is_connected(_on_hit_landed):
 		EventBus.hit_landed.disconnect(_on_hit_landed)
+	if EventBus.breakpoint_started.is_connected(_on_breakpoint_started):
+		EventBus.breakpoint_started.disconnect(_on_breakpoint_started)
+	if EventBus.breakpoint_ended.is_connected(_on_breakpoint_ended):
+		EventBus.breakpoint_ended.disconnect(_on_breakpoint_ended)
 
 
 func _process(_delta: float) -> void:
@@ -102,6 +114,14 @@ func _on_register_shifted(direction: int, _window: Vector2i, _ring: PackedInt32A
 func _on_hit_landed(_target: StringName, _damage: int, state: int, _is_combo: bool, _pos: Vector2) -> void:
 	if state == DamageState.Kind.PATCHED:
 		request_invert(CRIT_INVERT_FRAMES)
+
+
+func _on_breakpoint_started() -> void:
+	set_dither(BREAKPOINT_DITHER)
+
+
+func _on_breakpoint_ended() -> void:
+	set_dither(0.0)
 
 
 ## The preloaded click for a direction, matching ShiftJuice.click_path (AC2). No load() per shift.

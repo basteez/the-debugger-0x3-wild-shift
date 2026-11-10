@@ -56,6 +56,11 @@ if [ ${#pres_paths[@]} -gt 0 ]; then
 		< <(grep -rnE --include='*.gd' '(^|[^[:alnum:]_])(hp|invuln_left)[[:space:]]*([-+*/]?=[^=])|\.dead[[:space:]]*([-+*/]?=[^=])' "${pres_paths[@]}" | grep -vE '^[^:]+:[0-9]+:[[:space:]]*#' || true)
 fi
 
+# Story 4.3 (AC 2, AD-12, D-S43-2): the Breakpoint module is a leaf; nothing outside its folder names
+# its classes (the wiring loads it by path and holds it as a FightSkill).
+report "Breakpoint module named outside src/skills/breakpoint/ (leaf rule, AD-12)" \
+	< <(grep -rnE --include='*.gd' '\b(BreakpointSkill|BreakpointOverlay)\b' game/src | grep -v '^game/src/skills/breakpoint/' | grep -vE '^[^:]+:[0-9]+:[[:space:]]*#' || true)
+
 report "direct output call outside Log (use Log.info/debug/warn/error)" \
 	< <(grep -rnE --include='*.gd' '(^|[^.[:alnum:]_])(print|prints|printt|printraw|printerr|print_rich|print_debug|print_verbose|push_error|push_warning)[[:space:]]*\(' game/src | grep -v '^game/src/autoloads/log\.gd:' | grep -vE '^[^:]+:[0-9]+:[[:space:]]*#' || true)
 

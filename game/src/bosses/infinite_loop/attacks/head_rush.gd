@@ -44,7 +44,7 @@ func on_active(_ctx: ArenaContext) -> void:
 func on_recovery(_ctx: ArenaContext) -> void:
 	var body: InfiniteLoopBody = boss() as InfiniteLoopBody
 	if body != null and body.current != null:
-		body.open_semicolon(body.current.recovery)
+		body.open_semicolon(BossController.effective_recovery(body.current, body.breakpoint_on))
 
 
 func on_cancel(_ctx: ArenaContext) -> void:
