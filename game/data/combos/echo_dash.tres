@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="ComboDef" format=3]
+
+; Story 4.2: D->L Echo Dash. Replaces Echo (LOOP's solo) on the [D, L] window; gap_free: K is accepted
+; only while the running dash's last executed frame is invulnerable, and Echo Dash replaces it on that
+; tick, so no frame between the two dashes is vulnerable (D-S42-4, D-S42-11).
+
+[ext_resource type="Script" path="res://src/register/combo_def.gd" id="1_cdef"]
+[ext_resource type="Resource" path="res://data/actions/echo_dash.tres" id="2_action"]
+
+[resource]
+script = ExtResource("1_cdef")
+first = 2
+second = 3
+action = ExtResource("2_action")
+display_name = "Echo Dash"
+gap_free = true

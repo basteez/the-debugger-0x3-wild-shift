@@ -196,9 +196,9 @@ func test_previews_show_names_only_where_a_combo_exists() -> void:
 	for c: RegisterPanel.Cell in plan:
 		if c.cell.y >= RegisterPanel.PREVIEW_LEFT_NAME_ROW and c.cell.y < RegisterPanel.PREVIEW_LEFT_NAME_ROW + 2:
 			assert_eq(c.style, RegisterPanel.FADED)
-	# [A, D, L]: << gives [D, L] (Echo Dash, not shipped in 2.6), >> gives [L, A] (no combo).
+	# [A, D, L]: << gives [D, L] (Echo Dash, shipped in Story 4.2), >> gives [L, A] (no combo).
 	plan = RegisterPanel.plan(_ring([A, D, L]))
-	assert_eq(_texts(plan, RegisterPanel.PREVIEW_LEFT_NAME_ROW), [])
+	assert_eq(_texts(plan, RegisterPanel.PREVIEW_LEFT_NAME_ROW), ["Echo Dash"])
 	assert_eq(_texts(plan, RegisterPanel.PREVIEW_RIGHT_NAME_ROW), [])
 	assert_eq(_texts(plan, RegisterPanel.WINDOW_NAME_ROW), ["Dash", "Strike"])
 

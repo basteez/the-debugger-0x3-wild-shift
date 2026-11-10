@@ -289,35 +289,32 @@ func test_echo_does_not_start_a_chain() -> void:
 	assert_ne(_fsm.action, Defs.SLASH_2, "no chain from an echoed slash_1")
 
 
+## Story 4.2 (AC 8c): rewritten from 4.1's "Echo of DASH as link_second on [D, L]" (D-S41-11). The
+## shipped table now holds the D->L combo, so K on [D, L] fires Echo Dash instead of Echo. The intent
+## is kept: a second 4-tile dash that neither checks nor restarts DASH's cooldown.
 func test_echo_of_dash_is_a_second_dash_ignoring_dash_cooldown() -> void:
 	_ring([D, L])
 	_press(J)
 	_tick()
 	assert_eq(_fsm.action, Defs.DASH)
-	while _fsm.action != null:
+	while _fsm.action_frame < 4:
 		_tick()
-	var after_first: Vector2 = _player.position_px
-	var first_move: Vector2 = after_first - SPAWN
-	assert_gt(first_move.x, 60.0, "the first dash moved ~4 tiles")
-	assert_gt(_fsm.cooldowns.remaining(D), 0, "DASH still cooling down")
 	var dash_cd: int = _fsm.cooldowns.remaining(D)
-	_press(K) # link still open on [D, L]: Echo runs as link_second (D-S41-11)
+	assert_gt(dash_cd, 0, "DASH cooling down")
+	_press(K) # link open on [D, L], dash frame 4 invulnerable: Echo Dash replaces the dash
 	_tick()
-	assert_same(_fsm.action, Defs.DASH)
-	assert_true(_fsm.echoing)
-	assert_true(_fsm.link_second)
+	assert_same(_fsm.action, Defs.ECHO_DASH)
+	assert_false(_fsm.echoing, "a combo, not an Echo")
+	assert_false(_fsm.link_second)
 	assert_eq(_fsm.cooldowns.remaining(L), 90)
-	assert_eq(_fsm.cooldowns.remaining(D), dash_cd - 1, "Echo neither checks nor restarts DASH (D-S41-4)")
-	assert_true(_fsm.invulnerable(), "frame 1 of the echoed dash")
-	while _fsm.action_frame < 8:
+	assert_eq(_fsm.cooldowns.remaining(D), dash_cd - 1, "Echo Dash neither checks nor restarts DASH")
+	var origin: Vector2 = _fsm.action_origin_px
+	while _fsm.action_frame < 10:
+		assert_true(_fsm.invulnerable(), "Echo Dash frame %d" % _fsm.action_frame)
 		_tick()
-	assert_true(_fsm.invulnerable(), "frame 8")
-	_tick()
-	assert_false(_fsm.invulnerable(), "frame 9")
-	while _fsm.action != null:
-		_tick()
-	assert_almost_eq(_player.position_px.x, after_first.x + first_move.x, 0.001, "moved the same distance again")
-	assert_almost_eq(_player.position_px.y, after_first.y, 0.001)
+	assert_true(_fsm.invulnerable(), "Echo Dash frame 10")
+	assert_almost_eq(_player.position_px.x, origin.x + 4.0 * Const.TILE_PX, 0.001, "4 tiles over the ACTIVE frames")
+	assert_almost_eq(_player.position_px.y, origin.y, 0.001)
 
 
 # --- AC5: damage ---

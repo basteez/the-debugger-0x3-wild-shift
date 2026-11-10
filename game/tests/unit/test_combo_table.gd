@@ -41,7 +41,8 @@ func test_lookup_is_never_sorted() -> void:
 
 
 func test_unknown_pairs_are_null() -> void:
-	for pair: Vector2i in [Vector2i(D, L), Vector2i(L, N), Vector2i(N, A), Vector2i(L, A), Vector2i(0, 0), Vector2i(A, A)]:
+	# Story 4.2 (AC 8c): (D, L) dropped, it is now Echo Dash.
+	for pair: Vector2i in [Vector2i(L, N), Vector2i(N, A), Vector2i(L, A), Vector2i(0, 0), Vector2i(A, A)]:
 		assert_null(Defs.COMBOS.get_combo(pair.x, pair.y), "%s" % pair)
 
 

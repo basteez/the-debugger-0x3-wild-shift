@@ -16,6 +16,8 @@ const SLASH_2: ActionDef = preload("res://data/actions/slash_2.tres")
 const SLASH_3: ActionDef = preload("res://data/actions/slash_3.tres")
 const DASH: ActionDef = preload("res://data/actions/dash.tres")
 const DASH_STRIKE: ActionDef = preload("res://data/actions/dash_strike.tres")
+## Story 4.2: the D->L combo's action (redirectable, pass_through).
+const ECHO_DASH: ActionDef = preload("res://data/actions/echo_dash.tres")
 ## Ordered combo lookup (Story 2.6, AD-02): COMBOS.get_combo(first, second).
 const COMBOS: ComboTable = preload("res://data/combos/combo_table.tres")
 
