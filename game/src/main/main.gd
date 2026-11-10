@@ -46,6 +46,8 @@ var perf_overlay: PerfOverlay
 var hp_readout: HpReadout
 ## The boss glyph line (Story 3.1): a child of the Arena; draws only while the arena has a boss.
 var boss_view: BossView
+## Tutorial beats T1-T4 (Story 3.6): reads the arena, requests lines through VoiceService.
+var duck_director: DuckDirector
 
 
 func _ready() -> void:
@@ -148,6 +150,11 @@ func _build_layers() -> void:
 	juice_director.player_view = player_view
 	juice_director.screen_fx = screen_fx
 	add_child(juice_director)
+	# Story 3.6: the duck beats live in ui/, so Main attaches them and hands over the arena (read only).
+	duck_director = DuckDirector.new()
+	duck_director.name = &"DuckDirector"
+	duck_director.arena = arena
+	add_child(duck_director)
 	# Story 2.8 combo shake: the camera is a child of the Arena, placed at the canvas origin so
 	# offset zero keeps today's framing exactly (D-S28-5). The driver lives in presentation/, so
 	# Main attaches it, after the layers so LAYER_ORDER is unchanged.

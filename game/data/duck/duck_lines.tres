@@ -1,0 +1,28 @@
+[gd_resource type="Resource" script_class="DuckLinesDef" load_steps=7 format=3]
+
+[ext_resource type="Script" path="res://src/ui/duck/duck_lines_def.gd" id="1_dlines"]
+[ext_resource type="Script" path="res://src/ui/duck/duck_line_def.gd" id="2_dline"]
+
+[sub_resource type="Resource" id="Resource_t1"]
+script = ExtResource("2_dline")
+id = &"t1_shift"
+text = "Q and E shift your bits. Only the two on the left are live; the rest are in code review."
+
+[sub_resource type="Resource" id="Resource_t2"]
+script = ExtResource("2_dline")
+id = &"t2_semicolon"
+text = "See the semicolon? It's always the semicolon. Hit it when it opens."
+
+[sub_resource type="Resource" id="Resource_t3"]
+script = ExtResource("2_dline")
+id = &"t3_dash_strike"
+text = "J then K: Dash Strike. Two bits, one commit."
+
+[sub_resource type="Resource" id="Resource_t4"]
+script = ExtResource("2_dline")
+id = &"t4_phase_two"
+text = "It refactored itself. Have you tried shifting it off and on again?"
+
+[resource]
+script = ExtResource("1_dlines")
+entries = Array[ExtResource("2_dline")]([SubResource("Resource_t1"), SubResource("Resource_t2"), SubResource("Resource_t3"), SubResource("Resource_t4")])

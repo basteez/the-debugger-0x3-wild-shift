@@ -41,6 +41,10 @@ func _used_codepoints() -> Dictionary[int, String]:
 	texts.append(Hud.boss_header("testBoss", 1234567890))
 	texts.append((load("res://data/bosses/test_boss/boss_def.tres") as BossDef).name_signature)
 	texts.append(BossView.TELL_MARK)
+	# Story 3.6: the duck bubble's glyph and every duck line (wrapped as drawn).
+	texts.append(DuckBubble.DUCK_GLYPH)
+	for entry: DuckLineDef in (load("res://data/duck/duck_lines.tres") as DuckLinesDef).entries:
+		texts.append_array(DuckBubble.wrap(entry.text))
 	var used: Dictionary[int, String] = {}
 	for t: String in texts:
 		for i: int in t.length():

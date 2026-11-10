@@ -240,3 +240,12 @@ Story 1.3 AC9 / I-6 ("mumble-speech web check, moved to 3.7") is UNBLOCKED. Tizi
 - A timed `;` opening fired in GAP (60 ticks) is cut by the next TELL (`_on_attack_started`), so the 90-tick window is truncated; and recovery/timed openings alternate in lockstep (recovery inner, timed outer) in real fights (D-S35-24). Playtest 3.9: consider delaying the pick while a `;` is open or alternating the kinds independently.
 - Spit float-derived state (`normalized`, `roundi`) feeds the hash (native vs wasm drift, as 3.3/3.4); `step_for` per-axis rounding gives 100 to 141 mtiles diagonal speed and a zero step for a tiny `spit_tps`; Spit origin is read one tick before the ring moves.
 - Minor: Constrict ACTIVE declared positions omit the inner ring; `RingDef.validate` hard-codes 16/8/150 and does not cross-check the opening period against attack recoveries; AC 6 inner window derived from the phase window (D-S35-19); `_pick_candidates` allocates per pick; replay has no Spit-contact assertion; swept-segment test for fast non-invulnerable dashes.
+
+
+## Deferred from: code review of story-3.6 (2026-11-09)
+
+- 3.7 voice seam: add a stop/finish path (hold timer starts only after `is_done()`, so a voice that stops early hangs the bubble until FIGHT exit); call `VoiceService.stop()` on `clear()`/flow exit; decide typewriter-vs-voice ownership (`driven_externally`) before the `duck_line_requested` emit; let the squeak be suppressed while a voice speaks.
+- Strict beat order means T4 never fires if Dash Strike was never the active window (tutorial soft-lock only, by design D-S36-7); consider letting later triggers supersede earlier beats in playtest 3.9.
+- Beats dropped by the `MAX_PENDING` cap are lost for the run (`requested` already advanced); unreachable with one beat per poll. Debug FIGHT->FIGHT jump does not clear the bubble nor reset `requested`.
+- `VoiceService.say` raw text: no empty/ASCII/12-col checks (only the catalogue is validated); double spaces desync the joined-text index; raw text equal to a known id resolves to the catalogue.
+- Layering: `DuckLineDef` (data) depends on `DuckBubble` constants and `wrap`; `DuckDirector.poll()` is not gated on `SimClock.paused`; `>o` glyph is hidden between lines (D-S36-4, confirm in H9); `AudioManager` missing from the isolation guard pattern (voice_service is scanned instead).

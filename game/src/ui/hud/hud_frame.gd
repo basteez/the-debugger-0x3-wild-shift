@@ -1,6 +1,7 @@
 extends Node2D
 ## Draws the HUD frame text at 1x on the 8-px grid (Story 1.5). No Label nodes. Story 3.1: the top
-## bar reads Hud.top_bar_text() (the boss header while a boss is in the fight).
+## bar reads Hud.top_bar_text() (the boss header while a boss is in the fight). Story 3.6 (D-S36-4):
+## the DUCK box is no longer drawn; the DuckBubble owns cols 0-11, rows 22-37 without a border.
 
 const SCALE := 1
 
@@ -14,7 +15,6 @@ func _draw() -> void:
 	_text(Vector2i(0, 0), hud.top_bar_text() if hud != null else Hud.TOP_BAR)
 	_text(Vector2i(0, 1), Hud.SKY)
 	_box(Hud.REGISTER, Hud.REG_TITLE)
-	_box(Hud.DUCK)
 	for i: int in Hud.LINE_NO.size():
 		_text(Vector2i(Hud.LINE_NO_COL, Hud.line_no_row(i)), Hud.LINE_NO[i])
 	for row: int in range(Hud.ARENA.position.y, Hud.ARENA.end.y):

@@ -1,0 +1,260 @@
+extends GutTest
+## Story 3.6 AC 1-4, 12, 14 (B1, B2, E1-E6, H1): the wrap rule on the four tutorial lines, the
+## typewriter arithmetic and pause freeze, the queue order and cap, clear(), the squeak on its own
+## player, and the cells the bubble draws (the `>o` at (0, 22), text in cols 0-11, rows 23-37).
+
+const LINES: DuckLinesDef = preload("res://data/duck/duck_lines.tres")
+const AudioManagerScript := preload("res://src/autoloads/audio_manager.gd")
+const GameScript := preload("res://src/autoloads/game.gd")
+
+var _bubble: DuckBubble
+
+
+func before_each() -> void:
+	SimClock.paused = false
+	_bubble = DuckBubble.new()
+	add_child_autofree(_bubble)
+
+
+func after_each() -> void:
+	SimClock.paused = false
+
+
+func _texts() -> PackedStringArray:
+	var out := PackedStringArray()
+	for e: DuckLineDef in LINES.entries:
+		out.append(e.text)
+	return out
+
+
+## Shows the current line fully and runs out its hold.
+func _finish_line() -> void:
+	_bubble.step(100.0) # reveal completes (the step returns after revealing)
+	_bubble.step(_bubble.hold_left() + 0.001)
+
+
+# --- wrap (B1) ---
+
+func test_wrap_fits_every_tutorial_line() -> void:
+	var expected_lines: Array[int] = [8, 7, 4, 7]
+	var texts: PackedStringArray = _texts()
+	for i: int in texts.size():
+		var lines: PackedStringArray = DuckBubble.wrap(texts[i], DuckBubble.WRAP_WIDTH)
+		assert_eq(lines.size(), expected_lines[i], texts[i])
+		assert_lte(lines.size(), DuckBubble.MAX_LINES)
+		for line: String in lines:
+			assert_lte(line.length(), DuckBubble.WRAP_WIDTH, line)
+		assert_eq(" ".join(lines), texts[i], "rejoined words equal the input")
+
+
+func test_wrap_matches_the_story_t1_lines() -> void:
+	assert_eq(DuckBubble.wrap(_texts()[0]), PackedStringArray([
+		"Q and E", "shift your", "bits. Only", "the two on", "the left are", "live; the", "rest are in", "code review.",
+	]))
+
+
+func test_wrap_never_splits_a_word() -> void:
+	var lines: PackedStringArray = DuckBubble.wrap("tiny supercalifragilistic ok", 12)
+	assert_eq(lines, PackedStringArray(["tiny", "supercalifragilistic", "ok"]), "a long word stays whole")
+	assert_eq(DuckBubble.wrap("", 12), PackedStringArray())
+	assert_eq(DuckBubble.wrap("a  b", 12), PackedStringArray(["a b"]), "runs of spaces collapse")
+	assert_eq(DuckBubble.wrap("abcdef abcde", 12), PackedStringArray(["abcdef abcde"]), "exactly 12 fits")
+	assert_eq(DuckBubble.wrap("abcdef abcdef", 12), PackedStringArray(["abcdef", "abcdef"]))
+
+
+# --- TypewriterReveal (B2) ---
+
+func test_visible_chars_arithmetic() -> void:
+	assert_eq(TypewriterReveal.visible_chars(0.0, 30.0, 88), 0)
+	assert_eq(TypewriterReveal.visible_chars(0.1, 30.0, 88), 3)
+	assert_eq(TypewriterReveal.visible_chars(1.0, 30.0, 88), 30)
+	assert_eq(TypewriterReveal.visible_chars(88.0 / 30.0, 30.0, 88), 88, "full at length / 30 s")
+	assert_eq(TypewriterReveal.visible_chars(10.0, 30.0, 88), 88, "clamped to length")
+	assert_eq(TypewriterReveal.visible_chars(-1.0, 30.0, 88), 0)
+
+
+func test_reveal_advances_and_completes() -> void:
+	var r := TypewriterReveal.new()
+	assert_eq(r.chars_per_second, 30.0)
+	r.set_line(44)
+	assert_false(r.is_done())
+	r.advance(0.5)
+	assert_eq(r.revealed, 15)
+	r.advance(1.0)
+	assert_eq(r.revealed, 44)
+	assert_true(r.is_done())
+
+
+func test_set_revealed_overrides_the_timer() -> void:
+	var r := TypewriterReveal.new()
+	r.set_line(20)
+	r.set_revealed(7)
+	assert_eq(r.revealed, 7)
+	r.advance(10.0)
+	assert_eq(r.revealed, 7, "the timer no longer drives it")
+	r.set_revealed(99)
+	assert_eq(r.revealed, 20, "clamped")
+	r.set_line(5)
+	r.advance(1.0)
+	assert_eq(r.revealed, 5, "a new line gives the timer back")
+
+
+func test_visible_lines_cut_each_wrapped_line() -> void:
+	var lines := PackedStringArray(["Q and E", "shift your"])
+	assert_eq(DuckBubble.revealable_length(lines), 18)
+	assert_eq(DuckBubble.visible_lines(lines, 0), PackedStringArray(["", ""]))
+	assert_eq(DuckBubble.visible_lines(lines, 3), PackedStringArray(["Q a", ""]))
+	assert_eq(DuckBubble.visible_lines(lines, 8), PackedStringArray(["Q and E", ""]))
+	assert_eq(DuckBubble.visible_lines(lines, 10), PackedStringArray(["Q and E", "sh"]))
+	assert_eq(DuckBubble.visible_lines(lines, 18), PackedStringArray(["Q and E", "shift your"]))
+
+
+# --- the bubble node (E1-E6) ---
+
+func test_connects_on_enter_and_disconnects_on_exit() -> void:
+	assert_true(EventBus.duck_line_requested.is_connected(_bubble._on_duck_line_requested))
+	assert_true(EventBus.flow_state_changed.is_connected(_bubble._on_flow_state_changed))
+	remove_child(_bubble)
+	assert_false(EventBus.duck_line_requested.is_connected(_bubble._on_duck_line_requested))
+	assert_false(EventBus.flow_state_changed.is_connected(_bubble._on_flow_state_changed))
+	add_child(_bubble)
+
+
+func test_a_request_shows_the_line_with_a_typewriter() -> void:
+	EventBus.duck_line_requested.emit(&"t3_dash_strike", "J then K: Dash Strike. Two bits, one commit.")
+	assert_true(_bubble.is_showing())
+	assert_eq(_bubble.current_id(), &"t3_dash_strike")
+	assert_eq(_bubble.current_lines().size(), 4)
+	assert_eq(_bubble.reveal().revealed, 0)
+	_bubble.step(0.1)
+	assert_eq(_bubble.reveal().revealed, 3)
+
+
+func test_the_bubble_hides_after_reveal_and_hold() -> void:
+	var text := "J then K: Dash Strike. Two bits, one commit."
+	_bubble.enqueue(text, &"t3_dash_strike")
+	_bubble.step(float(text.length()) / DuckBubble.CHARS_PER_S + 0.001)
+	assert_true(_bubble.reveal().is_done())
+	assert_almost_eq(_bubble.hold_left(), DuckBubble.hold_seconds(text.length()), 0.0001)
+	_bubble.step(DuckBubble.hold_seconds(text.length()) - 0.1)
+	assert_true(_bubble.is_showing(), "still holding")
+	_bubble.step(0.2)
+	assert_false(_bubble.is_showing())
+
+
+func test_hold_time_formula() -> void:
+	assert_almost_eq(DuckBubble.hold_seconds(88), DuckBubble.HOLD_BASE_S + DuckBubble.HOLD_PER_CHAR_S * 88.0, 0.0001)
+	assert_almost_eq(DuckBubble.hold_seconds(0), DuckBubble.HOLD_BASE_S, 0.0001)
+
+
+func test_pause_freezes_reveal_and_hold() -> void:
+	_bubble.enqueue("See the semicolon?", &"x")
+	_bubble.step(0.1)
+	SimClock.paused = true
+	_bubble.step(5.0)
+	assert_eq(_bubble.reveal().revealed, 3, "reveal frozen")
+	SimClock.paused = false
+	_bubble.step(100.0)
+	var hold: float = _bubble.hold_left()
+	SimClock.paused = true
+	_bubble.step(100.0)
+	assert_eq(_bubble.hold_left(), hold, "hold frozen")
+	assert_true(_bubble.is_showing())
+
+
+func test_queue_is_fifo() -> void:
+	_bubble.enqueue("one", &"a")
+	_bubble.enqueue("two", &"b")
+	_bubble.enqueue("three", &"c")
+	assert_eq(_bubble.current_lines(), PackedStringArray(["one"]))
+	assert_eq(_bubble.pending(), ["two", "three"] as Array[String])
+	_finish_line()
+	assert_eq(_bubble.current_id(), &"b")
+	assert_eq(_bubble.reveal().revealed, 0, "the next line starts unrevealed")
+	_finish_line()
+	assert_eq(_bubble.current_id(), &"c")
+	_finish_line()
+	assert_false(_bubble.is_showing())
+
+
+func test_queue_caps_at_max_pending() -> void:
+	_bubble.enqueue("showing", &"s")
+	for i: int in DuckBubble.MAX_PENDING + 2:
+		_bubble.enqueue("line %d" % i, &"q")
+	assert_eq(DuckBubble.MAX_PENDING, 4)
+	assert_eq(_bubble.pending().size(), DuckBubble.MAX_PENDING, "requests beyond the cap are dropped")
+	assert_eq(_bubble.pending()[0], "line 0")
+	assert_eq(_bubble.pending()[3], "line 3")
+
+
+func test_clear_drops_queue_and_hides() -> void:
+	_bubble.enqueue("one", &"a")
+	_bubble.enqueue("two", &"b")
+	_bubble.clear()
+	assert_false(_bubble.is_showing())
+	assert_eq(_bubble.pending().size(), 0)
+	assert_eq(_bubble.current_lines().size(), 0)
+
+
+func test_leaving_fight_clears_and_entering_fight_does_not() -> void:
+	_bubble.enqueue("one", &"a")
+	EventBus.flow_state_changed.emit(GameScript.FlowState.DEAD, GameScript.FlowState.FIGHT)
+	assert_true(_bubble.is_showing(), "FIGHT keeps the bubble")
+	for to: int in [GameScript.FlowState.DEAD, GameScript.FlowState.HARVEST, GameScript.FlowState.TITLE, GameScript.FlowState.ENDING]:
+		_bubble.enqueue("one", &"a")
+		_bubble.enqueue("two", &"b")
+		EventBus.flow_state_changed.emit(GameScript.FlowState.FIGHT, to)
+		assert_false(_bubble.is_showing(), "cleared on %d" % to)
+		assert_eq(_bubble.pending().size(), 0)
+
+
+# --- cells (AC 1) ---
+
+func test_duck_glyph_cell_and_text_origin() -> void:
+	assert_eq(DuckBubble.DUCK_GLYPH, PlayerView.DUCK_GLYPH)
+	assert_eq(DuckBubble.DUCK_CELL, Vector2i(0, 22))
+	assert_eq(DuckBubble.DUCK_CELL, Hud.DUCK.position)
+	assert_eq(DuckBubble.line_cell(0), Vector2i(0, 23))
+	assert_eq(DuckBubble.line_cells(1, "abc"), [Vector2i(0, 24), Vector2i(1, 24), Vector2i(2, 24)] as Array[Vector2i])
+	assert_eq(DuckBubble.WRAP_WIDTH, Hud.DUCK.size.x)
+
+
+func test_no_cell_outside_the_duck_region() -> void:
+	var text_area := Rect2i(0, 23, 12, 15) # cols 0-11, rows 23-37
+	for text: String in _texts():
+		var cells: Array[Vector2i] = DuckBubble.cells_for_text(text)
+		assert_eq(cells[0], Vector2i(0, 22), "the duck first")
+		assert_eq(cells[1], Vector2i(1, 22))
+		for i: int in range(2, cells.size()):
+			assert_true(text_area.has_point(cells[i]), "%s outside the text area" % cells[i])
+		for cell: Vector2i in cells:
+			assert_eq(Hud.region_of(cell), &"duck", "%s" % cell)
+
+
+# --- squeak (AC 4, D1-D2) ---
+
+func test_squeak_uses_its_own_player_after_unlock() -> void:
+	var am: Node = add_child_autofree(AudioManagerScript.new())
+	am.play_squeak()
+	assert_eq(am.get_child_count(), 0, "locked: nothing plays")
+	assert_eq(am.get("locked_warn_count"), 1)
+	am.play_squeak()
+	assert_eq(am.get("locked_warn_count"), 1, "warn once")
+	am.unlock()
+	am.play_squeak()
+	var squeak := am.get_node_or_null(^"DuckSqueak") as AudioStreamPlayer
+	assert_not_null(squeak)
+	assert_eq(squeak.bus, &"SFX")
+	assert_not_null(squeak.stream)
+	assert_null(am.get_node_or_null(^"ShiftSfx"), "never the ShiftSfx player")
+	am.play_squeak()
+	assert_eq(am.get_child_count(), 1, "one squeak player, reused")
+
+
+func test_line_start_advances_to_next_queued_line() -> void:
+	# The squeak call itself is covered by the own-player test above (the autoload is locked here).
+	_bubble.enqueue("one", &"a")
+	_bubble.enqueue("two", &"b")
+	assert_eq(_bubble.current_id(), &"a")
+	_finish_line()
+	assert_eq(_bubble.current_id(), &"b")
