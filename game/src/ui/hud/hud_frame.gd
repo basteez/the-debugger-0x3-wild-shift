@@ -1,5 +1,6 @@
 extends Node2D
-## Draws the static HUD frame text at 1x on the 8-px grid (Story 1.5). No Label nodes.
+## Draws the HUD frame text at 1x on the 8-px grid (Story 1.5). No Label nodes. Story 3.1: the top
+## bar reads Hud.top_bar_text() (the boss header while a boss is in the fight).
 
 const SCALE := 1
 
@@ -9,7 +10,8 @@ func _ready() -> void:
 
 
 func _draw() -> void:
-	_text(Vector2i(0, 0), Hud.TOP_BAR)
+	var hud := get_parent() as Hud
+	_text(Vector2i(0, 0), hud.top_bar_text() if hud != null else Hud.TOP_BAR)
 	_text(Vector2i(0, 1), Hud.SKY)
 	_box(Hud.REGISTER, Hud.REG_TITLE)
 	_box(Hud.DUCK)

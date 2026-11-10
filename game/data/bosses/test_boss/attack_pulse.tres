@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="AttackDef" format=3]
+
+[ext_resource type="Script" path="res://src/bosses/framework/attack_def.gd" id="1_adef"]
+[ext_resource type="Script" path="res://src/bosses/test_boss/attacks/pulse.gd" id="2_pulse"]
+
+[resource]
+script = ExtResource("1_adef")
+id = &"test_pulse"
+tell = 20
+active = 10
+recovery = 15
+attack_script = ExtResource("2_pulse")
+tell_sfx = &"tell_test"

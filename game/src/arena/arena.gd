@@ -20,6 +20,10 @@ const PLAYER_DEF: PlayerDef = preload("res://data/player/player_def.tres")
 const SPAWN_PX := Vector2(TILES * TILE_PX) / 2.0
 ## Practice target centre (Story 2.7, D-S27-2): 4 tiles right of spawn.
 const PRACTICE_TARGET_PX := SPAWN_PX + Vector2(4 * TILE_PX, 0)
+## The framework test boss (Story 3.1, D-S31-3, D-S31-17): debug Shift+F3 only. Loaded lazily so
+## a fight without it never touches the data. Body centre 5 tiles above spawn.
+const TEST_BOSS_DEF_PATH := "res://data/bosses/test_boss/boss_def.tres"
+const TEST_BOSS_PX := SPAWN_PX + Vector2(0, -5 * TILE_PX)
 ## Inset of the player's glyph centre from the play-area edge: half a tile, so the whole `@` cell
 ## stays inside the 32x18 play area (D-S22-2). One more tile inward makes the tree ring a wall.
 const PLAYER_EDGE_INSET_PX := TILE_PX / 2.0
@@ -59,6 +63,13 @@ var combat: CombatResolver = CombatResolver.new(actions, player)
 var health: PlayerHealth = PlayerHealth.new(PLAYER_DEF, actions)
 ## The `/* test */` dummy (Story 2.7): null unless a fight was entered with_practice (debug only).
 var practice_target: PracticeTarget = null
+## What bosses read from the arena (Story 3.1, D-S31-10): aim at the player by default (the Ghost
+## Echo decoy replaces target_source in 6.1), the player's own position for body contact, and the
+## PlayerEffects queue (NP-3), ticked in PLAYER_EFFECTS while the arena is in the tree.
+var arena_context: ArenaContext = _make_arena_context()
+## The boss of the fight (Story 3.1): null unless a fight was entered with_test_boss (debug only).
+## Registered with SimClock (BOSS_HAZARDS) only while it exists and the arena is in the tree.
+var boss: BossController = null
 
 
 func _enter_tree() -> void:
@@ -67,6 +78,9 @@ func _enter_tree() -> void:
 	SimClock.register_system(player)
 	SimClock.register_system(combat)
 	SimClock.register_system(health)
+	SimClock.register_system(arena_context.player_effects)
+	if boss != null:
+		SimClock.register_system(boss)
 
 
 ## Detach from the autoload clock so re-instancing Main (tests) never double-ticks (D-S22-10).
@@ -76,14 +90,19 @@ func _exit_tree() -> void:
 	SimClock.unregister_system(player)
 	SimClock.unregister_system(combat)
 	SimClock.unregister_system(health)
+	SimClock.unregister_system(arena_context.player_effects)
+	if boss != null:
+		SimClock.unregister_system(boss)
 
 
 ## Every route into FIGHT (D-S22-5, Story 2.3 AC9): reset the player to spawn and the register to
 ## `fight_start`, then start ticking both. `with_practice` (Story 2.7, debug Shift+F2 only) places
 ## the practice target, reset; without it the fight has no target. Story 2.9: the caller passes the
 ## RunState snapshot ring (a retry restores it), and the player is back to full HP. Hooks for later
-## stories: boss fight-start state (Epic 3) and the Echo memory clear (Epic 4) belong here.
-func enter_fight(fight_start: PackedInt32Array, with_practice: bool = false) -> void:
+## stories: the Echo memory clear (Epic 4) belongs here. Story 3.1: `with_test_boss` (debug Shift+F3
+## only) places the framework test boss, reset to full HP, phase 1, GAP (AC 8); without it the
+## fight has no boss.
+func enter_fight(fight_start: PackedInt32Array, with_practice: bool = false, with_test_boss: bool = false) -> void:
 	player.reset_for_fight(SPAWN_PX)
 	player.set_active(true)
 	if not register.set_fight_start(fight_start):
@@ -95,6 +114,8 @@ func enter_fight(fight_start: PackedInt32Array, with_practice: bool = false) -> 
 	health.reset_for_fight()
 	health.set_active(true)
 	_set_practice(with_practice)
+	arena_context.player_effects.clear()
+	_set_test_boss(with_test_boss)
 	_redraw_player_view()
 
 
@@ -117,6 +138,41 @@ func leave_fight() -> void:
 	actions.set_active(false)
 	health.set_active(false)
 	_set_practice(false) # a stale target never outlives its fight (review 2.7)
+	if boss != null:
+		boss.set_active(false)
+
+
+## Places (reset) or removes the test boss. The controller and its attack scripts are built once
+## and kept across retries (no allocation per fight, D-S31-18).
+func _set_test_boss(on: bool) -> void:
+	if not on:
+		_remove_boss()
+		return
+	if boss == null:
+		var def := load(TEST_BOSS_DEF_PATH) as BossDef
+		var controller := BossController.new()
+		if not controller.setup(def, health, arena_context):
+			return
+		boss = controller
+		boss.body_center_px = TEST_BOSS_PX
+		if is_inside_tree():
+			SimClock.register_system(boss)
+	boss.reset_for_fight()
+
+
+func _remove_boss() -> void:
+	if boss == null:
+		return
+	SimClock.unregister_system(boss)
+	boss = null
+
+
+## The default arena context: aim and contact both follow the player.
+func _make_arena_context() -> ArenaContext:
+	var ctx := ArenaContext.new()
+	ctx.target_source = func() -> Vector2: return player.position_px
+	ctx.player_source = func() -> Vector2: return player.position_px
+	return ctx
 
 
 ## Drops the previous fight's cached frame so the view never shows the old position for a frame.

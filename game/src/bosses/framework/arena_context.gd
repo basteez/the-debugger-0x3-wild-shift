@@ -1,0 +1,33 @@
+class_name ArenaContext
+extends RefCounted
+## What a boss and its attacks may read from the arena (Story 3.1, AD-06, NP-3, D-S31-10): the aim
+## point through an injectable source, the player position for body contact, and the
+## PlayerEffects queue. No Player or Register reference is held.
+
+## Aim-point source. Arena sets it to the player's position_px; Ghost Echo (6.1) swaps in the
+## decoy. Default: the play-area centre (headless tests without an arena).
+var target_source: Callable = _default_target
+## The real player's position for body contact (never the decoy, [design call] D-S31-21).
+var player_source: Callable = _default_target
+## The NP-3 effect queue (D-S31-11). Empty in 3.1.
+var player_effects: PlayerEffects = PlayerEffects.new()
+
+
+## The point attacks aim at (D-S31-10). The only aim read allowed in attack code.
+func target_position() -> Vector2:
+	return target_source.call()
+
+
+## The player's own position (body contact only).
+func player_position() -> Vector2:
+	return player_source.call()
+
+
+## True when `p` (arena-local px) lies inside the 32x18 play area, edges included. Pure.
+static func inside_play_area(p: Vector2) -> bool:
+	var area: Rect2 = Arena.play_area()
+	return p.x >= area.position.x and p.y >= area.position.y and p.x <= area.end.x and p.y <= area.end.y
+
+
+static func _default_target() -> Vector2:
+	return Arena.play_area().get_center()

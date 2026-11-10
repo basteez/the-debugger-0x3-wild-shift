@@ -37,6 +37,10 @@ func _used_codepoints() -> Dictionary[int, String]:
 	texts.append_array(PerfOverlay.lines(60.0, 16.7, 300, 1234567890))
 	texts.append_array(PerfOverlay.lines(60.0, 16.7, 0, 0))
 	texts.append_array(ParticlePool.GLYPHS)
+	# Story 3.1: the boss header, the test boss line and the tell mark.
+	texts.append(Hud.boss_header("testBoss", 1234567890))
+	texts.append((load("res://data/bosses/test_boss/boss_def.tres") as BossDef).name_signature)
+	texts.append(BossView.TELL_MARK)
 	var used: Dictionary[int, String] = {}
 	for t: String in texts:
 		for i: int in t.length():

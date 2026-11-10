@@ -1,5 +1,6 @@
 extends GutTest
-## Story 1.6 AC4/AC5/AC10: F1-F5 jump map, the release gate and input consumption; Story 2.5: F9.
+## Story 1.6 AC4/AC5/AC10: F1-F5 jump map, the release gate and input consumption; Story 2.5: F9;
+## Story 3.1: Shift+F3 test boss, F6 boss kill, Shift+F6 next phase, Ctrl+F6 player hit (D-S31-2).
 
 const DebugKeysScript := preload("res://src/debug/debug_keys.gd")
 const MainScript := preload("res://src/main/main.gd")
@@ -25,13 +26,14 @@ func after_each() -> void:
 	Game.first_input_frame = _saved_first
 
 
-func _key(code: Key, pressed: bool = true, echo: bool = false, shift: bool = false) -> InputEventKey:
+func _key(code: Key, pressed: bool = true, echo: bool = false, shift: bool = false, ctrl: bool = false) -> InputEventKey:
 	var ev := InputEventKey.new()
 	ev.keycode = code
 	ev.physical_keycode = code
 	ev.pressed = pressed
 	ev.echo = echo
 	ev.shift_pressed = shift
+	ev.ctrl_pressed = ctrl
 	return ev
 
 
@@ -107,7 +109,7 @@ func test_f9_without_overlay_is_not_consumed() -> void:
 
 func test_shift_f2_maps_to_fight_with_practice() -> void:
 	assert_eq(DebugKeysScript.shift_target_for_key(KEY_F2), {&"state": GameScript.FlowState.FIGHT, &"boss_index": 0, &"practice": true})
-	for code: Key in [KEY_F1, KEY_F3, KEY_F9, KEY_A]:
+	for code: Key in [KEY_F1, KEY_F4, KEY_F9, KEY_A]:
 		assert_true(DebugKeysScript.shift_target_for_key(code).is_empty(), "key %d" % code)
 	assert_false(DebugKeysScript.target_for_key(KEY_F2).has(&"practice"), "plain F2 has no practice")
 
@@ -183,9 +185,9 @@ func test_f10_toggles_the_perf_overlay() -> void:
 	assert_true(DebugKeysScript.target_for_key(KEY_F10).is_empty(), "F10 is not a jump key")
 
 
-# --- Story 2.9: F6 debug damage key (AC8, D-S29-11) ---
+# --- Story 2.9: debug damage key (AC8, D-S29-11), Ctrl+F6 since Story 3.1 (D-S31-2) ---
 
-func test_f6_queues_a_hit_only_in_fight() -> void:
+func test_ctrl_f6_queues_a_hit_only_in_fight() -> void:
 	Debug.enabled = true
 	var main: Node2D = (load("res://src/main/main.tscn") as PackedScene).instantiate()
 	add_child_autofree(main)
@@ -193,22 +195,25 @@ func test_f6_queues_a_hit_only_in_fight() -> void:
 	var health: PlayerHealth = main.arena.health
 	assert_eq(keys.player_health, health, "Main injects the arena's health")
 	Game.flow_state = GameScript.FlowState.TITLE
-	assert_false(keys.handle_key(_key(KEY_F6)), "F6 does nothing outside FIGHT")
+	assert_false(keys.handle_key(_key(KEY_F6, true, false, false, true)), "Ctrl+F6 does nothing outside FIGHT")
 	assert_false(health.get(&"_pending"))
 	keys.handle_key(_key(KEY_F2))
 	assert_eq(Game.flow_state, GameScript.FlowState.FIGHT)
+	assert_false(keys.handle_key(_key(KEY_F6)), "plain F6 is the boss kill: no boss, not consumed")
 	assert_false(keys.handle_key(_key(KEY_F6, true, false, true)), "Shift+F6 is not the damage key")
-	assert_false(keys.handle_key(_key(KEY_F6, true, true)), "echo ignored")
-	assert_true(keys.handle_key(_key(KEY_F6)))
+	assert_false(health.get(&"_pending"), "neither queued a player hit")
+	assert_false(keys.handle_key(_key(KEY_F6, true, true, false, true)), "echo ignored")
+	assert_false(keys.handle_key(_key(KEY_F6, true, false, true, true)), "Ctrl+Shift+F6 is not mapped")
+	assert_true(keys.handle_key(_key(KEY_F6, true, false, false, true)))
 	assert_true(health.get(&"_pending"), "one hit queued (a request, not a state write)")
 	assert_eq(health.hp, 5, "HP changes only on the sim tick")
 	health.set_active(false)
 
 
-func test_f6_without_health_does_nothing() -> void:
+func test_ctrl_f6_without_health_does_nothing() -> void:
 	var keys: DebugKeys = autofree(DebugKeysScript.new())
 	Game.flow_state = GameScript.FlowState.FIGHT
-	assert_false(keys.handle_key(_key(KEY_F6)))
+	assert_false(keys.handle_key(_key(KEY_F6, true, false, false, true)))
 
 
 func test_release_build_has_no_f6() -> void:
@@ -216,3 +221,105 @@ func test_release_build_has_no_f6() -> void:
 	var main: Node2D = (load("res://src/main/main.tscn") as PackedScene).instantiate()
 	add_child_autofree(main)
 	assert_null(main.get_node_or_null(^"DebugKeys"), "no DebugKeys, so no F6 in release")
+
+
+# --- Story 3.1: boss debug keys (AC7, AC8, D-S31-2, D-S31-3) ---
+
+func _main_with_debug() -> Node2D:
+	Debug.enabled = true
+	var main: Node2D = (load("res://src/main/main.tscn") as PackedScene).instantiate()
+	add_child_autofree(main)
+	return main
+
+
+func test_shift_f3_maps_to_fight_with_the_test_boss() -> void:
+	assert_eq(DebugKeysScript.shift_target_for_key(KEY_F3), {&"state": GameScript.FlowState.FIGHT, &"boss_index": 0, &"test_boss": true})
+	assert_false(DebugKeysScript.target_for_key(KEY_F3).has(&"test_boss"), "plain F3 is unchanged")
+
+
+func test_shift_f3_requests_the_test_boss_and_other_jumps_clear_it() -> void:
+	Debug.enabled = true
+	var keys: DebugKeys = autofree(DebugKeysScript.new())
+	assert_true(keys.handle_key(_key(KEY_F3, true, false, true)))
+	assert_eq(Game.flow_state, GameScript.FlowState.FIGHT)
+	assert_eq(Game.run.boss_index, 0)
+	assert_true(keys.test_boss_requested)
+	assert_false(keys.practice_requested)
+	assert_true(keys.handle_key(_key(KEY_F2, true, false, true)))
+	assert_false(keys.test_boss_requested, "Shift+F2 clears it")
+	assert_true(keys.practice_requested)
+	assert_true(keys.handle_key(_key(KEY_F3, true, false, true)))
+	assert_true(keys.handle_key(_key(KEY_F2)))
+	assert_false(keys.test_boss_requested, "any other jump clears it")
+
+
+func test_main_places_the_test_boss_only_on_shift_f3_and_keeps_it_on_retry() -> void:
+	var main: Node2D = _main_with_debug()
+	var keys: DebugKeys = main.get_node(^"DebugKeys")
+	var arena: Arena = main.arena
+	assert_eq(keys.arena, arena, "Main injects the arena")
+	keys.handle_key(_key(KEY_F2))
+	assert_null(arena.boss, "plain F2: no boss")
+	assert_eq(main.hud.top_bar_text(), Hud.TOP_BAR)
+	keys.handle_key(_key(KEY_F3, true, false, true))
+	var boss: BossController = arena.boss
+	assert_not_null(boss)
+	assert_true(boss.active)
+	assert_eq(boss.hp, 20)
+	assert_eq(main.boss_view.boss, boss)
+	assert_eq(main.hud.top_bar_text(), "void testBoss() // hp 20")
+	boss.take_hit(3)
+	main.apply_flow_state(GameScript.FlowState.FIGHT, 0) # a retry re-enters FIGHT
+	assert_same(arena.boss, boss, "a retry keeps the controller (cached attacks)")
+	assert_eq(boss.hp, 20, "and resets it")
+	keys.handle_key(_key(KEY_F2))
+	assert_null(arena.boss)
+	assert_null(main.boss_view.boss)
+	assert_eq(main.hud.top_bar_text(), Hud.TOP_BAR)
+
+
+func test_f6_kills_the_boss_and_shift_f6_skips_a_phase() -> void:
+	var main: Node2D = _main_with_debug()
+	var keys: DebugKeys = main.get_node(^"DebugKeys")
+	keys.handle_key(_key(KEY_F3, true, false, true))
+	var boss: BossController = main.arena.boss
+	watch_signals(EventBus)
+	assert_true(keys.handle_key(_key(KEY_F6, true, false, true)), "Shift+F6 skips to phase 2")
+	assert_eq(boss.phase_index, 1)
+	assert_eq(boss.state, BossController.BossState.ROAR)
+	assert_signal_emit_count(EventBus, "boss_roar_started", 1)
+	assert_false(keys.handle_key(_key(KEY_F6, true, false, true)), "no phase after the last")
+	assert_false(main.arena.health.get(&"_pending"), "boss keys never hit the player")
+	assert_true(keys.handle_key(_key(KEY_F6)), "F6 kills the boss")
+	assert_eq(boss.hp, 0)
+	assert_eq(boss.state, BossController.BossState.DEFEATED)
+	assert_signal_emitted_with_parameters(EventBus, "boss_defeated", [&"test_boss"])
+	assert_eq(Game.flow_state, GameScript.FlowState.FIGHT, "no flow change until 3.8")
+	assert_eq(main.hud.top_bar_text(), "void testBoss() // hp 0")
+	assert_false(keys.handle_key(_key(KEY_F6)), "a dead boss is not killed twice")
+	assert_signal_emit_count(EventBus, "boss_defeated", 1)
+
+
+func test_boss_keys_do_nothing_without_a_boss_or_outside_fight() -> void:
+	var main: Node2D = _main_with_debug()
+	var keys: DebugKeys = main.get_node(^"DebugKeys")
+	keys.handle_key(_key(KEY_F2))
+	assert_false(keys.handle_key(_key(KEY_F6)), "F6 without a boss")
+	assert_false(keys.handle_key(_key(KEY_F6, true, false, true)), "Shift+F6 without a boss")
+	keys.handle_key(_key(KEY_F3, true, false, true))
+	Game.flow_state = GameScript.FlowState.TITLE
+	assert_false(keys.handle_key(_key(KEY_F6)), "F6 outside FIGHT")
+	assert_eq(main.arena.boss.hp, 20)
+	var bare: DebugKeys = autofree(DebugKeysScript.new())
+	Game.flow_state = GameScript.FlowState.FIGHT
+	assert_false(bare.handle_key(_key(KEY_F6)), "no arena injected")
+
+
+func test_release_gate_has_no_test_boss() -> void:
+	Debug.enabled = false
+	var main: Node2D = (load("res://src/main/main.tscn") as PackedScene).instantiate()
+	add_child_autofree(main)
+	assert_false(main.wants_test_boss())
+	main.apply_flow_state(GameScript.FlowState.FIGHT, 0)
+	assert_null(main.arena.boss)
+	assert_eq(main.hud.top_bar_text(), Hud.TOP_BAR)

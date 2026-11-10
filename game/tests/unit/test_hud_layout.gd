@@ -46,6 +46,26 @@ func test_text_constants_fit_their_regions() -> void:
 	assert_eq(Hud.SKY, "// TODO: this should terminate")
 
 
+## Story 3.1 AC 7 (D-S31-14): the boss header replaces the placeholder only while a boss is set.
+func test_boss_header_replaces_the_placeholder_only_with_a_boss() -> void:
+	assert_eq(Hud.boss_header("testBoss", 20), "void testBoss() // hp 20")
+	assert_lte(Hud.boss_header("testBoss", 999999).length(), 69, "fits left of the HP readout")
+	var hud: Hud = (load("res://src/ui/hud/hud.tscn") as PackedScene).instantiate()
+	add_child_autofree(hud)
+	assert_eq(hud.top_bar_text(), Hud.TOP_BAR, "no boss: placeholder")
+	var boss := BossController.new()
+	boss.setup(load("res://data/bosses/test_boss/boss_def.tres") as BossDef, null, ArenaContext.new())
+	boss.reset_for_fight()
+	hud.set_boss(boss)
+	assert_eq(hud.top_bar_text(), "void testBoss() // hp 20")
+	boss.take_hit(7)
+	assert_eq(hud.top_bar_text(), "void testBoss() // hp 13", "live HP")
+	boss.debug_kill()
+	assert_eq(hud.top_bar_text(), "void testBoss() // hp 0", "hp 0 after defeat")
+	hud.set_boss(null)
+	assert_eq(hud.top_bar_text(), Hud.TOP_BAR)
+
+
 func test_panel_boxes_span_their_regions() -> void:
 	var reg: PackedStringArray = Hud.box_rows(Hud.REGISTER, Hud.REG_TITLE)
 	for row: String in reg:

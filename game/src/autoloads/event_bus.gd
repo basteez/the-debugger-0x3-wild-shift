@@ -21,3 +21,20 @@ signal player_damaged(hp: int)
 ## The player died (Story 2.9, I-5): the boss id of the fight and the deaths on that boss so far.
 @warning_ignore("unused_signal")
 signal player_died(boss: StringName, deaths_on_boss: int)
+## The boss's HP changed (Story 3.1, D-S31-15): the new HP and the boss's max HP. Emitted by
+## BossController on every HP change and at fight start; the HUD header and BossView listen.
+@warning_ignore("unused_signal")
+signal boss_hp_changed(hp: int, max_hp: int)
+## The boss entered a new phase (Story 3.1, D-S31-8): the 0-based phase index after the change.
+@warning_ignore("unused_signal")
+signal boss_phase_changed(phase: int)
+## A boss attack started its tell (Story 3.1, Pillar 2, D-S31-16): the AttackDef id and its tell
+## cue id. AudioManager plays the placeholder cue until 7.2 maps ids to streams.
+@warning_ignore("unused_signal")
+signal boss_tell_started(attack_id: StringName, tell_sfx: StringName)
+## The boss's ROAR started (Story 3.1, D-S31-8): the phase being entered. BossView flashes.
+@warning_ignore("unused_signal")
+signal boss_roar_started(phase: int)
+## The boss was defeated (Story 3.1, D-S31-19): its BossDef.boss_id. Harvest (3.8) reacts.
+@warning_ignore("unused_signal")
+signal boss_defeated(boss: StringName)

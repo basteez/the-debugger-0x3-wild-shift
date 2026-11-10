@@ -44,6 +44,8 @@ var screen_fx: ScreenFX
 var perf_overlay: PerfOverlay
 ## The player's `hp: 0b11111` readout in the HUD (Story 2.9, D-S29-8).
 var hp_readout: HpReadout
+## The boss glyph line (Story 3.1): a child of the Arena; draws only while the arena has a boss.
+var boss_view: BossView
 
 
 func _ready() -> void:
@@ -56,6 +58,7 @@ func _ready() -> void:
 		debug_keys.frame_overlay = frame_overlay
 		debug_keys.perf_overlay = perf_overlay
 		debug_keys.player_health = arena.health
+		debug_keys.arena = arena
 		add_child(debug_keys)
 	# Story 1.3 day-1 audio smoke test, behind ?debug&smoke=audio and the Debug gate (1.6 AC8).
 	if Debug.enabled and wants_audio_smoke(UrlQuery.web_search()):
@@ -80,6 +83,10 @@ func _build_layers() -> void:
 	player_view.health = arena.health
 	player_view.name = &"PlayerView"
 	arena.add_child(player_view)
+	# Story 3.1: the boss view lives in presentation/, so Main attaches it, beside the PlayerView.
+	boss_view = BossView.new()
+	boss_view.name = &"BossView"
+	arena.add_child(boss_view)
 	# Debug-only frame overlay (Story 2.5 AC7), above the `@`; lives in debug/, so Main attaches it.
 	if Debug.enabled:
 		frame_overlay = FrameOverlay.new()
@@ -179,10 +186,11 @@ func apply_flow_state(state: int, boss_index: int) -> void:
 	arena.visible = in_fight
 	hud.visible = in_fight
 	if in_fight:
-		arena.enter_fight(fight_start_ring(Game.run, boss_index), wants_practice())
+		arena.enter_fight(fight_start_ring(Game.run, boss_index), wants_practice(), wants_test_boss())
 	else:
 		arena.leave_fight()
 	_attach_practice_target()
+	_attach_boss()
 
 
 ## The register ring a fight starts from (Story 2.9, AC 6): the RunState snapshot Game captured on
@@ -198,6 +206,20 @@ static func fight_start_ring(run: RunState, boss_index: int) -> PackedInt32Array
 ## D-S27-3). Always false without the debug gate (no DebugKeys node).
 func wants_practice() -> bool:
 	return Debug.enabled and is_instance_valid(debug_keys) and debug_keys.practice_requested
+
+
+## True when the fight should have the framework test boss: Shift+F3 was the last jump (Story 3.1,
+## D-S31-3). Always false without the debug gate (no DebugKeys node), so release and replays never
+## run a boss.
+func wants_test_boss() -> bool:
+	return Debug.enabled and is_instance_valid(debug_keys) and debug_keys.test_boss_requested
+
+
+## Hands the arena's boss (or null) to the boss view and the HUD header (Story 3.1).
+func _attach_boss() -> void:
+	boss_view.boss = arena.boss
+	boss_view.queue_redraw()
+	hud.set_boss(arena.boss)
 
 
 ## Hands the arena's practice target (or null) to the debug views.

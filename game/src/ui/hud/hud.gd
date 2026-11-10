@@ -14,6 +14,7 @@ const ARENA := Rect2i(16, 2, 64, 36) # cols 16-79, rows 2-37
 const LOG := Rect2i(0, 38, 80, 7) # rows 38-44: header + 6 lines
 const LOG_LINES := 6
 
+## Top bar fallback while no boss is in the fight (D-S31-14); boss_header() replaces it otherwise.
 const TOP_BAR := "void fightPlaceholder() // hp ---"
 const SKY := "// TODO: this should terminate"
 const REG_TITLE := "reg"
@@ -31,6 +32,42 @@ const SEPARATOR_COL := 15
 @onready var register_panel: RegisterPanel = $RegisterPanel
 ## Console log lines under the LOG header (Story 2.8). Listens to EventBus.hit_landed itself.
 @onready var log_panel: LogPanel = $LogPanel
+@onready var frame: Node2D = $Frame
+
+## The fight's boss (Story 3.1), set by Main on every flow change; null = placeholder top bar.
+## Read only: the header shows its live HP (AD-05).
+var boss: BossController = null
+
+
+func _ready() -> void:
+	EventBus.boss_hp_changed.connect(_on_boss_hp_changed)
+	EventBus.boss_defeated.connect(_on_boss_defeated)
+
+
+## Main hands the arena's boss (or null) on every flow change.
+func set_boss(p_boss: BossController) -> void:
+	boss = p_boss
+	frame.queue_redraw()
+
+
+## The top bar text: the boss header while a boss is in the fight, the placeholder otherwise.
+func top_bar_text() -> String:
+	if boss == null or boss.def == null:
+		return TOP_BAR
+	return boss_header(boss.def.name_signature, boss.hp)
+
+
+## FR32 signature header (D-S31-14): `void <signature>() // hp <hp>`. Pure.
+static func boss_header(signature: String, p_hp: int) -> String:
+	return "void %s() // hp %d" % [signature, p_hp]
+
+
+func _on_boss_hp_changed(_hp: int, _max_hp: int) -> void:
+	frame.queue_redraw()
+
+
+func _on_boss_defeated(_boss: StringName) -> void:
+	frame.queue_redraw()
 
 
 func _unhandled_input(event: InputEvent) -> void:
