@@ -21,6 +21,13 @@ extends Def
 @export var contact_radius_tiles: float = 0.5
 ## Radius of the `;` hurt circle, in tiles (D-S33-4).
 @export var hurt_radius_tiles: float = 0.5
+## Story 3.4 (D-S34-8): how far Head Rush's head charges in its ACTIVE window, in tiles.
+@export var head_charge_tiles: int = 10
+## Story 3.4 (D-S34-7): speed at which Constrict re-centres on its aim, in tiles/s. Must beat the
+## player's walk (a test checks it against PlayerDef.speed_tiles_s, D-S34-16).
+@export var constrict_chase_tps: int = 8
+## Story 3.4 (D-S34-7): Constrict's radius at the end of its ACTIVE window, in tiles (< the ring radius).
+@export var constrict_radius_tiles: int = 2
 
 
 func validate() -> PackedStringArray:
@@ -41,6 +48,12 @@ func validate() -> PackedStringArray:
 		out.append("contact_radius_tiles must be > 0 (got %s)" % contact_radius_tiles)
 	if not is_finite(hurt_radius_tiles) or hurt_radius_tiles <= 0.0:
 		out.append("hurt_radius_tiles must be > 0 (got %s)" % hurt_radius_tiles)
+	if head_charge_tiles <= 0:
+		out.append("head_charge_tiles must be > 0 (got %d)" % head_charge_tiles)
+	if constrict_chase_tps <= 0:
+		out.append("constrict_chase_tps must be > 0 (got %d)" % constrict_chase_tps)
+	if constrict_radius_tiles <= 0 or float(constrict_radius_tiles) >= radius_tiles():
+		out.append("constrict_radius_tiles must be > 0 and < the ring radius %.2f (got %d)" % [radius_tiles(), constrict_radius_tiles])
 	return out
 
 

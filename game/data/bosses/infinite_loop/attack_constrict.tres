@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="AttackDef" format=3]
+
+[ext_resource type="Script" path="res://src/bosses/framework/attack_def.gd" id="1_adef"]
+[ext_resource type="Script" path="res://src/bosses/infinite_loop/attacks/constrict.gd" id="2_constrict"]
+
+[resource]
+script = ExtResource("1_adef")
+id = &"constrict"
+tell = 40
+active = 60
+recovery = 120
+attack_script = ExtResource("2_constrict")
+tell_sfx = &"tell_constrict"

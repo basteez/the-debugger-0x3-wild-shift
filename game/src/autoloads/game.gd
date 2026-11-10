@@ -253,9 +253,14 @@ static func boss_id(index: int) -> StringName:
 
 
 ## Every route into FIGHT (intro, harvest, retry, debug jump) seeds the fight here (D-S21-6).
-## The seed comes from the wall clock on the presentation side; simulation never reads it.
+## Story 3.4 (D-S34-2): the run's seed comes from the monotonic engine clock (Time.get_ticks_usec) once, on the run's first FIGHT
+## entry (presentation side; simulation never reads it); each entry then takes
+## fight_seed_for(run_seed, fight_attempt), so retries differ and a recording's seed reproduces.
 func _begin_fight() -> void:
-	run.fight_seed = Time.get_ticks_usec()
+	if run.run_seed == 0:
+		run.run_seed = maxi(Time.get_ticks_usec(), 1)
+	run.fight_attempt += 1
+	run.fight_seed = RunState.fight_seed_for(run.run_seed, run.fight_attempt)
 	SimClock.begin_fight(run.fight_seed)
 	Log.info(&"flow", "fight seed %d" % run.fight_seed)
 

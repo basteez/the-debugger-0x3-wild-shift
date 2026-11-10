@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="AttackDef" format=3]
+
+[ext_resource type="Script" path="res://src/bosses/framework/attack_def.gd" id="1_adef"]
+[ext_resource type="Script" path="res://src/bosses/infinite_loop/attacks/head_rush.gd" id="2_head"]
+
+[resource]
+script = ExtResource("1_adef")
+id = &"head_rush"
+tell = 30
+active = 40
+recovery = 45
+attack_script = ExtResource("2_head")
+tell_sfx = &"tell_head_rush"
