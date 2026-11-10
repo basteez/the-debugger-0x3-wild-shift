@@ -1,8 +1,8 @@
 [gd_resource type="Resource" script_class="ActionDef" format=3]
 
-; Story 3.8 (D-S38-6): the LOOP bit's placeholder solo action. Zero damage, no hit shape, no
-; movement, no cooldown, no hit-stop, one active frame. Story 4.1 replaces it on bit_loop.tres
-; with Echo; NOP is never stored as Echo's "last action".
+; NOP: zero damage, no hit shape, no movement, no cooldown, no hit-stop, one active frame. Was the
+; LOOP bit's placeholder solo action in Story 3.8 (D-S38-6); since Story 4.1 LOOP runs Echo. Kept for
+; the Epic 6 garbage bit (NP-3). Never stored as Echo's last action (echoable = false).
 
 [ext_resource type="Script" path="res://src/player/action_def.gd" id="1_adef"]
 
@@ -16,3 +16,4 @@ base_damage = 0
 cooldown_frames = 0
 move_tiles = 0.0
 hitstop_frames = 0
+echoable = false

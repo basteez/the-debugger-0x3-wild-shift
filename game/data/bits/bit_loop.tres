@@ -1,7 +1,9 @@
 [gd_resource type="Resource" script_class="BitDef" format=3]
 
+; Story 3.8 registered LOOP (NOP placeholder); Story 4.1: its solo action is Echo (NP-5).
+
 [ext_resource type="Script" path="res://src/register/bit_def.gd" id="1_bdef"]
-[ext_resource type="Resource" path="res://data/actions/nop.tres" id="2_solo"]
+[ext_resource type="Resource" path="res://data/actions/echo.tres" id="2_solo"]
 
 [resource]
 script = ExtResource("1_bdef")

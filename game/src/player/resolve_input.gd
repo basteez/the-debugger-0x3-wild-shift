@@ -24,3 +24,5 @@ var cooldowns: Cooldowns = null
 var link: LinkState = null
 ## The combo table; null = Defs.COMBOS.
 var combos: ComboTable = null
+## Story 4.1 (D-S41-3): true when Echo's memory holds a def; an Echo def is not startable without it.
+var echo_ready: bool = false

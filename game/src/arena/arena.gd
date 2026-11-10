@@ -104,8 +104,8 @@ func _exit_tree() -> void:
 ## Every route into FIGHT (D-S22-5, Story 2.3 AC9): reset the player to spawn and the register to
 ## `fight_start`, then start ticking both. `with_practice` (Story 2.7, debug Shift+F2 only) places
 ## the practice target, reset; without it the fight has no target. Story 2.9: the caller passes the
-## RunState snapshot ring (a retry restores it), and the player is back to full HP. Hooks for later
-## stories: the Echo memory clear (Epic 4) belongs here. Story 3.1/3.3: `p_boss_def_path` places
+## RunState snapshot ring (a retry restores it), and the player is back to full HP. Story 4.1: the
+## Echo memory clear lives in ActionStateMachine.reset_for_fight (called below). Story 3.1/3.3: `p_boss_def_path` places
 ## that boss (Main.boss_def_path_for: the Infinite Loop for boss 0, the test boss on Shift+F3),
 ## reset to full HP, phase 1, GAP (AC 8); an empty path means the fight has no boss.
 func enter_fight(fight_start: PackedInt32Array, with_practice: bool = false, p_boss_def_path: String = "") -> void:
