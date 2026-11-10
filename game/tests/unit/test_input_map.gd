@@ -12,7 +12,7 @@ const EXPECTED: Dictionary[StringName, Array] = {
 	&"shift_right": [KEY_E],
 	&"breakpoint": [KEY_SPACE],
 	&"watch": [KEY_R],
-	&"pause": [KEY_ESCAPE],
+	&"pause": [KEY_ESCAPE, KEY_P], # D-FIX-FS-1: P for the fullscreen Esc lock
 	&"mute": [KEY_M],
 }
 
@@ -54,6 +54,15 @@ func test_no_project_action_binds_shift() -> void:
 			assert_ne(key.physical_keycode, KEY_SHIFT, "%s binds Shift (physical)" % action)
 
 
-func test_pause_is_escape_and_mute_is_m() -> void:
-	assert_eq(_physical_keys(&"pause"), [KEY_ESCAPE] as Array[Key])
+func test_pause_is_escape_or_p_and_mute_is_m() -> void:
+	assert_eq(_physical_keys(&"pause"), [KEY_ESCAPE, KEY_P] as Array[Key])
 	assert_eq(_physical_keys(&"mute"), [KEY_M] as Array[Key])
+
+
+## D-FIX-FS-1: P is pause in play; the only other action on P is the title's Practice option, and
+## TITLE never pauses, so the two never meet.
+func test_p_is_shared_only_with_the_title_practice_option() -> void:
+	for action: StringName in InputMap.get_actions():
+		if action == &"pause" or action == &"title_option_practice" or String(action).begins_with("ui_"):
+			continue
+		assert_false(KEY_P in _physical_keys(action), "%s also binds P" % action)

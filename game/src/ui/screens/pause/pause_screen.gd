@@ -2,8 +2,9 @@ class_name PauseScreen
 extends Node2D
 ## Pause overlay (Story 1.7 AC2, AC3). Main instances it on EventBus.pause_toggled(true) and frees
 ## it on false (DC6). Opaque BG over the 640x360 base (DC7), glyph text only (AD-07).
-## Presentation only: M or a click on the mute label toggles the Master mute; Esc belongs to Game
-## (DC2), and other clicks do nothing (DC3). It never writes flow or pause state.
+## Presentation only: M or a click on the mute label toggles the Master mute (consumed here, so it
+## never resumes); Esc / P and any other click belong to Game, which resumes on them (DC2,
+## D-FIX-FS-1). It never writes flow or pause state.
 
 const TEXT_SCALE := 2
 ## Tops of the text rows, on the 8-px grid. Title, then the GDD controls table, then the options.
@@ -19,7 +20,8 @@ const CONTROLS: PackedStringArray = [
 ]
 const CONTROLS_TOP_Y := 72
 const CONTROLS_STEP := 24
-const RESUME_TEXT := "[ESC] RESUME"
+## D-FIX-FS-1: Esc may never reach the canvas in browser fullscreen, so P and a click resume too.
+const RESUME_TEXT := "[ESC / P / CLICK] RESUME"
 const RESUME_TOP_Y := 240
 const MUTE_TOP_Y := 272
 const MUTE_ON_TEXT := "[M] MUTE ON"
