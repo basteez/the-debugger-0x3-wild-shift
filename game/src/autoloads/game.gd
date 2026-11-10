@@ -3,7 +3,8 @@ extends Node
 ## Presentation calls start_run_from_title, finish_intro, advance (and debug_jump in debug).
 ## Story 3.8: finish_defeat (FIGHT -> HARVEST / ENDING after the defeat animation), finish_harvest
 ## (HARVEST -> next FIGHT) and debug_grant_bit (F8), all called from presentation after the tick.
-## Game is also the only writer of SimClock.paused (Story 1.7 DC2): Esc and focus loss.
+## Game is also the only writer of SimClock.paused (Story 1.7 DC2): Esc / P, focus loss and the
+## resume click (D-FIX-FS-1).
 
 enum FlowState { TITLE, INTRO, FIGHT, DEAD, HARVEST, ENDING }
 
@@ -21,6 +22,13 @@ const HARVEST_SKIP_FRAMES := 120
 const BOSS_IDS: Array[StringName] = [&"infinite_loop", &"null_pointer", &"segfault"]
 ## States where Esc and focus loss pause (Story 1.7 DC1): the 60 Hz clock drives the Intro cap and the fight.
 const PAUSABLE_STATES: Array[FlowState] = [FlowState.INTRO, FlowState.FIGHT]
+## [design call] D-FIX-FS-1 (fullscreen Esc lock): in browser fullscreen Esc exits fullscreen and never
+## reaches the canvas, and the blur pauses the game. So the `pause` action is Esc or P, and while
+## paused a left click / tap resumes, unless it comes less than CLICK_RESUME_GUARD_MSEC (wall clock,
+## sim frames stop while paused) after the pause began: the click that took focus away (or came with
+## the blur) never also resumes. Every left click while paused re-focuses the canvas on web.
+const CLICK_RESUME_GUARD_MSEC := 300
+const _FOCUS_CANVAS_JS := "var c=document.querySelector('canvas'); if (c) { c.focus(); }"
 
 var flow_state: FlowState = FlowState.TITLE
 ## Sim frame of the first title input: start of the 30-s first-shift clock. -1 before it.
@@ -39,6 +47,8 @@ var _web_focus_cb: JavaScriptObject = null
 ## True from a focus loss until focus returns or the player presses Esc: a blur seen in a
 ## non-pausable state (TITLE, DEAD, HARVEST) pauses on entering INTRO or FIGHT (review fix).
 var _focus_lost: bool = false
+## Wall-clock msec (Time.get_ticks_msec) when the current pause began; -1 when not paused (D-FIX-FS-1).
+var _paused_at_msec: int = -1
 
 
 func _ready() -> void:
@@ -48,7 +58,7 @@ func _ready() -> void:
 
 
 func _input(event: InputEvent) -> void:
-	if handle_pause_input(event):
+	if handle_pause_input(event) or handle_resume_click(event, Time.get_ticks_msec()):
 		get_viewport().set_input_as_handled()
 
 
@@ -73,21 +83,52 @@ func set_paused(on: bool, reason: StringName) -> bool:
 	if SimClock.paused == on:
 		return true
 	SimClock.paused = on
+	_paused_at_msec = Time.get_ticks_msec() if on else -1
 	Log.info(&"flow", ("pause on (%s)" % reason) if on else "pause off")
 	EventBus.pause_toggled.emit(on)
 	return true
 
 
-## Esc toggles the pause in a pausable state (DC2, DC3). True when the event was a fresh `pause`
-## press that toggled it; the caller then consumes it. Esc elsewhere is left to the screens.
+## Esc or P toggles the pause in a pausable state (DC2, DC3, D-FIX-FS-1). True when the event was a
+## fresh `pause` press that toggled it; the caller then consumes it. Esc / P elsewhere is left to the
+## screens (P is the title's Practice option, D-FIX-FS-1: never consumed in TITLE).
 func handle_pause_input(event: InputEvent) -> bool:
 	if not is_pause_press(event):
 		return false
-	_focus_lost = false # an Esc press proves the window has focus
+	_focus_lost = false # a key press proves the window has focus
 	return set_paused(not SimClock.paused, &"esc")
 
 
-## Pure: a fresh, non-echo press of the `pause` action.
+## D-FIX-FS-1: while paused, a left click / tap resumes once the guard has passed. Every left click
+## while paused re-focuses the canvas on web (keyboard back after a fullscreen exit). True when it
+## resumed; the caller then consumes the click, so no screen sees it. No mouse button is bound to a
+## gameplay action and a paused tick never polls (D-S21-9), so the resume click never attacks.
+## A click on the pause screen's mute label is consumed by PauseScreen first (it sits later in the
+## tree, and _input runs in reverse tree order), so it toggles mute and never resumes.
+func handle_resume_click(event: InputEvent, now_msec: int) -> bool:
+	if not SimClock.paused or not is_left_click(event):
+		return false
+	_focus_lost = false # a click on the game proves it has focus
+	if OS.has_feature("web"):
+		JavaScriptBridge.eval(_FOCUS_CANVAS_JS)
+	if not click_resume_allowed(_paused_at_msec, now_msec):
+		return false
+	return set_paused(false, &"click")
+
+
+## Pure: a left mouse button press (a tap arrives as one: emulate_mouse_from_touch).
+static func is_left_click(event: InputEvent) -> bool:
+	var mouse := event as InputEventMouseButton
+	return mouse != null and mouse.pressed and mouse.button_index == MOUSE_BUTTON_LEFT
+
+
+## Pure (D-FIX-FS-1): a click may resume only CLICK_RESUME_GUARD_MSEC after the pause began.
+## An unknown start (-1) allows it, so the game can never stay locked.
+static func click_resume_allowed(paused_at_msec: int, now_msec: int) -> bool:
+	return paused_at_msec < 0 or now_msec - paused_at_msec >= CLICK_RESUME_GUARD_MSEC
+
+
+## Pure: a fresh, non-echo press of the `pause` action (Esc or P).
 static func is_pause_press(event: InputEvent) -> bool:
 	return InputMap.has_action(&"pause") and event.is_action_pressed(&"pause")
 
@@ -109,7 +150,7 @@ static func is_focus_gained_notification(what: int) -> bool:
 func on_focus_lost() -> void:
 	_focus_lost = true
 	if set_paused(true, &"focus") and OS.has_feature("web"):
-		JavaScriptBridge.eval("var c=document.querySelector('canvas'); if (c) { c.focus(); }")
+		JavaScriptBridge.eval(_FOCUS_CANVAS_JS)
 
 
 ## Title press-to-start (FR47). Valid only from TITLE.
@@ -282,6 +323,7 @@ func _set_flow_state(to: FlowState) -> void:
 	Log.info(&"flow", "%s -> %s" % [FlowState.keys()[from], FlowState.keys()[to]])
 	if SimClock.paused: # DC5: a flow change never leaves the game paused
 		SimClock.paused = false
+		_paused_at_msec = -1
 		Log.info(&"flow", "pause off")
 		EventBus.pause_toggled.emit(false)
 	if to != FlowState.DEAD:

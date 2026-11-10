@@ -193,3 +193,96 @@ func test_sim_frame_frozen_while_paused() -> void:
 		clock.call(&"_physics_process", 1.0 / 60.0)
 	assert_eq(clock.get("sim_frame"), 60)
 	clock.free()
+
+
+# --- D-FIX-FS-1: resume with P or a click (fullscreen Esc lock) ---
+
+func _p() -> InputEventKey:
+	var key := InputEventKey.new()
+	key.physical_keycode = KEY_P
+	key.pressed = true
+	return key
+
+
+func _click(button: MouseButton = MOUSE_BUTTON_LEFT, pressed: bool = true) -> InputEventMouseButton:
+	var click := InputEventMouseButton.new()
+	click.button_index = button
+	click.pressed = pressed
+	click.position = Vector2(320, 180)
+	return click
+
+
+func test_p_press_toggles_pause_like_esc() -> void:
+	var game: Node = _game()
+	assert_true(GameScript.is_pause_press(_p()))
+	assert_true(game.handle_pause_input(_p()))
+	assert_true(SimClock.paused)
+	assert_true(game.handle_pause_input(_p()))
+	assert_false(SimClock.paused, "P again resumes")
+
+
+func test_p_is_not_consumed_in_title_so_practice_still_works() -> void:
+	var game: Node = _game(S.TITLE)
+	assert_false(game.handle_pause_input(_p()))
+	assert_false(SimClock.paused)
+
+
+func test_left_click_rule() -> void:
+	assert_true(GameScript.is_left_click(_click()))
+	assert_false(GameScript.is_left_click(_click(MOUSE_BUTTON_LEFT, false)), "release is not a click")
+	assert_false(GameScript.is_left_click(_click(MOUSE_BUTTON_RIGHT)))
+	assert_false(GameScript.is_left_click(_p()))
+
+
+func test_click_resume_guard_rule() -> void:
+	var guard: int = GameScript.CLICK_RESUME_GUARD_MSEC
+	assert_false(GameScript.click_resume_allowed(1000, 1000), "the click that came with the pause")
+	assert_false(GameScript.click_resume_allowed(1000, 1000 + guard - 1))
+	assert_true(GameScript.click_resume_allowed(1000, 1000 + guard))
+	assert_true(GameScript.click_resume_allowed(-1, 0), "unknown start never locks the game")
+
+
+func test_click_resumes_after_the_guard() -> void:
+	var game: Node = _game()
+	game.on_focus_lost()
+	assert_true(SimClock.paused)
+	var at: int = game._paused_at_msec
+	assert_gte(at, 0, "the pause start is recorded")
+	assert_false(game.handle_resume_click(_click(), at + 10), "a click moments after the pause is ignored")
+	assert_true(SimClock.paused)
+	assert_false(game.handle_resume_click(_click(MOUSE_BUTTON_RIGHT), at + 1000), "right click never resumes")
+	assert_true(game.handle_resume_click(_click(), at + 1000))
+	assert_false(SimClock.paused, "a later click resumes")
+	assert_eq(game._paused_at_msec, -1)
+
+
+func test_click_clears_a_remembered_blur() -> void:
+	var game: Node = _game()
+	game.on_focus_lost()
+	game.handle_resume_click(_click(), game._paused_at_msec + 1000)
+	assert_false(game._focus_lost, "a click on the game proves focus")
+
+
+func test_click_does_nothing_when_not_paused() -> void:
+	for state: S in [S.FIGHT, S.INTRO, S.TITLE, S.DEAD, S.HARVEST, S.ENDING]:
+		var game: Node = _game(state)
+		assert_false(game.handle_resume_click(_click(), 100000), "not consumed in %s" % S.keys()[state])
+		assert_false(SimClock.paused)
+
+
+func test_no_gameplay_action_binds_a_mouse_button() -> void:
+	# The resume click is consumed and a paused tick never polls (D-S21-9); this keeps it that way.
+	for action: StringName in LiveInput.BUFFERED_ACTIONS:
+		for ev: InputEvent in InputMap.action_get_events(action):
+			assert_false(ev is InputEventMouseButton, "%s binds a mouse button" % action)
+
+
+func test_resumed_tick_never_fires_the_resume_press() -> void:
+	# D-S21-9: a paused tick does not poll, so the press seen while paused is dropped.
+	var game: Node = _game()
+	game.set_paused(true, &"esc")
+	var poll: int = SimClock.poll_frame
+	SimClock.tick()
+	assert_eq(SimClock.poll_frame, poll, "a paused tick never polls input")
+	game.handle_resume_click(_click(), game._paused_at_msec + 1000)
+	assert_false(SimClock.paused)

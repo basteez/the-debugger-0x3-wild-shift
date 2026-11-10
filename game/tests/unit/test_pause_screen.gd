@@ -12,7 +12,7 @@ func test_lines_list_every_control_and_resume() -> void:
 		assert_string_contains(text, label)
 	for key: String in ["WASD", "ARROWS", " J", " K", "Q E", "SPACE", " R"]:
 		assert_string_contains(text, key)
-	assert_has(lines, "[ESC] RESUME")
+	assert_has(lines, "[ESC / P / CLICK] RESUME")
 	assert_eq(lines.size(), PauseScreen.row_tops().size())
 
 
