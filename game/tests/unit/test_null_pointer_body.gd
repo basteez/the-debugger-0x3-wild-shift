@@ -139,7 +139,9 @@ func test_watch_held_is_visible() -> void:
 	assert_false(b.watch_held, "Watch released by default")
 	b.set_watch_held(true)
 	assert_true(b.visible_now())
+	_ctx.watch_held = true # Story 5.4: a live tick copies the held state from SimClock's context
 	assert_true(_tick_visible(b), "stays visible while held")
+	_ctx.watch_held = false
 	b.set_watch_held(false)
 	assert_false(b.visible_now())
 	b.set_watch_held(true)

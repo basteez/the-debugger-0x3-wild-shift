@@ -6,6 +6,8 @@ extends SimSystem
 
 ## Default facing at spawn (D-S22-6): right.
 const DEFAULT_FACING := Vector2i(1, 0)
+## Story 5.4 (GDD Skills, D-S54-5): top speed factor while Watch is held (ctx.watch_held).
+const WATCH_SPEED_FACTOR := 0.5
 
 var def: PlayerDef
 ## Rect the glyph centre may occupy, arena-local (Arena.player_bounds()). Injected rather than read
@@ -48,6 +50,8 @@ func tick(ctx: SimContext) -> void:
 	if dir != Vector2i.ZERO:
 		facing = dir
 	var v_max: float = Const.tiles_per_s_to_px_per_frame(def.speed_tiles_s)
+	if ctx.watch_held: # Story 5.4 (D-S54-5): Watch halves the top speed, same ramp shape
+		v_max *= WATCH_SPEED_FACTOR
 	var target: Vector2 = Vector2.ZERO
 	var step: float = v_max / def.decel_frames
 	if dir != Vector2i.ZERO:

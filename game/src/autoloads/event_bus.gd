@@ -71,3 +71,11 @@ signal breakpoint_ended()
 ## the sim tick; LogPanel prints the reason.
 @warning_ignore("unused_signal")
 signal player_stunned(reason: StringName)
+## Watch started (Story 5.4, FR25, D-S54-3): R is held in a fight where Watch is unlocked. Emitted
+## once per hold by the Watch module from SimClock's poll; the gate is already set.
+@warning_ignore("unused_signal")
+signal watch_started()
+## Watch ended (Story 5.4, D-S54-11): R released, or the fight was reset or left while held. Emitted
+## once per hold; the gate is already cleared.
+@warning_ignore("unused_signal")
+signal watch_ended()

@@ -59,6 +59,10 @@ const SPOT_MIN_DIST_MTILES := 4000
 const SPOT_TRIES := 32
 ## NullPointerException (D-S53-6): a whiffed slash stuns within this range, centre to centre.
 const WHIFF_RANGE_TILES := 4
+## Story 5.4 (D-S54-9, GDD cut #2): with Watch cut, the ghost flickers visible for
+## FALLBACK_VISIBLE_FRAMES live ticks at the end of every FALLBACK_CYCLE_TICKS live ticks (2 s).
+const FALLBACK_CYCLE_TICKS := 120
+const FALLBACK_VISIBLE_FRAMES := 20
 
 ## Body centre in milli-tiles (arena-local); body_center_px is derived from it.
 var pos_mtiles: Vector2i = Vector2i.ZERO
@@ -71,8 +75,16 @@ var drift_timer: int = 0
 ## Sim frames left of the hit flicker (AC 5) and of the pass-through reveal (AC 6).
 var hit_reveal_left: int = 0
 var pass_reveal_left: int = 0
-## Watch held (AC 7). Story 5.4 drives it; in 5.1 only tests do. Read by visible_now().
+## Watch held (AC 7). Story 5.4: copied from ctx.watch_held on every live tick (the Watch module's
+## gate); set_watch_held stays as the test hook. Read by visible_now().
 var watch_held: bool = false
+## Story 5.4 (AC 13, D-S54-9): Watch is cut, so the flicker fallback runs. Injected by the Arena
+## (never the flag itself); false = inert.
+var watch_fallback: bool = false
+## Live ticks left in the fallback cycle (FALLBACK_CYCLE_TICKS..1); the ghost shows while it is at
+## or below FALLBACK_VISIBLE_FRAMES. Counted only with watch_fallback on, paused in ROAR (and while
+## DEFEATED, when the body does not tick), reset on every fight entry.
+var fallback_cycle_left: int = FALLBACK_CYCLE_TICKS
 ## The falling column's phase, 0..TRAIL_FALL_TICKS-1 (AC 12).
 var trail_tick: int = 0
 ## Story 5.3: live decoys (milli-tiles). Sim objects owned here, never nodes (D-S53-3).
@@ -104,6 +116,7 @@ func reset_for_fight() -> void:
 	hit_reveal_left = 0
 	pass_reveal_left = 0
 	watch_held = false
+	fallback_cycle_left = FALLBACK_CYCLE_TICKS
 	trail_tick = 0
 	clear_decoys()
 	_sync_px()
@@ -112,6 +125,8 @@ func reset_for_fight() -> void:
 ## One live tick (D-S33-14 order: after the Patched tick, before the FSM step): the reveal timers
 ## count down, the column falls, and outside an attack's ACTIVE / RECOVERY frames the ghost drifts.
 func _tick_body(ctx: SimContext) -> void:
+	watch_held = ctx.watch_held # Story 5.4 (D-S54-3, D-S54-6): the held state drives the reveal
+	_tick_fallback()
 	if hit_reveal_left > 0:
 		hit_reveal_left -= 1
 	if pass_reveal_left > 0:
@@ -121,6 +136,20 @@ func _tick_body(ctx: SimContext) -> void:
 	if state == BossState.ACTIVE or state == BossState.RECOVERY:
 		return
 	_drift(ctx.rng)
+
+
+## Story 5.4 (D-S54-9): one live tick of the flag-off flicker cycle; paused in ROAR.
+func _tick_fallback() -> void:
+	if not watch_fallback or state == BossState.ROAR:
+		return
+	fallback_cycle_left -= 1
+	if fallback_cycle_left <= 0:
+		fallback_cycle_left = FALLBACK_CYCLE_TICKS
+
+
+## Story 5.4 (AC 12): true during the flag-off flicker's visible frames. Pure read.
+func fallback_visible() -> bool:
+	return watch_fallback and fallback_cycle_left <= FALLBACK_VISIBLE_FRAMES
 
 
 ## D-S51-1: pick a direction when the timer runs out, advance by DRIFT_SPEED_MTPS / 60 per tick
@@ -185,7 +214,7 @@ func _sync_px() -> void:
 
 
 ## AC 4-7, 9: true when the ghost is drawn. A pure read of sim state: an attack's ACTIVE or
-## RECOVERY frames, a running reveal timer, Watch held. D-S51-6: shown once DEFEATED (the bug is
+## RECOVERY frames, a running reveal timer, Watch held, or (Watch cut, Story 5.4) the flicker. D-S51-6: shown once DEFEATED (the bug is
 ## caught; the fixed-line reassembly for this boss is later work).
 func visible_now() -> bool:
 	if def == null:
@@ -193,7 +222,7 @@ func visible_now() -> bool:
 	if state == BossState.DEFEATED:
 		return true
 	return state == BossState.ACTIVE or state == BossState.RECOVERY \
-			or hit_reveal_left > 0 or pass_reveal_left > 0 or watch_held
+			or hit_reveal_left > 0 or pass_reveal_left > 0 or watch_held or fallback_visible()
 
 
 ## AC 7: Watch held or released (Story 5.4's skill; tests in 5.1).

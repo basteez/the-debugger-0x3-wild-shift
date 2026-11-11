@@ -3,19 +3,22 @@ extends InputSource
 ## Plays back a recording (AC6, D-S21-5). Frame i of the recording is returned on the i-th poll,
 ## counted by this source (independent of sim_frame); empty arrays once exhausted.
 ## Format v2 adds a parallel `moves` list ([x, y] per frame, Story 2.2 D-S22-4); a v1 recording
-## (no `moves`) replays with zero movement.
+## (no `moves`) replays with zero movement. Format v3 (Story 5.4, D-S54-2) adds a parallel `watch`
+## list (one bool per frame); a v1 / v2 recording (no `watch`) replays with Watch never held.
 
 ## Seed the recording was made with; the replay run calls SimClock.begin_fight(seed_value) first.
 var seed_value: int = 0
 var _frames: Array[Array] = []
 var _moves: Array[Vector2i] = []
+var _watch: Array[bool] = []
 ## Poll counters: SimClock calls presses_for_frame and move_for_frame once each per polled frame,
 ## so both advance in lockstep and frame i's presses and move come back on the i-th poll.
 var _poll_index: int = 0
 var _move_index: int = 0
+var _watch_index: int = 0
 
 
-func _init(frames: Array = [], recorded_seed: int = 0, moves: Array = []) -> void:
+func _init(frames: Array = [], recorded_seed: int = 0, moves: Array = [], watch: Array = []) -> void:
 	seed_value = recorded_seed
 	for frame: Variant in frames:
 		var presses: Array[StringName] = []
@@ -33,6 +36,15 @@ func _init(frames: Array = [], recorded_seed: int = 0, moves: Array = []) -> voi
 		_moves.append(parsed)
 	if bad > 0:
 		Log.error(&"replay", "bad move entries in replay (%d), replayed as no movement" % bad)
+	var bad_watch: int = 0
+	for held: Variant in watch:
+		if held is bool:
+			_watch.append(held)
+		else:
+			_watch.append(false)
+			bad_watch += 1
+	if bad_watch > 0:
+		Log.error(&"replay", "bad watch entries in replay (%d), replayed as not held" % bad_watch)
 
 
 func presses_for_frame() -> Array[StringName]:
@@ -49,6 +61,15 @@ func move_for_frame() -> Vector2i:
 	if _move_index < _moves.size():
 		out = _moves[_move_index]
 	_move_index += 1
+	return out
+
+
+## Story 5.4: entry i on the i-th poll; false when exhausted or for a v1 / v2 recording.
+func watch_held_for_frame() -> bool:
+	var out: bool = false
+	if _watch_index < _watch.size():
+		out = _watch[_watch_index]
+	_watch_index += 1
 	return out
 
 
@@ -70,7 +91,7 @@ func frame_count() -> int:
 	return _frames.size()
 
 
-## Pure: builds a replay from a recording dictionary ({"version", "seed", "frames"[, "moves"]}).
+## Pure: builds a replay from a recording dictionary ({"version", "seed", "frames"[, "moves"][, "watch"]}).
 ## Bad data is a data error: Log.error and an empty replay, never a crash.
 static func from_data(data: Variant) -> ReplayInput:
 	var dict: Dictionary = data if data is Dictionary else {}
@@ -81,7 +102,13 @@ static func from_data(data: Variant) -> ReplayInput:
 	if not (moves is Array):
 		Log.error(&"replay", "bad replay data (moves is not an array), replayed as no movement")
 		moves = []
-	return ReplayInput.new(dict["frames"], int(dict.get("seed", 0)), moves)
+	var watch: Variant = dict.get("watch", [])
+	if not (watch is Array):
+		Log.error(&"replay", "bad replay data (watch is not an array), replayed as not held")
+		watch = []
+	elif not (watch as Array).is_empty() and (watch as Array).size() != (dict["frames"] as Array).size():
+		Log.warn(&"replay", "watch has %d entries for %d frames (missing ones replay as not held)" % [(watch as Array).size(), (dict["frames"] as Array).size()])
+	return ReplayInput.new(dict["frames"], int(dict.get("seed", 0)), moves, watch)
 
 
 ## Loads a replay JSON file written by InputRecorder. Errors → Log.error + empty replay.

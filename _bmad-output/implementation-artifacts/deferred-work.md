@@ -375,3 +375,12 @@ Story 1.3 AC9 / I-6 ("mumble-speech web check, moved to 3.7") is UNBLOCKED. Tizi
 - Whiff range is measured from the player centre at the last ACTIVE frame, the hit shape from the action origin; equal while slashes lock movement. Unify if a slash ever moves the player.
 - Decoy spacing (4 tiles from the body) is checked at plan time; the body drifts during TELL, so a decoy can spawn slightly closer. Tune in playtest.
 - Test weaknesses: `test_a_real_slash_dispels_a_decoy_without_a_stun` ends on a tautological `boss.hp <= hp`; the integration re-cast test removes decoys itself at the cap.
+
+## Deferred from: code review of story-5.4 (2026-11-11)
+
+- Pause leaves the Watch gate and the overlay held until the first poll after resume (no poll runs while paused). Cosmetic.
+- A dash carried out of Watch can exceed half top speed for about accel_frames, and the halved speed also halves the decel step. Tune in playtest.
+- The ghost reveal only updates on live body ticks, so it lags the overlay during hit-stop or a Breakpoint freeze (design call).
+- HUD weak-window marks skip bits the player does not own; the next-attack line shows the raw attack id (D-S54-14, D-S54-17). Add a display name to AttackDef when polishing.
+- `Arena.set_watch_enabled(true)` mid-fight leaves the skill out of the fight until the next enter_fight (tests / debug only).
+- Source-grep guard tests (`contains("watch")`) in test_watch_effects.gd and test_watch_readouts.gd are fragile against harmless edits.

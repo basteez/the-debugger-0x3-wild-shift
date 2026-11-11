@@ -61,6 +61,10 @@ fi
 report "Breakpoint module named outside src/skills/breakpoint/ (leaf rule, AD-12)" \
 	< <(grep -rnE --include='*.gd' '\b(BreakpointSkill|BreakpointOverlay)\b' game/src | grep -v '^game/src/skills/breakpoint/' | grep -vE '^[^:]+:[0-9]+:[[:space:]]*#' || true)
 
+# Story 5.4 (AC 15, AD-12, D-S54-3): the Watch module is a leaf too (same rule as Breakpoint).
+report "Watch module named outside src/skills/watch/ (leaf rule, AD-12)" \
+	< <(grep -rnE --include='*.gd' '\b(WatchSkill|WatchOverlay)\b' game/src | grep -v '^game/src/skills/watch/' | grep -vE '^[^:]+:[0-9]+:[[:space:]]*#' || true)
+
 report "direct output call outside Log (use Log.info/debug/warn/error)" \
 	< <(grep -rnE --include='*.gd' '(^|[^.[:alnum:]_])(print|prints|printt|printraw|printerr|print_rich|print_debug|print_verbose|push_error|push_warning)[[:space:]]*\(' game/src | grep -v '^game/src/autoloads/log\.gd:' | grep -vE '^[^:]+:[0-9]+:[[:space:]]*#' || true)
 

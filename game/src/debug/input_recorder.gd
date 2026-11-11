@@ -4,11 +4,14 @@ extends RefCounted
 ## recorder is set; frame 0 is the first poll after start. Never created in release builds.
 
 ## v2 (Story 2.2, D-S22-4): adds a parallel `moves` array, one [x, y] per frame.
-const FORMAT_VERSION := 2
+## v3 (Story 5.4, D-S54-2): adds a parallel `watch` array, one bool (Watch held) per frame. Older
+## recordings (no `watch`) still load: ReplayInput replays them with Watch never held.
+const FORMAT_VERSION := 3
 
 var seed_value: int = 0
 var _frames: Array[Array] = []
 var _moves: Array[Array] = []
+var _watch: Array[bool] = []
 var _recording: bool = false
 
 
@@ -23,6 +26,7 @@ func start(recorded_seed: int) -> void:
 	seed_value = recorded_seed
 	_frames.clear()
 	_moves.clear()
+	_watch.clear()
 	_recording = true
 
 
@@ -30,7 +34,7 @@ func is_recording() -> bool:
 	return _recording
 
 
-func record(presses: Array[StringName], move: Vector2i = Vector2i.ZERO) -> void:
+func record(presses: Array[StringName], move: Vector2i = Vector2i.ZERO, watch: bool = false) -> void:
 	if not _recording:
 		return
 	var frame: Array[String] = []
@@ -38,9 +42,10 @@ func record(presses: Array[StringName], move: Vector2i = Vector2i.ZERO) -> void:
 		frame.append(String(action))
 	_frames.append(frame)
 	_moves.append([move.x, move.y])
+	_watch.append(watch)
 
 
-## Ends the recording and returns {"version", "seed", "frames", "moves"}.
+## Ends the recording and returns {"version", "seed", "frames", "moves", "watch"}.
 func stop() -> Dictionary:
 	_recording = false
 	return {
@@ -48,6 +53,7 @@ func stop() -> Dictionary:
 		"seed": seed_value,
 		"frames": _frames.duplicate(true),
 		"moves": _moves.duplicate(true),
+		"watch": _watch.duplicate(),
 	}
 
 

@@ -1,7 +1,8 @@
 extends Node
 ## Fixed 60 Hz simulation clock (AD-01, NP-2). Each physics frame: gate on pause, poll the
 ## InputSource (presses into the InputBuffer stamped with poll_frame, held direction into
-## ctx.move_dir, ctx.poll_frame), advance poll_frame, call every system's poll hook (Story 4.3),
+## ctx.move_dir, held Watch into ctx.watch_input, ctx.poll_frame), advance poll_frame, call every
+## system's poll hook (Story 4.3), copy the Watch gate into ctx.watch_held (Story 5.4),
 ## gate on Breakpoint (only the SHIFTS phase ticks) then hit-stop, else tick the registered
 ## SimSystems by phase and advance sim_frame. Only SimClock calls tick().
 
@@ -21,6 +22,10 @@ var ctx: SimContext = SimContext.new()
 ## generic bool). While true the world and hit-stop are frozen: only SHIFTS-phase systems tick
 ## (register shifts stay allowed, AD-01) and sim_frame does not advance.
 var breakpoint_gate_active: bool = false
+## Watch gate (Story 5.4, D-S54-3). Written only by the Watch module (a leaf, through this generic
+## bool) in its poll. Copied into ctx.watch_held each polled frame after the poll hooks; it freezes
+## nothing (the world keeps ticking), the systems read the copy.
+var watch_gate_active: bool = false
 ## Remaining hit-stop frames. Counts down once per physics frame outside pause and Breakpoint.
 var hitstop_frames: int = 0
 ## Debug input recorder (F11). Null unless DebugKeys started one (Debug.enabled only).
@@ -54,12 +59,17 @@ func tick() -> void:
 	for action: StringName in presses:
 		buffer.push(action, poll_frame)
 	ctx.move_dir = input_source.move_for_frame() if input_source != null else Vector2i.ZERO
+	# Story 5.4 (D-S54-2): the raw held R, read once per polled frame like the move (replayed too).
+	ctx.watch_input = input_source.watch_held_for_frame() if input_source != null else false
 	ctx.poll_frame = poll_frame
 	if recorder != null:
-		recorder.record(presses, ctx.move_dir)
+		recorder.record(presses, ctx.move_dir, ctx.watch_input)
 	poll_frame += 1 # counts this polled frame even when a gate below freezes the world
 	for system: SimSystem in _systems: # D-S43-3: runs before the gates (may set or clear them)
 		system.poll(presses, ctx)
+	ctx.watch_held = watch_gate_active # D-S54-3: the Watch module's gate, as of this poll
+	if ctx.watch_held and (breakpoint_gate_active or hitstop_frames > 0):
+		_discard_action_presses() # D-S54-5 review: no J/K made under Watch survives a frozen frame
 	if breakpoint_gate_active: # world frozen, hit-stop counter untouched (NP-2, D-S21-11)
 		for system: SimSystem in _systems: # D-S43-4: shifts apply while frozen
 			if system.phase != SimSystem.SimPhase.SHIFTS:
@@ -76,6 +86,14 @@ func tick() -> void:
 		Log.debug(&"sim", "hit-stop %d frames" % hitstop_frames)
 		_pending_hitstop = 0
 	sim_frame += 1
+
+
+## Story 5.4 review: drops every buffered J/K press (live on this polled frame) while the world
+## does not tick, so a press made under Watch in a frozen frame cannot fire after R is released.
+func _discard_action_presses() -> void:
+	for key: StringName in ActionResolver.KEYS:
+		while buffer.consume(key, poll_frame - 1):
+			pass
 
 
 ## Adds a system to the tick. Stable: after every system of the same or an earlier phase.
@@ -114,4 +132,7 @@ func begin_fight(seed_value: int) -> void:
 	buffer.clear()
 	hitstop_frames = 0
 	_pending_hitstop = 0
+	watch_gate_active = false # Story 5.4 review: no Watch state leaks across a fight start / replay
+	ctx.watch_held = false
+	ctx.watch_input = false
 	Log.debug(&"sim", "begin fight seed=%d" % seed_value)

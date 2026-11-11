@@ -32,6 +32,8 @@ const NULL_POINTER_DEF_PATH := "res://data/bosses/null_pointer/boss_def.tres"
 ## Story 4.3 (AD-12, D-S43-2): the Breakpoint leaf module, loaded by path only when its flag is on,
 ## so the arena never names its class (held as a FightSkill).
 const BREAKPOINT_SKILL_PATH := "res://src/skills/breakpoint/breakpoint_skill.gd"
+## Story 5.4 (AD-12, D-S54-3): the Watch leaf module, loaded by path only when its flag is on.
+const WATCH_SKILL_PATH := "res://src/skills/watch/watch_skill.gd"
 ## Inset of the player's glyph centre from the play-area edge: half a tile, so the whole `@` cell
 ## stays inside the 32x18 play area (D-S22-2). One more tile inward makes the tree ring a wall.
 const PLAYER_EDGE_INSET_PX := TILE_PX / 2.0
@@ -87,6 +89,13 @@ var breakpoint_enabled: bool = Defs.FEATURE_FLAGS.breakpoint_enabled
 ## The Breakpoint module (cut #3), null when the flag is off. TIMERS phase; registered with SimClock
 ## while the arena is in the tree.
 var breakpoint_skill: FightSkill = make_breakpoint_skill(breakpoint_enabled)
+## Story 5.4 (D-S54-3, D-S54-9): FeatureFlags.watch, read once here at construction (Main or a test
+## may override it with set_watch_enabled before the first fight). Off: the Null Pointer gets the
+## flicker fallback injected (watch_fallback), never the flag itself.
+var watch_enabled: bool = Defs.FEATURE_FLAGS.watch
+## The Watch module (cut #2), null when the flag is off. TIMERS phase; registered with SimClock while
+## the arena is in the tree.
+var watch_skill: FightSkill = make_watch_skill(watch_enabled)
 
 
 func _enter_tree() -> void:
@@ -100,6 +109,8 @@ func _enter_tree() -> void:
 		SimClock.register_system(boss)
 	if breakpoint_skill != null:
 		SimClock.register_system(breakpoint_skill)
+	if watch_skill != null:
+		SimClock.register_system(watch_skill)
 
 
 ## Detach from the autoload clock so re-instancing Main (tests) never double-ticks (D-S22-10).
@@ -115,6 +126,9 @@ func _exit_tree() -> void:
 	if breakpoint_skill != null:
 		breakpoint_skill.end_fight() # never leave the autoload clock frozen (AC 12)
 		SimClock.unregister_system(breakpoint_skill)
+	if watch_skill != null:
+		watch_skill.end_fight() # never leave the autoload clock's Watch gate on
+		SimClock.unregister_system(watch_skill)
 
 
 ## Every route into FIGHT (D-S22-5, Story 2.3 AC9): reset the player to spawn and the register to
@@ -126,7 +140,9 @@ func _exit_tree() -> void:
 ## reset to full HP, phase 1, GAP (AC 8); an empty path means the fight has no boss.
 ## Story 4.3 (AC 3, AC 12, D-S43-6): `breakpoint_unlocked` (Fight 2 or later, computed by Main from
 ## RunState) resets the Breakpoint module: gate off, cooldown 0, not active.
-func enter_fight(fight_start: PackedInt32Array, with_practice: bool = false, p_boss_def_path: String = "", breakpoint_unlocked: bool = false) -> void:
+## Story 5.4 (D-S54-4, D-S54-11): `watch_unlocked` (Boss 2 or later, computed by Main) resets the
+## Watch module: released, gate off.
+func enter_fight(fight_start: PackedInt32Array, with_practice: bool = false, p_boss_def_path: String = "", breakpoint_unlocked: bool = false, watch_unlocked: bool = false) -> void:
 	player.reset_for_fight(SPAWN_PX)
 	player.set_active(true)
 	if not register.set_fight_start(fight_start):
@@ -142,6 +158,8 @@ func enter_fight(fight_start: PackedInt32Array, with_practice: bool = false, p_b
 	_set_boss(p_boss_def_path)
 	if breakpoint_skill != null:
 		breakpoint_skill.reset_for_fight(breakpoint_unlocked)
+	if watch_skill != null:
+		watch_skill.reset_for_fight(watch_unlocked)
 	_redraw_player_view()
 
 
@@ -169,6 +187,8 @@ func leave_fight() -> void:
 		boss.set_active(false)
 	if breakpoint_skill != null:
 		breakpoint_skill.end_fight() # clears the gate, emits breakpoint_ended if running (AC 12)
+	if watch_skill != null:
+		watch_skill.end_fight() # Story 5.4 (D-S54-11): released, gate off, watch_ended if held
 
 
 ## Places (reset) or removes the fight's boss (D-S33-13). The controller and its attack scripts
@@ -191,6 +211,7 @@ func _set_boss(path: String) -> void:
 		if is_inside_tree():
 			SimClock.register_system(boss)
 	boss.breakpoint_on = breakpoint_enabled # D-S43-11: the SIGSEGV fallback reads the flag
+	_inject_watch_fallback()
 	boss.reset_for_fight() # also clears Patched (D-S32-23)
 	combat.boss = boss
 
@@ -218,6 +239,37 @@ func set_breakpoint_enabled(on: bool) -> void:
 		breakpoint_skill = null
 	if boss != null:
 		boss.breakpoint_on = on
+
+
+## Builds the Watch module when `enabled` (Story 5.4, AD-12): loaded by path, bound to the SimClock
+## autoload's gate. Null when off, so nothing under src/skills/watch/ is instantiated.
+static func make_watch_skill(enabled: bool) -> FightSkill:
+	if not enabled:
+		return null
+	var script := load(WATCH_SKILL_PATH) as GDScript
+	return script.new(SimClock) as FightSkill if script != null else null
+
+
+## Turns the Watch module on or off (Main's startup wiring, flag-off tests). Off releases a held
+## Watch and drops the module; on builds it. The boss's flicker fallback follows at once.
+func set_watch_enabled(on: bool) -> void:
+	watch_enabled = on
+	if on and watch_skill == null:
+		watch_skill = make_watch_skill(true)
+		if is_inside_tree() and watch_skill != null:
+			SimClock.register_system(watch_skill)
+	elif not on and watch_skill != null:
+		watch_skill.end_fight()
+		SimClock.unregister_system(watch_skill)
+		watch_skill = null
+	_inject_watch_fallback()
+
+
+## Story 5.4 (AC 13, D-S54-9): the Null Pointer's ghost flicker runs only when Watch is cut. The
+## boss reads the injected bool, never the flag. Bosses without the property ignore it.
+func _inject_watch_fallback() -> void:
+	if boss != null and &"watch_fallback" in boss:
+		boss.set(&"watch_fallback", not watch_enabled)
 
 
 ## The controller class for a boss def path (D-S33-13). Pure.

@@ -98,7 +98,8 @@ func test_fight_2_runs_both_attacks_in_both_phases() -> void:
 			# The idle player would die; keep it alive so the fight continues (hits still land).
 			health.hp = health.def.max_hp
 			assert_eq(boss.visible_now(), boss.state == S.ACTIVE or boss.state == S.RECOVERY \
-					or boss.hit_reveal_left > 0 or boss.pass_reveal_left > 0, "visible only in ACTIVE / RECOVERY")
+					or boss.hit_reveal_left > 0 or boss.pass_reveal_left > 0 or boss.fallback_visible(), \
+					"visible only in ACTIVE / RECOVERY (or the Story 5.4 flag-off flicker)")
 			if boss.current != null:
 				seen[phase][boss.current.id] = true
 				var ids: Array = [&"pointer_grab", &"null_rain"] if phase == 0 else [&"pointer_grab", &"null_rain", &"dangling_pointers"]
