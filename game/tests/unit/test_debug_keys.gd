@@ -403,12 +403,17 @@ func test_f8_grants_the_loop_on_fight_1_and_goes_to_harvest() -> void:
 	assert_eq(main.arena.register.ring, PackedInt32Array([Register.Bit.ATTACK, Register.Bit.DASH, Register.Bit.LOOP]), "Fight 2 loadout [A, D, L]")
 
 
-func test_f8_is_a_no_op_on_fight_2_and_outside_fight() -> void:
+## Story 5.5: NULL has a BitDef now, so F8 on Fight 2 grants N through the existing Story 3.8 route
+## (the debug path to try Null Dodge before Story 5.6's real Harvest, D-S55-1).
+func test_f8_grants_null_on_fight_2_and_is_a_no_op_outside_fight() -> void:
 	var main: Node2D = _main_with_debug()
 	var keys: DebugKeys = main.get_node(^"DebugKeys")
-	keys.handle_key(_key(KEY_F3)) # FIGHT boss 1: no body, NULL has no BitDef (D-S38-15)
+	keys.handle_key(_key(KEY_F3)) # FIGHT boss 1: the Null Pointer, drop_bit = N
 	assert_true(keys.handle_key(_key(KEY_F8)))
-	assert_eq(Game.flow_state, GameScript.FlowState.FIGHT, "no grant on Fight 2")
+	assert_eq(Game.flow_state, GameScript.FlowState.HARVEST, "F8 grants N on Fight 2")
+	var screen := main.current_screen as HarvestScreen
+	assert_not_null(screen)
+	assert_eq(screen.bit, Register.Bit.NULL_BIT)
 	keys.handle_key(_key(KEY_F1))
 	assert_true(keys.handle_key(_key(KEY_F8)))
 	assert_eq(Game.flow_state, GameScript.FlowState.TITLE, "no grant outside FIGHT")

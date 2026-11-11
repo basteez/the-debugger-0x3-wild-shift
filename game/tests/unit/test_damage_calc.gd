@@ -65,3 +65,15 @@ func test_base_state_is_identity_and_zero_stays_zero() -> void:
 	assert_eq(DamageCalc.compute(10, DamageState.multiplier(DamageState.Kind.BASE), false, 1.0), 10, "practice target x1")
 	for kind: int in [DamageState.Kind.BASE, DamageState.Kind.UNPATCHED, DamageState.Kind.PATCHED]:
 		assert_eq(DamageCalc.compute(0, DamageState.multiplier(kind), false, 1.0), 0)
+
+
+# --- Story 5.5 (AC 10, D-S55-6): Clean Catch on top of the damage state ---
+
+func test_clean_catch_slash_rows() -> void:
+	var patched: float = DamageState.multiplier(DamageState.Kind.PATCHED)
+	var unpatched: float = DamageState.multiplier(DamageState.Kind.UNPATCHED)
+	var base: float = DamageState.multiplier(DamageState.Kind.BASE)
+	assert_eq(DamageCalc.compute(10, patched, true, 1.0), 23, "Patched x2.25: 22.5 -> 23")
+	assert_eq(DamageCalc.compute(10, unpatched, true, 1.0), 8, "unpatched x0.75: 7.5 -> 8")
+	assert_eq(DamageCalc.compute(10, base, true, 1.0), 15, "practice target x1.5")
+	assert_eq(DamageCalc.compute(10, patched, true, 0.7), 16, "Patched Echo with Clean Catch: 15.75 -> 16")

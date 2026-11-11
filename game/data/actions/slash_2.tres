@@ -19,5 +19,5 @@ hit_shape = SubResource("Resource_arc")
 base_damage = 10
 cooldown_frames = 0
 move_tiles = 0.0
-cancel_into = PackedInt32Array(2)
+cancel_into = PackedInt32Array(2, 4)
 chain_next = ExtResource("3_next")

@@ -46,7 +46,13 @@ func tick(_ctx: SimContext) -> void:
 ## invulnerable frame. Otherwise 1 HP (D-011), 60 frames of invulnerability and 4 of hit-stop.
 ## True when the hit landed.
 func apply_hit() -> bool:
-	if dead or invuln_left > 0 or (_actions != null and _actions.invulnerable()):
+	if dead or invuln_left > 0:
+		return false
+	if _actions != null and _actions.invulnerable():
+		# Story 5.5 (D-S55-4): a hit passing through an arms_clean_catch action (Null Dodge, live or
+		# echoed: `action` is the running def either way) arms Clean Catch. Dash does not arm.
+		if _actions.action != null and _actions.action.arms_clean_catch:
+			_actions.arm_clean_catch()
 		return false
 	hp = maxi(hp - 1, 0)
 	invuln_left = def.invuln_frames if def != null else 0

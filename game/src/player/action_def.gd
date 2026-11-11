@@ -39,6 +39,12 @@ extends Def
 ## Story 4.2 (D-S42-2): a boss overlap yields BossInteraction.PASS_THROUGH instead of a hit; no
 ## damage, no hit_landed, no hit-stop, never hits practice targets.
 @export var pass_through: bool = false
+## Story 5.5 (D-S55-3): while this action's ACTIVE frames run, the player moves freely (no movement
+## lock) at Player.WATCH_SPEED_FACTOR of top speed (published as SimContext.move_slowed).
+@export var slows_move: bool = false
+## Story 5.5 (D-S55-4): a hit rejected by this action's invulnerable frames arms Clean Catch
+## (PlayerHealth.apply_hit -> ActionStateMachine.arm_clean_catch). Null Dodge only.
+@export var arms_clean_catch: bool = false
 
 
 func total_frames() -> int:
@@ -95,6 +101,10 @@ func validate() -> PackedStringArray:
 		out.append("a redirectable action needs move_tiles > 0 (got %s)" % move_tiles)
 	if redirectable and active_frames < 1:
 		out.append("a redirectable action needs active_frames >= 1 (got %d)" % active_frames)
+	if arms_clean_catch and no_invuln:
+		out.append("an arms_clean_catch action needs an invulnerable range")
+	if slows_move and active_frames < 1:
+		out.append("a slows_move action needs active_frames >= 1 (got %d)" % active_frames)
 	for bit: int in cancel_into:
 		if not Register.is_bit(bit):
 			out.append("cancel_into has unknown bit %d" % bit)

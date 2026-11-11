@@ -135,4 +135,5 @@ func begin_fight(seed_value: int) -> void:
 	watch_gate_active = false # Story 5.4 review: no Watch state leaks across a fight start / replay
 	ctx.watch_held = false
 	ctx.watch_input = false
+	ctx.move_slowed = false # Story 5.5 review: no half-speed leaks across a fight start / retry
 	Log.debug(&"sim", "begin fight seed=%d" % seed_value)

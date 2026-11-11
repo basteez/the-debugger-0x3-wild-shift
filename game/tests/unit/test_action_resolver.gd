@@ -4,8 +4,10 @@ extends GutTest
 const A := Register.Bit.ATTACK
 const D := Register.Bit.DASH
 const L := Register.Bit.LOOP
-## Story 3.8: LOOP has a BitDef (solo Echo since 4.1), so the "no action" slot is NULL_BIT until Epic 5.
 const N := Register.Bit.NULL_BIT
+## Story 5.5: every Register.Bit has a BitDef now (NULL's solo is Null Dodge), so the "no action"
+## slot is an id with no def.
+const NONE := 0
 const J := &"action_1"
 const K := &"action_2"
 
@@ -74,7 +76,7 @@ func test_j_before_k_when_both_buffered() -> void:
 
 func test_slot_without_action_does_nothing() -> void:
 	_buf.push(J, 0)
-	assert_null(_idle(0, Vector2i(N, A)))
+	assert_null(_idle(0, Vector2i(NONE, A)))
 	assert_eq(_buf.size(), 1, "not consumed")
 
 
@@ -119,10 +121,10 @@ func test_running_action_blocks_solo() -> void:
 
 func test_finished_action_allows_solo() -> void:
 	_buf.push(J, 0)
-	var r: ActionRequest = _running(0, Vector2i(N, A), Defs.SLASH_3, 22)
-	assert_null(r, "N has no action (no BitDef until Epic 5)")
+	var r: ActionRequest = _running(0, Vector2i(NONE, A), Defs.SLASH_3, 22)
+	assert_null(r, "an id with no BitDef has no action")
 	_buf.push(K, 0)
-	r = _running(0, Vector2i(N, A), Defs.SLASH_3, 22)
+	r = _running(0, Vector2i(NONE, A), Defs.SLASH_3, 22)
 	assert_not_null(r)
 	assert_false(r.cancel)
 	assert_eq(r.def, Defs.SLASH_1)

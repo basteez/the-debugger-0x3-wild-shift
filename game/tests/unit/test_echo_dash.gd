@@ -181,7 +181,14 @@ func _combo(first: int, second: int, action: ActionDef) -> ComboDef:
 
 func test_combo_def_validation_additions() -> void:
 	assert_eq(_combo(D, L, Defs.ECHO_DASH).validate().size(), 0)
-	assert_eq(_combo(A, N, Defs.DASH_STRIKE).validate().size(), 1, "second bit without a solo action")
+	# Story 5.5: N has a solo action now; the check is exercised by clearing it for one call.
+	assert_eq(_combo(A, N, Defs.DASH_STRIKE).validate().size(), 0, "N's solo is Null Dodge")
+	var null_bit: BitDef = Defs.BIT_NULL
+	var null_solo: ActionDef = null_bit.solo_action
+	null_bit.solo_action = null
+	var no_solo: int = _combo(A, N, Defs.DASH_STRIKE).validate().size()
+	null_bit.solo_action = null_solo
+	assert_eq(no_solo, 1, "second bit without a solo action")
 	assert_eq(_combo(A, D, Defs.DASH).validate().size(), 1, "combo action with a cooldown")
 	var gap := _combo(D, L, Defs.DASH_STRIKE)
 	gap.gap_free = true

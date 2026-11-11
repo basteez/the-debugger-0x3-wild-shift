@@ -17,6 +17,10 @@ var watch_input: bool = false
 ## watch_gate_active after the poll hooks, before the systems tick; read-only for systems (Player,
 ## ActionStateMachine and the Null Pointer body read it; nothing else does).
 var watch_held: bool = false
+## Story 5.5 (D-S55-3): a slows_move action (Null Dodge) is in its ACTIVE frames this tick.
+## Written only by ActionStateMachine (end of its tick), read by Player (x0.5 top speed, the Watch
+## factor; the two do not stack).
+var move_slowed: bool = false
 
 
 ## Reseeds the RNG (fight start, retry). The same seed always gives the same sequence.

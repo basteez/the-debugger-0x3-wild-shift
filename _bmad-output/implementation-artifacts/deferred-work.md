@@ -384,3 +384,11 @@ Story 1.3 AC9 / I-6 ("mumble-speech web check, moved to 3.7") is UNBLOCKED. Tizi
 - HUD weak-window marks skip bits the player does not own; the next-attack line shows the raw attack id (D-S54-14, D-S54-17). Add a display name to AttackDef when polishing.
 - `Arena.set_watch_enabled(true)` mid-fight leaves the skill out of the fight until the next enter_fight (tests / debug only).
 - Source-grep guard tests (`contains("watch")`) in test_watch_effects.gd and test_watch_readouts.gd are fragile against harmless edits.
+
+## Deferred from: code review of story-5.5 (2026-11-11)
+
+- One tick with several damaging hits (boss plus practice targets) applies the single Clean Catch charge to all of them; harmless in the boss fight (one damaging target).
+- Clean Catch has no expiry; it survives whiffs, stuns and phase changes until the next damaging hit or fight reset (D-S55-5). Revisit in playtest.
+- A hit inside the 60-frame post-hit blink does not arm Clean Catch even during the dodge's invulnerable frames (D-S55-14). Tune in playtest.
+- Echo of Null Dodge has no end-to-end test against a live boss attack.
+- No dedicated tests for F8 on Fight 2 granting nothing extra, or the Dash-Null-Dash-Null chain cap.

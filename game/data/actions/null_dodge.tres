@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="ActionDef" format=3]
+
+; Story 5.5: Null Dodge, the NULL bit's solo action (GDD 0/30/8, CD 120). Intangible on its 30
+; active frames (the existing invulnerable-frame path), 0 tiles of dash distance, free movement at
+; x0.5 top speed while active (slows_move, D-S55-3), arms Clean Catch when a hit passes through it
+; (arms_clean_catch, D-S55-4). Recovery cancels into DASH only (D-S55-8).
+
+[ext_resource type="Script" path="res://src/player/action_def.gd" id="1_adef"]
+
+[resource]
+script = ExtResource("1_adef")
+id = &"null_dodge"
+startup_frames = 0
+active_frames = 30
+recovery_frames = 8
+invuln_from = 1
+invuln_to = 30
+base_damage = 0
+cooldown_frames = 120
+move_tiles = 0.0
+cancel_into = PackedInt32Array(2)
+hitstop_frames = 0
+slows_move = true
+arms_clean_catch = true
