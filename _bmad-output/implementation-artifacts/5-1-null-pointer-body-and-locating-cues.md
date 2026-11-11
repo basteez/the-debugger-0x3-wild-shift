@@ -4,7 +4,7 @@ baseline_commit: b71bdfa5117e3cc7f8b08772e43b4c3c51716f47
 
 # Story 5.1: Null Pointer Body and Locating Cues
 
-Status: review
+Status: done
 <!-- Created unattended by gds-create-story (pipeline, 2026-11-11). Open design questions are marked [design call] with the chosen default (D-S51-n); the implementer follows them or records a change in Completion Notes. Scope: the Null Pointer body (invisible ghost, visibility rules, idle drift), its locating cues (falling `null` column, panned hum, `null` trail), its BossDef data (HP 700, drop NULL, fixed line, phase weak windows and gaps), its wiring as FIGHT boss 1 (index 1), and the sky comment. NOT in scope: attacks (Pointer Grab, Null Rain, Dangling Pointers: 5.2 and 5.3, so the phase pools stay empty here), the NullPointerException whiff stun (5.3), decoys (5.3), Watch input and reveal (5.4; 5.1 exposes the hook only), the NULL bit def `bit_null.tres` (5.5), the Null Pointer tutorial lines and the Watch tutorial (5.5 / 5.6). -->
 
 ## Story
@@ -190,6 +190,22 @@ claude-haiku-5-5 (gds-create-story, unattended); claude-opus-5-5 (gds-dev-story,
 - _bmad-output/implementation-artifacts/sprint-status.yaml
 - _bmad-output/implementation-artifacts/5-1-null-pointer-body-and-locating-cues.md
 
+### Review Findings
+
+Code review 2026-11-11 (Blind Hunter, Edge Case Hunter, Acceptance Auditor): 0 decision_needed, 2 patch, 8 defer, 7 dismissed.
+
+- [x] [Review][Patch] The falling `null` column vanished when the ghost sat in the bottom rows (AC 12); it now hangs above the body when it does not fit below [game/src/bosses/null_pointer/null_pointer_body.gd:trail_positions]
+- [x] [Review][Patch] A hit or Echo Dash pass that cannot count (inactive, ROAR, DEFEATED) still revealed the ghost; reveal hooks now guard [game/src/bosses/null_pointer/null_pointer_body.gd:on_player_hit]
+- [x] [Review][Defer] Fight 2 ships as an unattackable, mostly invisible damage sponge until Stories 5.2 and 5.4 — deferred, planned epic order
+- [x] [Review][Defer] ROAR (phase change) hides the ghost; design call whether the roar should show the body — deferred, playtest
+- [x] [Review][Defer] `reset_for_fight` clears `watch_held` while the key may still be held — deferred, Story 5.4 owns Watch
+- [x] [Review][Defer] Drift continues while Watch is held (AC 10 wording, recorded as D-S51-7) — deferred, revisit in 5.4
+- [x] [Review][Defer] `body_radius_tiles` >= 9 is not rejected by `BossDef.validate` — deferred, data only
+- [x] [Review][Defer] Every BossView builds a NullPointerHum (one-off 22k-sample loop, static cached) — deferred, lazy-create if web profiling shows a hitch
+- [x] [Review][Defer] Weak tests: `test_patched_stack_is_drawn_while_the_ghost_is_hidden` ends on `is_inside_tree()`, hum play/stop path is not exercised headless (audio locked) — deferred
+- [x] [Review][Defer] `hint_d_l` clip `char_times` copy `hint_d_a`; `duck_clips.tres` ids were re-serialised — deferred, verify by ear in the browser
+
 ## Change Log
 
 - 2026-11-11: Story 5.1 implemented: Null Pointer BossDef (HP 700, NULL drop, D→L / A→D, gaps 90 / 60, empty pools), NullPointerBody (invisible ghost, reveal timers, seeded integer drift, falling `null` column), CombatResolver reveal hooks, BossView ghost drawing, NullPointerHum (generated loop, Stream playback), per-fight sky comment, FIGHT boss 1 wiring, D→L duck hint line and clip; 28 new tests. Status -> review.
+- 2026-11-11: Code review: 2 patches applied (column flips above the body at the bottom edge, reveal hooks guarded), 8 deferred, 7 dismissed; 2 new tests (1130 total). Status -> done.
