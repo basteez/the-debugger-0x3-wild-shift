@@ -38,6 +38,11 @@ script = ExtResource("2_dline")
 id = &"hint_d_a"
 text = "Quack. Weak window: D→A."
 
+[sub_resource type="Resource" id="Resource_hint_d_l"]
+script = ExtResource("2_dline")
+id = &"hint_d_l"
+text = "Quack. Weak window: D→L."
+
 [resource]
 script = ExtResource("1_dlines")
-entries = Array[ExtResource("2_dline")]([SubResource("Resource_t1"), SubResource("Resource_t2"), SubResource("Resource_t3"), SubResource("Resource_t4"), SubResource("Resource_h1"), SubResource("Resource_hint_a_d"), SubResource("Resource_hint_d_a")])
+entries = Array[ExtResource("2_dline")]([SubResource("Resource_t1"), SubResource("Resource_t2"), SubResource("Resource_t3"), SubResource("Resource_t4"), SubResource("Resource_h1"), SubResource("Resource_hint_a_d"), SubResource("Resource_hint_d_a"), SubResource("Resource_hint_d_l")])

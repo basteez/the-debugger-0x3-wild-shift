@@ -13,7 +13,7 @@ func _ready() -> void:
 func _draw() -> void:
 	var hud := get_parent() as Hud
 	_text(Vector2i(0, 0), hud.top_bar_text() if hud != null else Hud.TOP_BAR)
-	_text(Vector2i(0, 1), Hud.SKY)
+	_text(Vector2i(0, 1), hud.sky_text() if hud != null else Hud.SKY) # Story 5.1 (D-S51-4)
 	_box(Hud.REGISTER, Hud.REG_TITLE)
 	for i: int in Hud.LINE_NO.size():
 		_text(Vector2i(Hud.LINE_NO_COL, Hud.line_no_row(i)), Hud.LINE_NO[i])

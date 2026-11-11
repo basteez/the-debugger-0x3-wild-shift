@@ -1,5 +1,5 @@
 # generated: 2026-11-06
-# last_updated: 2026-11-10
+# last_updated: 2026-11-11
 # project: github-gameoff-2026
 # project_key: NOKEY
 # tracking_system: file-system
@@ -81,7 +81,7 @@
 #     basteez/mumble-speech#32 resolved in v0.3.0 (2026-11-07); fallback = pre-render backend.
 
 generated: 2026-11-06
-last_updated: 2026-11-10
+last_updated: 2026-11-11
 project: github-gameoff-2026
 project_key: NOKEY
 tracking_system: file-system
@@ -135,8 +135,8 @@ development_status:
   epic-4-retrospective: optional
 
   # Epic 5: Null Pointer & Watch — window Nov 18–21 (music composition may start in parallel)
-  epic-5: backlog
-  5-1-null-pointer-body-and-locating-cues: backlog
+  epic-5: in-progress
+  5-1-null-pointer-body-and-locating-cues: review
   5-2-pointer-grab-and-null-rain: backlog
   5-3-dangling-pointers-and-nullpointerexception: backlog
   5-4-watch-skill: backlog # cut ladder #2 (FeatureFlags.watch)

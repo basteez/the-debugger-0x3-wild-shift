@@ -13,7 +13,7 @@ func _used_codepoints() -> Dictionary[int, String]:
 	var texts: PackedStringArray = []
 	texts.append_array(Arena.LAYOUT)
 	texts.append(Arena.LABEL)
-	texts.append_array([Hud.TOP_BAR, Hud.SKY, Hud.REG_TITLE, Hud.LOG_HEADER])
+	texts.append_array([Hud.TOP_BAR, Hud.SKY, Hud.SKY_NULL_POINTER, Hud.REG_TITLE, Hud.LOG_HEADER])
 	texts.append_array(Hud.LINE_NO)
 	texts.append_array(Hud.box_rows(Hud.REGISTER, Hud.REG_TITLE))
 	texts.append_array(Hud.box_rows(Hud.DUCK))

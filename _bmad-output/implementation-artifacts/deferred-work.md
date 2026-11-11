@@ -338,7 +338,7 @@ Story 1.3 AC9 / I-6 ("mumble-speech web check, moved to 3.7") is UNBLOCKED. Tizi
 - A queued Breakpoint hint stores the window at queue time and can be said later (full bubble) when the phase or the phase-3 ring has moved on. Resolve at pop time or drop on phase change if the playtest shows it.
 - The Breakpoint hint is once per (boss, phase) (D-S44-5), so in Infinite Loop phase 3 the inner-ring window is not hinted after the outer one. Add the window to the key if the playtest wants it.
 - T3 (Dash Strike) has a transient trigger: if the window passes while the bubble has no room or the game is paused and T4 then fires, T3 is skipped for good; `requested` survives retries so a retry never re-teaches it. Latch trigger observations if the playtest shows it.
-- Null Pointer and Segfault have no BossDef yet: the AC 2 per-phase hint test picks them up when the defs land (Epic 5).
+- ~~Null Pointer and Segfault have no BossDef yet: the AC 2 per-phase hint test picks them up when the defs land (Epic 5).~~ RESOLVED for Null Pointer in Story 5.1 (`boss_def.tres` lands; the per-phase hint test covers it). Segfault still pending (Story 5.x).
 - Hit-stop is not covered by a nudge test (pause and Breakpoint are, in `test_start_nudge.gd`); the `test_a_shift_at_tick_10_starts_at_10` tail assertion (`iteration >= 1`) is near-vacuous; `test_third_death_through_the_real_game_flow` sets the flow state by hand after the retry.
 - The `→` in hint text is sent to the mumble voice (letters only, probed silent in 4.4); confirm by ear in the browser (human check).
 - Pending hints are dropped when the flow leaves FIGHT (D-S44-12) and the Breakpoint record is marked at queue time, a recorded departure from the AC 9 wording.

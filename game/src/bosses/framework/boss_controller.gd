@@ -391,6 +391,16 @@ func _on_attack_cancelled() -> void:
 	pass
 
 
+## Story 5.1 (AC 5, AC 6) virtual hooks, called by CombatResolver after it resolved a boss HIT or an
+## Echo Dash PASS_THROUGH. The body is the only writer of its own reveal state. Default: nothing.
+func on_player_hit() -> void:
+	pass
+
+
+func on_pass_through() -> void:
+	pass
+
+
 ## Debug F6 (AC 7): HP to 0 through take_hit.
 func debug_kill() -> void:
 	take_hit(hp)

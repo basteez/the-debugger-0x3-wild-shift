@@ -20,6 +20,10 @@ extends Node2D
 ## inner), each with its `;` at the junction; only the open ring's `;` is the lit (inverted) cell. The
 ## whole ring blinks during the Nested Loop TELL (blocks of the TELL countdown, read only), the Spit
 ## origin `;` gets an INK frame while the Spit glows, and every live projectile is an INK `;` cell.
+## Story 5.1 (AC 1, 4-8, 11-13): a NullPointerBody is drawn as a ghost of two `null` lines only while
+## visible_now(); its falling `null` column is drawn under it while it is alive, visible or not; the
+## Patched stack and the damage number stay drawn while the ghost is hidden (a position hint, FR23).
+## The hum (NullPointerHum) is a child of this view and follows the boss once per physics frame.
 
 const GLYPH_SCALE := 2
 const TELL_MARK := "!"
@@ -42,11 +46,17 @@ const COUNTER_INSET_TILES := 1.5
 ## Story 3.4: the Head Rush head glyph and the outline's segment count.
 const HEAD_GLYPH := "{"
 const OUTLINE_POINTS := 48
+## Story 5.1: the ghost's glyph lines (two rows of `null`) and the column glyph, at GHOST_SCALE.
+const GHOST_LINES: PackedStringArray = ["null", "null"]
+const TRAIL_GLYPH := "null"
+const GHOST_SCALE := 1
 ## Story 3.8 (D1, D-S38-9): the reassembly swaps each ring glyph for its fixed-line character, and
 ## the fixed line's extra cells (27 vs 24) pop in, at this progress (INK/BG only: no alpha fade).
 const REASSEMBLY_SWAP := 0.5
 
 var boss: BossController
+## Story 5.1: the Null Pointer's hum, a child built in _ready; silent unless the boss is one.
+var hum: NullPointerHum
 
 ## The last boss hit's number and its scale; _number_left counts presentation frames down.
 var _number_text: String = ""
@@ -55,6 +65,8 @@ var _number_left: int = 0
 
 
 func _ready() -> void:
+	hum = NullPointerHum.new()
+	add_child(hum)
 	EventBus.boss_roar_started.connect(_on_boss_event)
 	EventBus.boss_hp_changed.connect(_on_boss_hp)
 	EventBus.boss_defeated.connect(_on_boss_event)
@@ -67,6 +79,18 @@ func _process(_delta: float) -> void:
 		queue_redraw()
 	if boss != null and (boss.active or boss.state == BossController.BossState.DEFEATED):
 		queue_redraw() # Story 3.8: the reassembly moves while the boss is inactive
+
+
+## Story 5.1 (AC 11): the hum follows the boss once per physics frame, after SimClock's tick (an
+## autoload, so it processes first). Reads only.
+func _physics_process(_delta: float) -> void:
+	if hum != null:
+		hum.sync_to(boss)
+
+
+func _exit_tree() -> void:
+	if hum != null:
+		hum.stop()
 
 
 ## Story 3.2: a boss hit sets the damage number (presentation only): shown for DAMAGE_NUMBER_FRAMES _process frames.
@@ -89,6 +113,9 @@ func _draw() -> void:
 		return
 	if boss is InfiniteLoopBody:
 		_draw_ring(boss as InfiniteLoopBody)
+		return
+	if boss is NullPointerBody:
+		_draw_ghost(boss as NullPointerBody)
 		return
 	var text: String = boss.def.name_signature
 	var size := Vector2(GlyphFont.text_width(text, GLYPH_SCALE), GlyphFont.CELL * GLYPH_SCALE)
@@ -148,6 +175,33 @@ func _draw_ring(body: InfiniteLoopBody) -> void:
 	if not defeated:
 		_draw_attack(body.current_attack(), cell)
 	_draw_number(Vector2(0, 0))
+
+
+## The Null Pointer (Story 5.1): the falling column while alive, the ghost lines only while
+## visible_now(), then the Patched stack (also while hidden, AC 8) and the damage number. Reads only.
+func _draw_ghost(body: NullPointerBody) -> void:
+	var line_h: float = GlyphFont.CELL * GHOST_SCALE
+	var width: float = GlyphFont.text_width(GHOST_LINES[0], GHOST_SCALE)
+	var size := Vector2(width, line_h * GHOST_LINES.size())
+	var top_left: Vector2 = line_top_left(body.body_center_px, size)
+	if body.state != BossController.BossState.DEFEATED:
+		var trail_size := Vector2(GlyphFont.text_width(TRAIL_GLYPH, GHOST_SCALE), line_h)
+		var area: Rect2 = Arena.play_area()
+		for p: Vector2 in body.trail_positions():
+			if trail_glyph_inside(p, trail_size, area):
+				GlyphFont.draw_at(self, line_top_left(p, trail_size), TRAIL_GLYPH, Palette.INK, GHOST_SCALE)
+	if body.visible_now():
+		var jitter := Vector2(jitter_offset(body.jitter_level(), SimClock.sim_frame), 0.0)
+		for row: int in GHOST_LINES.size():
+			GlyphFont.draw_at(self, top_left + jitter + Vector2(0.0, row * line_h), GHOST_LINES[row], Palette.INK, GHOST_SCALE)
+	if body.weak_window.is_patched() and body.state != BossController.BossState.DEFEATED:
+		_draw_patched(top_left, Vector2(size.x, line_h), body.weak_window.frames_left)
+	_draw_number(size)
+
+
+## Story 5.1: true when a column glyph of `size` centred on `p` lies wholly inside `area`. Pure.
+static func trail_glyph_inside(p: Vector2, size: Vector2, area: Rect2) -> bool:
+	return area.encloses(Rect2(p - size / 2.0, size))
 
 
 ## Story 3.8 (D1, AC 7, D-S38-9): after the defeat every ring segment (outer, then inner) moves from

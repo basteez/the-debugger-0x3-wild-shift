@@ -17,6 +17,9 @@ const LOG_LINES := 6
 ## Top bar fallback while no boss is in the fight (D-S31-14); boss_header() replaces it otherwise.
 const TOP_BAR := "void fightPlaceholder() // hp ---"
 const SKY := "// TODO: this should terminate"
+## Story 5.1 (AC 2, D-S51-4): the Null Pointer fight's sky comment (GDD sky comment list). Shown while
+## that boss is the HUD's boss; every other fight (and no boss) keeps SKY.
+const SKY_NULL_POINTER := "// FIXME: who owns this pointer?"
 const REG_TITLE := "reg"
 const LOG_HEADER := "── console ─────────────────────────────────────────────────────────────────────"
 ## One per arena tile row (DC6): drawn at cols 13-14 on HUD row 2 + 2 * index.
@@ -73,6 +76,18 @@ func top_bar_text() -> String:
 	if boss == null or boss.def == null:
 		return TOP_BAR
 	return boss_header(boss.def.name_signature, boss.hp)
+
+
+## The sky row text: the fight's boss comment (D-S51-4), SKY otherwise.
+func sky_text() -> String:
+	return sky_for(boss.def.boss_id if boss != null and boss.def != null else &"")
+
+
+## The sky comment for `boss_id` (D-S51-4): the Null Pointer's own line, SKY for any other. Pure.
+static func sky_for(boss_id: StringName) -> String:
+	if boss_id == &"null_pointer":
+		return SKY_NULL_POINTER
+	return SKY
 
 
 ## FR32 signature header (D-S31-14): `void <signature>() // hp <hp>`. Pure.

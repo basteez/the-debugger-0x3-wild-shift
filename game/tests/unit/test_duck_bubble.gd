@@ -37,7 +37,8 @@ func _finish_line() -> void:
 
 func test_wrap_fits_every_tutorial_line() -> void:
 	# Story 3.8: + harvest_shared. Story 4.4: T1 rewritten (11 lines, D-S44-2) + the two hint lines.
-	var expected_lines: Array[int] = [11, 7, 4, 7, 6, 2, 2]
+	# Story 5.1: + the Null Pointer's D->L hint line.
+	var expected_lines: Array[int] = [11, 7, 4, 7, 6, 2, 2, 2]
 	var texts: PackedStringArray = _texts()
 	for i: int in texts.size():
 		var lines: PackedStringArray = DuckBubble.wrap(texts[i], DuckBubble.WRAP_WIDTH)
