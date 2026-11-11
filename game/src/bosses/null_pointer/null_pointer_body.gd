@@ -11,6 +11,13 @@ extends BossController
 ## counted in _tick_body and never written by presentation (AC 9). Story 5.1 (D-S51-8) and Story 5.2
 ## (D-S52-1): the ghost itself is never a contact hazard; only a live attack's hazard is
 ## (attack_hazard_hit: Pointer Grab and Null Rain, ACTIVE only).
+## Story 5.3 (D-S53-2..4, D-S53-7): the body owns the Dangling Pointers decoys as sim data (integer
+## milli-tile spots, no scene nodes): spots planned from SimContext.rng on the first TELL tick of
+## Dangling Pointers (the attack only requests the plan), spawned at its ACTIVE, re-cast every
+## RECAST_TICKS live ticks (a CAST_FLICKER_FRAMES flicker, then the spawn), capped at DECOY_CAP,
+## dispelled by a player hit (decoy_hit, a DISPEL_FLASH_FRAMES flash). Decoys never hum, are never
+## drawn as ghosts and are not part of visible_now(): Watch (Story 5.4) reveals the real body only.
+## The whiff range (NullPointerException, D-S53-6) is WHIFF_RANGE_TILES.
 
 ## Milli-units per unit (D-S33-2).
 const MILLI := 1000
@@ -34,6 +41,24 @@ const TRAIL_GLYPHS := 4
 const TRAIL_FALL_TICKS := 15
 ## Spawn centre in tiles: 5 tiles above the player spawn, like the Infinite Loop (D-S33-18).
 const SPAWN_TILES := Vector2i(16, 4)
+## Story 5.3 (D-S53-1..6): tunable decoy and whiff constants (open questions: playtest them in 7.8).
+const DANGLING_ID := &"dangling_pointers"
+## Decoys alive at once (D-S53-4) and spots per cast (GDD: two decoy bullets).
+const DECOY_CAP := 3
+const DECOYS_PER_CAST := 2
+## The re-cast cadence in live ticks (15 s, D-S53-1) and the re-cast flicker (same as the tell, 30).
+const RECAST_TICKS := 900
+const CAST_FLICKER_FRAMES := 30
+## The dispel flash in sim frames (AC 11).
+const DISPEL_FLASH_FRAMES := 10
+## A decoy's hit radius for decoy_hit, in milli-tiles (1 tile, like the body hurtbox, D-S53-3).
+const DECOY_RADIUS_MTILES := 1000
+## Spot rule (D-S53-2): inset from every wall, minimum spacing, tries per spot (milli-tiles).
+const SPOT_INSET_MTILES := 2000
+const SPOT_MIN_DIST_MTILES := 4000
+const SPOT_TRIES := 32
+## NullPointerException (D-S53-6): a whiffed slash stuns within this range, centre to centre.
+const WHIFF_RANGE_TILES := 4
 
 ## Body centre in milli-tiles (arena-local); body_center_px is derived from it.
 var pos_mtiles: Vector2i = Vector2i.ZERO
@@ -50,6 +75,22 @@ var pass_reveal_left: int = 0
 var watch_held: bool = false
 ## The falling column's phase, 0..TRAIL_FALL_TICKS-1 (AC 12).
 var trail_tick: int = 0
+## Story 5.3: live decoys (milli-tiles). Sim objects owned here, never nodes (D-S53-3).
+var decoys: Array[Vector2i] = []
+## Dangling Pointers' planned spots (milli-tiles): planned on its first TELL tick, spawned at ACTIVE.
+var planned: Array[Vector2i] = []
+## The re-cast's spots (milli-tiles) while they flicker, and the flicker's frames left.
+var recast_spots: Array[Vector2i] = []
+var recast_flicker_left: int = 0
+## Live ticks to the next re-cast; 0 = not armed (armed at Dangling Pointers' ACTIVE).
+var recast_left: int = 0
+## Dispel flashes: spot (milli-tiles) and frames left, parallel.
+var flash_spots: Array[Vector2i] = []
+var flash_left: PackedInt32Array = PackedInt32Array()
+## Set by Dangling Pointers' on_tell; consumed by the next TELL tick's plan (the attack draws no RNG).
+var _plan_requested: bool = false
+## True from Dangling Pointers' on_tell to its first ACTIVE tick (the spawn and the timer arm once).
+var _cast_pending: bool = false
 
 
 ## Fight start and retry: the framework reset, then the ghost back to its spawn, no direction yet,
@@ -64,6 +105,7 @@ func reset_for_fight() -> void:
 	pass_reveal_left = 0
 	watch_held = false
 	trail_tick = 0
+	clear_decoys()
 	_sync_px()
 
 
@@ -75,6 +117,7 @@ func _tick_body(ctx: SimContext) -> void:
 	if pass_reveal_left > 0:
 		pass_reveal_left -= 1
 	trail_tick = (trail_tick + 1) % TRAIL_FALL_TICKS
+	_tick_decoys(ctx.rng)
 	if state == BossState.ACTIVE or state == BossState.RECOVERY:
 		return
 	_drift(ctx.rng)
@@ -204,3 +247,181 @@ func trail_positions() -> PackedVector2Array:
 ## D-S51-8, D-S52-1: the ghost is not a contact hazard; only a live attack's hazard is (ACTIVE only).
 func touches_player(p: Vector2) -> bool:
 	return attack_hazard_hit(p)
+
+
+# --- Story 5.3: Dangling Pointers decoys (D-S53-2..7) ---
+
+## Story 5.3 (D-S53-7): drops every decoy, planned spot, flicker, flash and the re-cast timer.
+func clear_decoys() -> void:
+	decoys.clear()
+	planned.clear()
+	recast_spots.clear()
+	recast_flicker_left = 0
+	recast_left = 0
+	flash_spots.clear()
+	flash_left.clear()
+	_plan_requested = false
+	_cast_pending = false
+
+
+## D-S53-7: a phase change (ROAR) clears the decoys.
+func _on_phase_reset() -> void:
+	clear_decoys()
+
+
+## D-S53-7: the defeat clears the decoys.
+func _on_defeated() -> void:
+	clear_decoys()
+
+
+## Dangling Pointers' on_tell: plan the spots on the next TELL tick (AC 8). No RNG in the attack.
+func request_decoy_plan() -> void:
+	planned.clear()
+	_plan_requested = true
+	_cast_pending = true
+
+
+## Dangling Pointers' on_cancel / reset: the planned spots are dropped (AC 12).
+func clear_planned() -> void:
+	planned.clear()
+	_plan_requested = false
+	_cast_pending = false
+
+
+## Dangling Pointers' ACTIVE (AC 2): the planned spots become decoys (cap permitting, AC 7) and the
+## re-cast timer is armed. Only the first call of a cast spawns (the plan is consumed).
+func spawn_planned() -> void:
+	if not _cast_pending:
+		return
+	_spawn(planned)
+	planned.clear()
+	_plan_requested = false
+	_cast_pending = false
+	recast_left = RECAST_TICKS
+
+
+## One live tick of the decoy state (in _tick_body, before the drift). ROAR pauses it (D-S53-4).
+func _tick_decoys(rng: RandomNumberGenerator) -> void:
+	for i: int in range(flash_left.size() - 1, -1, -1):
+		flash_left[i] -= 1
+		if flash_left[i] <= 0:
+			flash_left.remove_at(i)
+			flash_spots.remove_at(i)
+	if state == BossState.ROAR:
+		return
+	if _plan_requested and state == BossState.TELL and current != null and current.id == DANGLING_ID:
+		_plan_requested = false
+		planned = plan_spots(rng, mini(DECOYS_PER_CAST, _room()))
+	if recast_flicker_left > 0:
+		recast_flicker_left -= 1
+		if recast_flicker_left == 0:
+			_spawn(recast_spots)
+			recast_spots.clear()
+	if recast_left > 0:
+		recast_left -= 1
+		if recast_left == 0:
+			recast_left = RECAST_TICKS # D-S53-4: re-armed at every re-cast, cast or not
+			var spots: Array[Vector2i] = plan_spots(rng, mini(DECOYS_PER_CAST, _room()))
+			if not spots.is_empty(): # no room: no flicker at all
+				recast_spots = spots
+				recast_flicker_left = CAST_FLICKER_FRAMES
+
+
+## Free decoy slots, counting spots already planned or flickering (AC 7).
+func _room() -> int:
+	return maxi(0, DECOY_CAP - decoys.size() - planned.size() - recast_spots.size())
+
+
+## Spawns `spots` as decoys, as many as the cap allows (AC 7).
+func _spawn(spots: Array[Vector2i]) -> void:
+	for p: Vector2i in spots:
+		if decoys.size() >= DECOY_CAP:
+			return
+		decoys.append(p)
+
+
+## AC 8 (D-S53-2): up to `count` spots drawn from `rng`, each inside the play area inset by
+## SPOT_INSET_MTILES, at least SPOT_MIN_DIST_MTILES from the body centre, from each other, from
+## every live decoy and from every pending spot; SPOT_TRIES draws per spot, fewer spots if none fit.
+func plan_spots(rng: RandomNumberGenerator, count: int) -> Array[Vector2i]:
+	var out: Array[Vector2i] = []
+	var lo := Vector2i(SPOT_INSET_MTILES, SPOT_INSET_MTILES)
+	var hi: Vector2i = Const.ARENA_TILES * MILLI - lo
+	var avoid: Array[Vector2i] = [pos_mtiles]
+	avoid.append_array(decoys)
+	avoid.append_array(planned)
+	avoid.append_array(recast_spots)
+	for n: int in count:
+		for t: int in SPOT_TRIES:
+			var p := Vector2i(rng.randi_range(lo.x, hi.x), rng.randi_range(lo.y, hi.y))
+			if _far_from_all(p, avoid):
+				out.append(p)
+				avoid.append(p)
+				break
+	return out
+
+
+static func _far_from_all(p: Vector2i, others: Array[Vector2i]) -> bool:
+	var min_sq: int = SPOT_MIN_DIST_MTILES * SPOT_MIN_DIST_MTILES
+	for o: Vector2i in others:
+		var d: Vector2i = p - o
+		if d.x * d.x + d.y * d.y < min_sq:
+			return false
+	return true
+
+
+## AC 10 (D-S53-5): dispels every live decoy the hit shape overlaps (radius DECOY_RADIUS_MTILES,
+## the boss hurtbox test) and starts its flash. Returns the number dispelled. No damage, no Patched.
+func decoy_hit(shape: HitShape, origin: Vector2, facing: Vector2) -> int:
+	if shape == null or not alive():
+		return 0
+	var r: float = mtiles_to_px(DECOY_RADIUS_MTILES)
+	var n: int = 0
+	for i: int in range(decoys.size() - 1, -1, -1):
+		if shape.overlaps(origin, facing, spot_px(decoys[i]), r):
+			flash_spots.append(decoys[i])
+			flash_left.append(DISPEL_FLASH_FRAMES)
+			decoys.remove_at(i)
+			n += 1
+	return n
+
+
+## D-S53-6: a whiffed slash stuns within WHIFF_RANGE_TILES (centre to centre).
+func whiff_stun_range_px() -> float:
+	return float(WHIFF_RANGE_TILES * Const.TILE_PX)
+
+
+## Arena-local px of a milli-tile spot (drawing, overlap math). Pure.
+static func spot_px(p: Vector2i) -> Vector2:
+	return Vector2(p) * Const.TILE_PX / float(MILLI)
+
+
+static func mtiles_to_px(m: int) -> float:
+	return m * Const.TILE_PX / float(MILLI)
+
+
+static func _to_px(spots: Array[Vector2i]) -> PackedVector2Array:
+	var out := PackedVector2Array()
+	for p: Vector2i in spots:
+		out.append(spot_px(p))
+	return out
+
+
+## Live decoys in px (tests and the dispel; never drawn, AC 9).
+func decoy_positions() -> PackedVector2Array:
+	return _to_px(decoys)
+
+
+## Dangling Pointers' planned spots in px (its tell marks).
+func planned_positions() -> PackedVector2Array:
+	return _to_px(planned)
+
+
+## The re-cast's flickering spots in px (empty when no re-cast flickers).
+func recast_flicker_positions() -> PackedVector2Array:
+	return _to_px(recast_spots) if recast_flicker_left > 0 else PackedVector2Array()
+
+
+## The dispel flashes in px (AC 11).
+func dispel_flash_positions() -> PackedVector2Array:
+	return _to_px(flash_spots)

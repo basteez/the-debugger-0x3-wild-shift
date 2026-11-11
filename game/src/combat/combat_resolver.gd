@@ -14,13 +14,27 @@ extends SimSystem
 ## Story 4.1 (D-S41-5): an Echo hit passes ActionStateMachine.echo_scale() (0.7) to DamageCalc.
 ## Story 4.2 (D-S42-2): a pass_through action (Echo Dash) produces BossInteraction.PASS_THROUGH on a
 ## boss overlap and nothing else (no damage, practice targets skipped).
+## Story 5.3 (D-S53-5, D-S53-6, D-S53-11): a non-pass-through action also dispels the boss's decoys
+## (BossController.decoy_hit: no damage, no Patched, not a boss hit, hit-stop like a practice hit),
+## and an ATTACK slash (Defs.SLASH_1..3, not a combo, not an Echo) that reaches its last ACTIVE frame
+## having landed nothing (boss, decoy or practice target), with no K follow-up held by its link
+## (D-S53-12), with the boss centre within
+## BossController.whiff_stun_range_px() asks ActionStateMachine.begin_stun(NPE_STUN_FRAMES).
+
+## Story 5.3 (D-S53-6): the NullPointerException stun length in sim frames.
+const NPE_STUN_FRAMES := 20
+## The log / EventBus reason of the whiff stun.
+const NPE_REASON := &"NullPointerException"
 
 var actions: ActionStateMachine
-## Unused (2.7 deferred, D-S32-13); kept so the constructor used by Arena and tests stays put.
+## Story 5.3: read only for the whiff range (the player's centre); null falls back to the action origin.
 var player: Player
 var targets: Array[PracticeTarget] = []
 ## The fight's boss (Story 3.2, D-S32-23): set and cleared by the Arena; null = no boss.
 var boss: BossController = null
+## Story 5.3: ActionStateMachine.action_serial of the last action that landed anything (boss hit,
+## decoy dispel, practice target hit); -1 = none. Read by the whiff rule.
+var _landed_serial: int = -1
 
 
 func _init(p_actions: ActionStateMachine = null, p_player: Player = null) -> void:
@@ -46,12 +60,20 @@ func tick(_ctx: SimContext) -> void:
 		return
 	var hit: Array[PracticeTarget] = hits_for(def.hit_shape, origin, facing, targets, serial)
 	var boss_hit: bool = boss_overlapped(def.hit_shape, origin, facing, boss, serial)
-	if hit.is_empty() and not boss_hit:
+	# Story 5.3 (D-S53-5, D-S53-8): decoys first, so a boss hit that ends the phase cannot clear them
+	# under this very hit; each overlapped decoy is removed, so it is dispelled once.
+	var dispelled: int = boss.decoy_hit(def.hit_shape, origin, facing) if boss != null else 0
+	if hit.is_empty() and not boss_hit and dispelled == 0:
+		_check_whiff(def, serial)
 		return
+	_landed_serial = serial
 	var is_combo: bool = actions.combo != null
 	var hitstop: int = 0
+	if dispelled > 0:
+		Log.debug(&"combat", "decoy dispelled x%d by %s" % [dispelled, def.id])
+		hitstop = HitFeedback.hitstop_for(is_combo, def.hitstop_frames)
 	if boss_hit:
-		hitstop = _resolve_boss_hit(def, serial, is_combo)
+		hitstop = maxi(hitstop, _resolve_boss_hit(def, serial, is_combo))
 	for target: PracticeTarget in hit:
 		var damage: int = DamageCalc.compute(def.base_damage, DamageState.multiplier(DamageState.Kind.BASE), false, actions.echo_scale())
 		target.register_hit(serial, SimClock.sim_frame, def.id, damage)
@@ -59,6 +81,36 @@ func tick(_ctx: SimContext) -> void:
 		EventBus.hit_landed.emit(target.hit_target_id(), damage, DamageState.Kind.BASE, is_combo, target.position_px)
 		hitstop = maxi(hitstop, HitFeedback.hitstop_for(is_combo, def.hitstop_frames))
 	SimClock.request_hitstop(hitstop)
+
+
+## Story 5.3 (AC 13-17, D-S53-6, D-S53-11): NullPointerException. On the last ACTIVE frame of a
+## solo or chain ATTACK slash the player started (not an Echo, not a combo) that landed nothing,
+## with a hittable boss whose whiff range is > 0 and whose centre is within it (centre to centre,
+## edge included): the FSM is stunned. The stun starts on the next tick (ACTIONS ran already).
+func _check_whiff(def: ActionDef, serial: int) -> void:
+	if boss == null or _landed_serial == serial:
+		return
+	if actions.action_frame != def.startup_frames + def.active_frames:
+		return
+	if actions.echoing or actions.combo != null or not is_attack_slash(def):
+		return
+	# [design call] D-S53-12: a slash whose combo link already holds the K follow-up (A->D Dash
+	# Strike, a link_second) is a combo opener, not a blind swing: it never stuns.
+	if actions.link.held:
+		return
+	var reach: float = boss.whiff_stun_range_px()
+	if reach <= 0.0 or not boss.is_hittable():
+		return
+	var at: Vector2 = player.position_px if player != null else actions.action_origin_px
+	if at.distance_to(boss.body_center_px) > reach:
+		return
+	Log.debug(&"combat", "whiff %s: %s" % [def.id, NPE_REASON])
+	actions.begin_stun(NPE_STUN_FRAMES, NPE_REASON)
+
+
+## True for the ATTACK bit's slashes (Defs identity, D-S53-11). Pure.
+static func is_attack_slash(def: ActionDef) -> bool:
+	return def == Defs.SLASH_1 or def == Defs.SLASH_2 or def == Defs.SLASH_3
 
 
 ## The boss hit of this tick (NP-4, D-S32-12): interactions, patch, damage, take_hit, hit_landed.

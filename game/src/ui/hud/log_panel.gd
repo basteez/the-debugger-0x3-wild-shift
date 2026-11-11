@@ -6,6 +6,7 @@ extends Node2D
 ## presentation driven by EventBus (not the Log autoload): it reads only signal arguments (AD-05).
 ## Story 2.9: EventBus.player_damaged appends `WARN: hp--` (D-S29-9).
 ## Story 3.2 (FR27, D-S32-18): the line depends on the damage state; resisted lines are dithered.
+## Story 5.3 (D-S53-6): EventBus.player_stunned appends its reason (`NullPointerException`).
 
 const SCALE := 1
 
@@ -28,6 +29,8 @@ func _enter_tree() -> void:
 		EventBus.hit_landed.connect(_on_hit_landed)
 	if not EventBus.player_damaged.is_connected(_on_player_damaged):
 		EventBus.player_damaged.connect(_on_player_damaged)
+	if not EventBus.player_stunned.is_connected(_on_player_stunned):
+		EventBus.player_stunned.connect(_on_player_stunned)
 
 
 func _exit_tree() -> void:
@@ -35,6 +38,8 @@ func _exit_tree() -> void:
 		EventBus.hit_landed.disconnect(_on_hit_landed)
 	if EventBus.player_damaged.is_connected(_on_player_damaged):
 		EventBus.player_damaged.disconnect(_on_player_damaged)
+	if EventBus.player_stunned.is_connected(_on_player_stunned):
+		EventBus.player_stunned.disconnect(_on_player_stunned)
 
 
 ## Appends a line; once the ring is full the oldest line scrolls off.
@@ -112,3 +117,8 @@ func _on_hit_landed(_target: StringName, damage: int, state: int, _is_combo: boo
 
 func _on_player_damaged(_hp: int) -> void:
 	append_line(line_for_player_hit())
+
+
+## Story 5.3 (D-S53-6): the stun's reason, as is (`NullPointerException`).
+func _on_player_stunned(reason: StringName) -> void:
+	append_line(String(reason))

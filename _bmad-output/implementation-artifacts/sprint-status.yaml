@@ -138,7 +138,7 @@ development_status:
   epic-5: in-progress
   5-1-null-pointer-body-and-locating-cues: done
   5-2-pointer-grab-and-null-rain: done
-  5-3-dangling-pointers-and-nullpointerexception: backlog
+  5-3-dangling-pointers-and-nullpointerexception: done
   5-4-watch-skill: backlog # cut ladder #2 (FeatureFlags.watch)
   5-5-null-bit-null-dodge-and-clean-catch: backlog
   5-6-null-pointer-tutorials-defeat-and-null-harvest: backlog # holds the segfault=false fallback (cut #4)

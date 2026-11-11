@@ -27,6 +27,9 @@ extends Node2D
 ## Story 5.2 (D-S52-5): the ghost's attacks are drawn through the same getters: the attack's
 ## tell_glyph() (`*` on the mark itself, `!` above it), hazard_rects() as exact-size outlines, and
 ## the grab circle as an outline. Reads only.
+## Story 5.3 (D-S53-9): Dangling Pointers' tell marks and the re-cast spots are a `null` flicker
+## (DECOY_FLICKER_BLOCK frames on, the same off, from SimClock.sim_frame); a dispelled decoy flashes
+## as an inverted `null` cell while the body's flash timer runs. Live decoys are never drawn.
 
 const GLYPH_SCALE := 2
 const TELL_MARK := "!"
@@ -58,6 +61,8 @@ const GHOST_SCALE := 1
 ## Story 3.8 (D1, D-S38-9): the reassembly swaps each ring glyph for its fixed-line character, and
 ## the fixed line's extra cells (27 vs 24) pop in, at this progress (INK/BG only: no alpha fade).
 const REASSEMBLY_SWAP := 0.5
+## Story 5.3 (D-S53-9): the decoy flicker's on / off block in sim frames.
+const DECOY_FLICKER_BLOCK := 4
 
 var boss: BossController
 ## Story 5.1: the Null Pointer's hum, a child built in _ready; silent unless the boss is one.
@@ -203,7 +208,27 @@ func _draw_ghost(body: NullPointerBody) -> void:
 		_draw_patched(top_left, Vector2(size.x, line_h), body.weak_window.frames_left)
 	if body.state != BossController.BossState.DEFEATED: # Story 5.2: the attacks' tells and hazards
 		_draw_attack(body.current_attack(), Vector2(GlyphFont.CELL * GLYPH_SCALE, GlyphFont.CELL * GLYPH_SCALE), body.state == BossController.BossState.ACTIVE)
+		_draw_decoys(body)
 	_draw_number(size)
+
+
+## Story 5.3 (D-S53-9, AC 6, 9, 11): the re-cast flicker and the dispel flashes, read from the
+## body's getters. Live decoys have no drawing at all.
+func _draw_decoys(body: NullPointerBody) -> void:
+	var size := Vector2(GlyphFont.text_width(TRAIL_GLYPH, GHOST_SCALE), GlyphFont.CELL * GHOST_SCALE)
+	if decoy_flicker_on(SimClock.sim_frame):
+		for p: Vector2 in body.recast_flicker_positions():
+			GlyphFont.draw_at(self, line_top_left(p, size), TRAIL_GLYPH, Palette.INK, GHOST_SCALE)
+	for p: Vector2 in body.dispel_flash_positions():
+		var top_left: Vector2 = line_top_left(p, size)
+		draw_rect(Rect2(top_left, size), Palette.INK)
+		GlyphFont.draw_at(self, top_left, TRAIL_GLYPH, Palette.BG, GHOST_SCALE)
+
+
+## Story 5.3 (D-S53-9): true on the "on" blocks of the decoy flicker. Pure.
+static func decoy_flicker_on(frame: int) -> bool:
+	@warning_ignore("integer_division")
+	return (frame / DECOY_FLICKER_BLOCK) % 2 == 0
 
 
 ## Story 5.1: true when a column glyph of `size` centred on `p` lies wholly inside `area`. Pure.
@@ -276,8 +301,14 @@ func _draw_attack(attack: BossAttack, cell: Vector2, live: bool = false) -> void
 	if attack == null:
 		return
 	var glyph: String = attack.tell_glyph()
-	for p: Vector2 in attack.tell_marks():
-		GlyphFont.draw_at(self, line_top_left(glyph_mark_centre(p, glyph == TELL_MARK), cell), glyph, Palette.INK, GLYPH_SCALE)
+	if glyph == TRAIL_GLYPH: # Story 5.3 (D-S53-9): Dangling Pointers' `null` flicker, at ghost scale
+		var size := Vector2(GlyphFont.text_width(glyph, GHOST_SCALE), GlyphFont.CELL * GHOST_SCALE)
+		if decoy_flicker_on(SimClock.sim_frame):
+			for p: Vector2 in attack.tell_marks():
+				GlyphFont.draw_at(self, line_top_left(p, size), glyph, Palette.INK, GHOST_SCALE)
+	else:
+		for p: Vector2 in attack.tell_marks():
+			GlyphFont.draw_at(self, line_top_left(glyph_mark_centre(p, glyph == TELL_MARK), cell), glyph, Palette.INK, GLYPH_SCALE)
 	# Story 5.2 (D-S52-5, D-S52-10): rect hazards are drawn as outlines at their exact size (a double
 	# outline while ACTIVE); their centres get no glyph.
 	var rects: Array[Rect2] = attack.hazard_rects()
