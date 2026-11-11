@@ -14,6 +14,11 @@ const GDD: Dictionary[StringName, String] = {
 const HARVEST_TEXT := "Bug squashed. It dropped a bit: new windows, new combos."
 ## GDD D-039: the duck speaks at most 10 lines in the whole game.
 const LINE_BUDGET := 10
+## Story 5.6 (FR45 lines 6-7, D-S56-1): the Null Pointer tutorial lines.
+const NULL_POINTER_LINES: Dictionary[StringName, String] = {
+	&"n1_breakpoint": "Space: Breakpoint. Time stops, you shift. Finally, a debugger that works.",
+	&"n2_hold_r": "Hold R. Pointers point *somewhere*.",
+}
 
 
 func _lines() -> DuckLinesDef:
@@ -30,7 +35,7 @@ func _line(id: StringName, text: String) -> DuckLineDef:
 func test_the_four_tutorial_lines_equal_the_gdd_strings() -> void:
 	var lines: DuckLinesDef = _lines()
 	assert_not_null(lines)
-	assert_eq(lines.entries.size(), 8, "T1-T4 (D-S36-3), the 3.8 harvest line, the two 4.4 hint windows, the 5.1 D->L window")
+	assert_eq(lines.entries.size(), 10, "T1-T4 (D-S36-3), the 3.8 harvest line, the two 4.4 hint windows, the 5.1 D->L window, the 5.6 N1-N2")
 	for i: int in DuckDirector.DUCK_IDS.size():
 		var id: StringName = DuckDirector.DUCK_IDS[i]
 		assert_eq(lines.entries[i].id, id, "order follows the beats")
@@ -58,7 +63,17 @@ static func budget_count(lines: DuckLinesDef) -> int:
 
 
 func test_budget_counts_the_hint_template_once() -> void:
-	assert_eq(budget_count(_lines()), 6, "T1-T4, harvest, the hint template")
+	assert_eq(budget_count(_lines()), 8, "T1-T4, harvest, the hint template, N1-N2 (Story 5.6)")
+
+
+func test_null_pointer_lines_equal_the_gdd_strings() -> void:
+	var lines: DuckLinesDef = _lines()
+	for id: StringName in NULL_POINTER_LINES:
+		assert_not_null(lines.find(id), String(id))
+		if lines.find(id) != null:
+			assert_eq(lines.find(id).text, NULL_POINTER_LINES[id], String(id))
+			assert_true(DuckLineDef.is_ascii(lines.find(id).text), String(id))
+			assert_eq(lines.find(id).validate(), PackedStringArray(), "fits the bubble: %s" % id)
 
 
 func test_ids_are_unique_and_text_is_ascii() -> void:

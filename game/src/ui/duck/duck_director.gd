@@ -16,6 +16,13 @@ extends Node
 
 const INFINITE_LOOP_ID := &"infinite_loop"
 const DUCK_IDS: Array[StringName] = [&"t1_shift", &"t2_semicolon", &"t3_dash_strike", &"t4_phase_two"]
+## Story 5.6 (D-S56-1): the Null Pointer beats. Not in DUCK_IDS (due_beat and its skip rule stay
+## Infinite Loop only); they use bits N1_BIT and N2_BIT of the same per-run `requested` mask.
+const NULL_POINTER_ID := &"null_pointer"
+const N1 := &"n1_breakpoint"
+const N2 := &"n2_hold_r"
+const N1_BIT := 4
+const N2_BIT := 5
 ## poll() return value when a hint was requested (beats return their index).
 const HINT_REQUESTED := 100
 ## D-S44-6: the death hint fires on every multiple of this many deaths on the same boss.
@@ -24,8 +31,11 @@ const DEATHS_PER_HINT := 3
 var arena: Arena = null
 ## The HUD's bubble (D-S44-4); null (tests, no HUD) means always room.
 var bubble: DuckBubble = null
-## Beats requested this run, one bit per DUCK_IDS index.
+## Beats requested this run, one bit per DUCK_IDS index, plus N1_BIT / N2_BIT (Story 5.6).
 var requested: int = 0
+## Story 5.6 (D-S56-1, AC 3): FeatureFlags.watch, handed over by Main from arena.watch_enabled (the
+## one startup read, D-S54-3). The director never reads FeatureFlags itself.
+var watch_enabled: bool = true
 ## Hint windows waiting for the bubble, oldest first (D-S44-4).
 var pending_hints: Array[Vector2i] = []
 ## (boss id, phase index) keys hinted by Breakpoint in this fight attempt (D-S44-5).
@@ -83,7 +93,16 @@ func poll() -> int:
 	var dash_strike: bool = window_is_dash_strike(arena.register.active_window()) if arena.register != null else false
 	var beat: int = due_beat(requested, true, boss_id, iteration, dash_strike, phase_index)
 	if beat < 0:
-		return -1
+		# Story 5.6 (D-S56-1, D-S56-2): the Null Pointer beats, never on a defeated boss.
+		var alive: bool = boss != null and boss.state != BossController.BossState.DEFEATED
+		var np_bit: int = due_null_pointer_beat(requested, alive, boss_id, watch_enabled)
+		if np_bit < 0:
+			return -1
+		requested |= 1 << np_bit
+		var np_id: StringName = N1 if np_bit == N1_BIT else N2
+		Log.debug(&"duck", "beat %s" % np_id)
+		VoiceService.say(String(np_id))
+		return np_bit
 	requested |= 1 << beat
 	Log.debug(&"duck", "beat %s" % DUCK_IDS[beat])
 	VoiceService.say(String(DUCK_IDS[beat]))
@@ -183,8 +202,22 @@ static func due_beat(p_requested: int, in_fight: bool, boss_id: StringName, iter
 	for i: int in DUCK_IDS.size():
 		if p_requested & (1 << i) != 0:
 			continue
-		if p_requested >> (i + 1) != 0:
+		# Story 5.6 (D-S56-10): only the Infinite Loop bits count here, never N1_BIT / N2_BIT.
+		if (p_requested & ((1 << DUCK_IDS.size()) - 1)) >> (i + 1) != 0:
 			continue # a later beat already fired: this one is skipped for good
 		if beat_trigger(i, iteration, p_window_is_dash_strike, phase_index):
 			return i
+	return -1
+
+
+## Story 5.6 (D-S56-1, D-S56-2): the due Null Pointer beat bit (N1_BIT, N2_BIT) or -1. `in_fight`
+## means a FIGHT with a live (not DEFEATED) boss. N1 is due once per run in a Null Pointer fight; N2
+## once N1 was requested and only with Watch on (cut ladder #2 off: never). Pure.
+static func due_null_pointer_beat(p_requested: int, in_fight: bool, boss_id: StringName, p_watch_enabled: bool) -> int:
+	if p_requested < 0 or not in_fight or boss_id != NULL_POINTER_ID:
+		return -1
+	if p_requested & (1 << N1_BIT) == 0:
+		return N1_BIT
+	if p_watch_enabled and p_requested & (1 << N2_BIT) == 0:
+		return N2_BIT
 	return -1

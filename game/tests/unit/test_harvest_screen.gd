@@ -169,3 +169,34 @@ func test_harvest_screen_and_boss_view_never_write_sim_state() -> void:
 		assert_eq(DuckIsolation.violations(code, forbidden), PackedStringArray(), path)
 	var harvest: String = IsolationScript.code_of("res://src/ui/screens/harvest/harvest_screen.gd")
 	assert_false(harvest.contains("arena"), "the harvest screen never reads the arena (D-S38-5)")
+
+
+# --- Story 5.6 (B2, B3; D-S56-6): the NULL harvest after the Null Pointer ---
+
+func test_null_harvest_display_ring_reads_0x0f() -> void:
+	var previous: PackedInt32Array = Register.fight_start_for_boss(1)
+	var shown: PackedInt32Array = HarvestScreen.display_ring(previous, N, 1)
+	assert_eq(shown, _ring([A, D, L, N]))
+	assert_eq(shown, Register.fight_start_for_boss(2), "the Fight 3 start set")
+	assert_eq(HarvestScreen.register_text(shown), "[A, D, L, N] = 0x0F")
+	assert_eq(previous, _ring([A, D, L]), "the copy-based insert never writes its input")
+
+
+func test_inserting_an_owned_null_is_rejected_not_duplicated() -> void:
+	var owned: PackedInt32Array = _ring([A, D, L, N])
+	assert_eq(HarvestScreen.harvest_ring(owned, N), owned, "unchanged, N once")
+	assert_push_error("insert into a full register")
+	assert_eq(HarvestScreen.harvest_ring(_ring([A, D, N]), N), _ring([A, D, N]), "an owned N is never duplicated")
+	assert_push_error("insert of owned bit N")
+	var reg := Register.new()
+	assert_true(reg.set_fight_start(_ring([A, D, N])))
+	assert_false(reg.insert(N), "the Register error path")
+	assert_push_error("insert of owned bit N")
+	assert_eq(reg.ring.count(N), 1)
+
+
+func test_fight_3_start_set_holds_null_once() -> void:
+	var ring: PackedInt32Array = Register.fight_start_for_boss(2)
+	assert_eq(ring, _ring([A, D, L, N]))
+	assert_eq(ring.count(N), 1)
+	assert_false(Register.fight_start_for_boss(1).has(N), "the Fight 2 start ring never owns N")

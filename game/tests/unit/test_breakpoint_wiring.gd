@@ -75,6 +75,21 @@ func test_flag_on_space_starts_and_leave_fight_clears_the_gate() -> void:
 	assert_signal_emit_count(EventBus, "breakpoint_ended", 1)
 
 
+## Story 5.6 (AC 1, D-S56-7): in the Null Pointer fight the first Space press starts Breakpoint at
+## once (no cooldown), and a new attempt of the fight frees it again.
+func test_null_pointer_fight_first_space_starts_breakpoint() -> void:
+	var arena := _arena(true)
+	arena.enter_fight(Register.fight_start_for_boss(1), false, Arena.NULL_POINTER_DEF_PATH, true)
+	assert_eq(arena.boss.def.boss_id, &"null_pointer")
+	assert_eq(arena.breakpoint_skill.cooldown_left_frames(), 0, "free first use")
+	SimClock.input_source = SpaceInput.new()
+	SimClock.tick()
+	assert_true(arena.breakpoint_skill.is_active(), "the first Space press starts Breakpoint")
+	arena.leave_fight()
+	arena.enter_fight(Register.fight_start_for_boss(1), false, Arena.NULL_POINTER_DEF_PATH, true)
+	assert_eq(arena.breakpoint_skill.cooldown_left_frames(), 0, "a new attempt is free again")
+
+
 func test_retry_entry_resets_a_running_breakpoint() -> void:
 	var arena := _arena(true)
 	arena.enter_fight(Register.fight_start_for_boss(1), false, "", true)

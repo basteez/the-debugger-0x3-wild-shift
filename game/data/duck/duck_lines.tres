@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="DuckLinesDef" load_steps=10 format=3]
+[gd_resource type="Resource" script_class="DuckLinesDef" load_steps=12 format=3]
 
 [ext_resource type="Script" path="res://src/ui/duck/duck_lines_def.gd" id="1_dlines"]
 [ext_resource type="Script" path="res://src/ui/duck/duck_line_def.gd" id="2_dline"]
@@ -43,6 +43,16 @@ script = ExtResource("2_dline")
 id = &"hint_d_l"
 text = "Quack. Weak window: D→L."
 
+[sub_resource type="Resource" id="Resource_n1"]
+script = ExtResource("2_dline")
+id = &"n1_breakpoint"
+text = "Space: Breakpoint. Time stops, you shift. Finally, a debugger that works."
+
+[sub_resource type="Resource" id="Resource_n2"]
+script = ExtResource("2_dline")
+id = &"n2_hold_r"
+text = "Hold R. Pointers point *somewhere*."
+
 [resource]
 script = ExtResource("1_dlines")
-entries = Array[ExtResource("2_dline")]([SubResource("Resource_t1"), SubResource("Resource_t2"), SubResource("Resource_t3"), SubResource("Resource_t4"), SubResource("Resource_h1"), SubResource("Resource_hint_a_d"), SubResource("Resource_hint_d_a"), SubResource("Resource_hint_d_l")])
+entries = Array[ExtResource("2_dline")]([SubResource("Resource_t1"), SubResource("Resource_t2"), SubResource("Resource_t3"), SubResource("Resource_t4"), SubResource("Resource_h1"), SubResource("Resource_hint_a_d"), SubResource("Resource_hint_d_a"), SubResource("Resource_hint_d_l"), SubResource("Resource_n1"), SubResource("Resource_n2")])

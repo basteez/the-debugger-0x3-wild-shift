@@ -58,3 +58,13 @@ func test_char_times_from_events() -> void:
 	for i: int in 9:
 		assert_almost_eq(times[i], want[i], 0.0001, "index %d" % i)
 	assert_eq(DuckClipDef.char_times_from_events(0, events, 0.6).size(), 0)
+
+
+## Story 5.6 (A5): the two Null Pointer lines ship with pre-rendered clips.
+func test_null_pointer_lines_have_clips() -> void:
+	for id: StringName in [&"n1_breakpoint", &"n2_hold_r"]:
+		var clip: DuckClipDef = CLIPS.find(id)
+		assert_not_null(clip, String(id))
+		if clip != null:
+			assert_not_null(clip.stream, "%s stream" % id)
+			assert_eq(clip.stream.resource_path, "res://assets/audio/duck/%s.wav" % id)

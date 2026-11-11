@@ -29,6 +29,7 @@ func test_run_state_starts_at_boss_zero() -> void:
 ## defeats leave FIGHT through finish_defeat (tests below).
 func test_full_sequence_and_boss_index_via_placeholder_advance() -> void:
 	var game: Node = _game()
+	game.segfault_enabled = true # Story 5.6: the full three-fight run (the cut path is tested below)
 	watch_signals(EventBus)
 	game.start_run_from_title(10)
 	assert_eq(game.flow_state, S.INTRO)
@@ -133,6 +134,17 @@ func test_debug_jump_targets() -> void:
 	assert_eq(game.flow_state, S.ENDING)
 	assert_eq(game.run.boss_index, 0)
 	assert_signal_emitted_with_parameters(EventBus, "flow_state_changed", [S.FIGHT, S.ENDING])
+
+
+func test_debug_jump_to_fight_3_rejected_when_segfault_cut() -> void:
+	Debug.enabled = true
+	var game: Node = _game()
+	game.segfault_enabled = false
+	game.debug_jump(S.FIGHT, 2)
+	assert_ne(game.flow_state, S.FIGHT, "cut #4: there is no third fight to jump into")
+	game.debug_jump(S.FIGHT, 1)
+	assert_eq(game.flow_state, S.FIGHT)
+	game.segfault_enabled = true
 
 
 func test_debug_jump_to_title_clears_first_input_frame() -> void:
@@ -411,9 +423,9 @@ func _dead_boss(def: BossDef = TEST_BOSS, finished: bool = true) -> BossControll
 
 
 func test_route_after_defeat() -> void:
-	assert_eq(GameScript.route_after_defeat(0), S.HARVEST)
-	assert_eq(GameScript.route_after_defeat(1), S.HARVEST)
-	assert_eq(GameScript.route_after_defeat(2), S.ENDING, "the Segfault drops nothing (GDD D-012)")
+	assert_eq(GameScript.route_after_defeat(0, true), S.HARVEST)
+	assert_eq(GameScript.route_after_defeat(1, true), S.HARVEST)
+	assert_eq(GameScript.route_after_defeat(2, true), S.ENDING, "the Segfault drops nothing (GDD D-012)")
 
 
 func test_finish_defeat_fight_1_goes_to_harvest_only_after_the_animation() -> void:
@@ -518,3 +530,97 @@ func test_debug_grant_bit_refuses_a_boss_without_a_bit_def_or_an_owned_bit() -> 
 	il.setup(IL_BOSS, null, ArenaContext.new())
 	assert_false(game.debug_grant_bit(il), "bit already owned")
 	assert_eq(game.flow_state, S.FIGHT)
+
+
+# --- Story 5.6: cut ladder #4 (FeatureFlags.segfault, AC 6, 7; D-S56-3, D-S56-4) ---
+
+const NP_BOSS: BossDef = preload("res://data/bosses/null_pointer/boss_def.tres")
+
+
+func test_segfault_enabled_follows_the_shipped_flag() -> void:
+	assert_eq(_game().segfault_enabled, Defs.FEATURE_FLAGS.segfault, "read once from FeatureFlags")
+
+
+func test_route_after_defeat_with_segfault_on_and_off() -> void:
+	assert_eq(GameScript.route_after_defeat(0, true), S.HARVEST)
+	assert_eq(GameScript.route_after_defeat(1, true), S.HARVEST, "the Null Pointer drops NULL")
+	assert_eq(GameScript.route_after_defeat(2, true), S.ENDING)
+	assert_eq(GameScript.route_after_defeat(0, false), S.HARVEST, "the Infinite Loop still drops LOOP")
+	assert_eq(GameScript.route_after_defeat(1, false), S.ENDING, "cut #4: the Ending follows the Null Pointer")
+	assert_eq(GameScript.route_after_defeat(2, false), S.ENDING)
+	assert_eq(GameScript.last_fight_index(true), 2)
+	assert_eq(GameScript.last_fight_index(false), 1)
+
+
+func test_drops_bit_with_segfault_on_and_off() -> void:
+	assert_true(GameScript.drops_bit(0, true))
+	assert_true(GameScript.drops_bit(1, true))
+	assert_false(GameScript.drops_bit(2, true), "the Segfault drops nothing")
+	assert_true(GameScript.drops_bit(0, false))
+	assert_false(GameScript.drops_bit(1, false), "cut #4: NULL is never dropped")
+	assert_false(GameScript.drops_bit(-1, true))
+
+
+func test_finish_defeat_of_the_null_pointer_with_segfault_off_goes_to_ending() -> void:
+	var game: Node = _game()
+	game.segfault_enabled = false
+	_fight(game, 1)
+	var ring_before: PackedInt32Array = game.run.fight_start_ring
+	watch_signals(EventBus)
+	assert_true(game.finish_defeat(_dead_boss(NP_BOSS)))
+	assert_eq(game.flow_state, S.ENDING, "no HARVEST")
+	assert_signal_emit_count(EventBus, "flow_state_changed", 1)
+	assert_signal_emitted_with_parameters(EventBus, "flow_state_changed", [S.FIGHT, S.ENDING])
+	assert_eq(game.harvest_start_frame, -1)
+	assert_eq(game.run.fight_start_ring, ring_before, "no bit inserted")
+	assert_false(game.run.fight_start_ring.has(Register.Bit.NULL_BIT))
+
+
+func test_finish_defeat_of_the_null_pointer_with_segfault_on_goes_to_harvest() -> void:
+	var game: Node = _game()
+	game.segfault_enabled = true
+	_fight(game, 1)
+	assert_true(game.finish_defeat(_dead_boss(NP_BOSS)))
+	assert_eq(game.flow_state, S.HARVEST)
+
+
+func test_advance_fight_2_with_segfault_off_goes_to_ending() -> void:
+	var game: Node = _game()
+	game.segfault_enabled = false
+	_fight(game, 1)
+	game.advance()
+	assert_eq(game.flow_state, S.ENDING)
+	game.advance()
+	assert_eq(game.flow_state, S.TITLE, "the Ending still returns to the title")
+	_fight(game, 0)
+	game.advance()
+	assert_eq(game.flow_state, S.HARVEST, "Fight 1 is unchanged by the cut")
+
+
+func test_f8_on_fight_2_with_segfault_off_grants_nothing() -> void:
+	var game: Node = _game()
+	game.segfault_enabled = false
+	_fight(game, 1)
+	var np := BossController.new()
+	np.setup(NP_BOSS, null, ArenaContext.new())
+	np.reset_for_fight()
+	watch_signals(EventBus)
+	assert_false(game.debug_grant_bit(np), "D-S56-4: the cut path drops no bit")
+	assert_eq(game.flow_state, S.FIGHT, "no flow change")
+	assert_signal_emit_count(EventBus, "flow_state_changed", 0)
+	assert_false(game.run.fight_start_ring.has(Register.Bit.NULL_BIT))
+
+
+func test_f8_on_fight_2_with_segfault_on_grants_null_and_routes_to_harvest() -> void:
+	var game: Node = _game()
+	game.segfault_enabled = true
+	_fight(game, 1)
+	var np := BossController.new()
+	np.setup(NP_BOSS, null, ArenaContext.new())
+	np.reset_for_fight()
+	assert_true(game.debug_grant_bit(np), "Story 3.8 behaviour kept")
+	assert_eq(game.flow_state, S.HARVEST)
+	assert_false(game.debug_grant_bit(np), "outside FIGHT: nothing extra")
+	assert_true(game.finish_harvest(SimClock.sim_frame))
+	assert_eq(game.run.fight_start_ring, Register.fight_start_for_boss(2), "[A, D, L, N]")
+	assert_eq(game.run.fight_start_ring.count(Register.Bit.NULL_BIT), 1, "N once, not granted twice")
