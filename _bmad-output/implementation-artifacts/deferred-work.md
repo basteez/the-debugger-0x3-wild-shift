@@ -353,3 +353,15 @@ Story 1.3 AC9 / I-6 ("mumble-speech web check, moved to 3.7") is UNBLOCKED. Tizi
 - Every BossView builds a NullPointerHum (the 22k-sample loop is generated once, static); create lazily if the web build shows a hitch.
 - Test weaknesses: the Patched-stack-while-hidden test ends on `is_inside_tree()`; the hum play/stop path is not exercised headless (audio locked); the drift tolerance is 1%.
 - `hint_d_l` `char_times` copy `hint_d_a` (same line length); confirm the typewriter sync by ear in the browser. `duck_clips.tres` ids were re-serialised by the editor.
+
+## Deferred from: code review of story-5.2 (2026-11-11)
+
+- Null Rain areas clamp independently near walls, so fewer than 5 distinct areas can result; tune in playtest.
+- Pointer Grab centre is clamped at walls; "any step forward escapes" is untested there.
+- Story 5.2 integration tests: recovery-window timing depends on the seeded attack pick (not pinned); visibility assertion ORs reveal timers; player HP topped up each tick (no real death path).
+- "Body never touches the player" test is tautological (`touches_player` is `attack_hazard_hit`).
+- Phase-2 `gap_frames` (60) assertion was dropped from the rewritten Story 5.1 body test.
+- With `invuln_frames` 0 the attacks could queue a hit per ACTIVE tick; add a one-hit latch if invulnerability is retuned.
+- AC 13 covers `declared_positions` on 4 facings only; `BossView` glyph/outline drawing has no test.
+- `tell_pointer_grab` / `tell_null_rain` sfx ids are not registered with audio (silent cue).
+- Phase 1 and phase 2 share the same attack pool (D-S52-6); phase escalation is thin.

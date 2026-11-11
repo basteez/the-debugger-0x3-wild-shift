@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="AttackDef" format=3]
+
+[ext_resource type="Script" path="res://src/bosses/framework/attack_def.gd" id="1_adef"]
+[ext_resource type="Script" path="res://src/bosses/null_pointer/attacks/pointer_grab.gd" id="2_attack"]
+
+[resource]
+script = ExtResource("1_adef")
+id = &"pointer_grab"
+tell = 40
+active = 10
+recovery = 60
+attack_script = ExtResource("2_attack")
+tell_sfx = &"tell_pointer_grab"

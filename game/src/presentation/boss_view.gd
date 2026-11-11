@@ -24,6 +24,9 @@ extends Node2D
 ## visible_now(); its falling `null` column is drawn under it while it is alive, visible or not; the
 ## Patched stack and the damage number stay drawn while the ghost is hidden (a position hint, FR23).
 ## The hum (NullPointerHum) is a child of this view and follows the boss once per physics frame.
+## Story 5.2 (D-S52-5): the ghost's attacks are drawn through the same getters: the attack's
+## tell_glyph() (`*` on the mark itself, `!` above it), hazard_rects() as exact-size outlines, and
+## the grab circle as an outline. Reads only.
 
 const GLYPH_SCALE := 2
 const TELL_MARK := "!"
@@ -46,6 +49,8 @@ const COUNTER_INSET_TILES := 1.5
 ## Story 3.4: the Head Rush head glyph and the outline's segment count.
 const HEAD_GLYPH := "{"
 const OUTLINE_POINTS := 48
+## Story 5.2 (D-S52-10): inset in px of the second outline of a live rect hazard (Null Rain ACTIVE).
+const RECT_INSET := 3.0
 ## Story 5.1: the ghost's glyph lines (two rows of `null`) and the column glyph, at GHOST_SCALE.
 const GHOST_LINES: PackedStringArray = ["null", "null"]
 const TRAIL_GLYPH := "null"
@@ -196,6 +201,8 @@ func _draw_ghost(body: NullPointerBody) -> void:
 			GlyphFont.draw_at(self, top_left + jitter + Vector2(0.0, row * line_h), GHOST_LINES[row], Palette.INK, GHOST_SCALE)
 	if body.weak_window.is_patched() and body.state != BossController.BossState.DEFEATED:
 		_draw_patched(top_left, Vector2(size.x, line_h), body.weak_window.frames_left)
+	if body.state != BossController.BossState.DEFEATED: # Story 5.2: the attacks' tells and hazards
+		_draw_attack(body.current_attack(), Vector2(GlyphFont.CELL * GLYPH_SCALE, GlyphFont.CELL * GLYPH_SCALE), body.state == BossController.BossState.ACTIVE)
 	_draw_number(size)
 
 
@@ -265,15 +272,24 @@ func _draw_ring_cell(centre: Vector2, glyph: String, lit: bool, cell: Vector2, j
 
 
 ## Story 3.4 (G1): the running attack's tell marks, hazard cells and outline. Reads only.
-func _draw_attack(attack: BossAttack, cell: Vector2) -> void:
+func _draw_attack(attack: BossAttack, cell: Vector2, live: bool = false) -> void:
 	if attack == null:
 		return
+	var glyph: String = attack.tell_glyph()
 	for p: Vector2 in attack.tell_marks():
-		GlyphFont.draw_at(self, line_top_left(tell_mark_centre(p), cell), TELL_MARK, Palette.INK, GLYPH_SCALE)
-	for p: Vector2 in attack.hazard_positions():
-		var top_left: Vector2 = line_top_left(p, cell)
-		draw_rect(Rect2(top_left, cell), Palette.BG)
-		GlyphFont.draw_at(self, top_left, HEAD_GLYPH, Palette.INK, GLYPH_SCALE)
+		GlyphFont.draw_at(self, line_top_left(glyph_mark_centre(p, glyph == TELL_MARK), cell), glyph, Palette.INK, GLYPH_SCALE)
+	# Story 5.2 (D-S52-5, D-S52-10): rect hazards are drawn as outlines at their exact size (a double
+	# outline while ACTIVE); their centres get no glyph.
+	var rects: Array[Rect2] = attack.hazard_rects()
+	for r: Rect2 in rects:
+		draw_rect(r, Palette.INK, false, 1.0)
+		if live:
+			draw_rect(r.grow(-RECT_INSET), Palette.INK, false, 1.0)
+	if rects.is_empty():
+		for p: Vector2 in attack.hazard_positions():
+			var top_left: Vector2 = line_top_left(p, cell)
+			draw_rect(Rect2(top_left, cell), Palette.BG)
+			GlyphFont.draw_at(self, top_left, HEAD_GLYPH, Palette.INK, GLYPH_SCALE)
 	var outline: Vector3 = attack.outline_circle()
 	if outline.z > 0.0:
 		draw_arc(Vector2(outline.x, outline.y), outline.z, 0.0, TAU, OUTLINE_POINTS, Palette.INK, 1.0)
@@ -331,9 +347,15 @@ static func ring_glyph(k: int) -> String:
 ## Centre of a tell `!` (Story 3.4, D-S34-12): one cell above `anchor`, clamped so the whole cell
 ## stays inside the play area. Pure.
 static func tell_mark_centre(anchor: Vector2) -> Vector2:
+	return glyph_mark_centre(anchor, true)
+
+
+## Story 5.2 (D-S52-5): centre of a tell glyph: one cell above `anchor` for the `!` (`above`), on
+## `anchor` itself otherwise (Pointer Grab's `*`), clamped so the whole cell stays in the play area. Pure.
+static func glyph_mark_centre(anchor: Vector2, above: bool) -> Vector2:
 	var half: float = GlyphFont.CELL * GLYPH_SCALE / 2.0
 	var area: Rect2 = Arena.play_area()
-	var p: Vector2 = anchor - Vector2(0.0, Const.TILE_PX)
+	var p: Vector2 = anchor - Vector2(0.0, Const.TILE_PX) if above else anchor
 	return Vector2(clampf(p.x, area.position.x + half, area.end.x - half), clampf(p.y, area.position.y + half, area.end.y - half))
 
 

@@ -246,6 +246,7 @@ func _make_arena_context() -> ArenaContext:
 	ctx.target_source = func() -> Vector2: return player.position_px
 	ctx.contact_source = func() -> Vector2: return player.position_px
 	ctx.shift_count = func() -> int: return register.shift_serial # read-only (D-S33-6, NP-3)
+	ctx.facing_source = func() -> Vector2i: return player.facing # Story 5.2 (D-S52-2), read-only
 	return ctx
 
 

@@ -3,20 +3,22 @@
 [ext_resource type="Script" path="res://src/bosses/framework/boss_def.gd" id="1_bdef"]
 [ext_resource type="Script" path="res://src/bosses/framework/phase_def.gd" id="2_pdef"]
 [ext_resource type="Script" path="res://src/bosses/framework/attack_def.gd" id="3_adef"]
+[ext_resource type="Resource" path="res://data/bosses/null_pointer/attack_pointer_grab.tres" id="4_grab"]
+[ext_resource type="Resource" path="res://data/bosses/null_pointer/attack_null_rain.tres" id="5_rain"]
 
 [sub_resource type="Resource" id="Resource_phase1"]
 script = ExtResource("2_pdef")
 hp_threshold = 100
 weak_window = Vector2i(2, 3)
 gap_frames = 90
-attack_pool = Array[ExtResource("3_adef")]([])
+attack_pool = Array[ExtResource("3_adef")]([ExtResource("4_grab"), ExtResource("5_rain")])
 
 [sub_resource type="Resource" id="Resource_phase2"]
 script = ExtResource("2_pdef")
 hp_threshold = 50
 weak_window = Vector2i(1, 2)
 gap_frames = 60
-attack_pool = Array[ExtResource("3_adef")]([])
+attack_pool = Array[ExtResource("3_adef")]([ExtResource("4_grab"), ExtResource("5_rain")])
 
 [resource]
 script = ExtResource("1_bdef")

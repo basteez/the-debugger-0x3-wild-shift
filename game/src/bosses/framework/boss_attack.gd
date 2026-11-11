@@ -88,3 +88,15 @@ func tell_marks() -> PackedVector2Array:
 ## A circle outline to draw (x, y = centre px, z = radius px); z <= 0 means none. Default: none.
 func outline_circle() -> Vector3:
 	return Vector3.ZERO
+
+
+## Story 5.2 (D-S52-5): rectangular hazard areas to outline (arena-local px), e.g. Null Rain's
+## 2 x 2-tile areas. Presentation draws them at their exact size. Default: none.
+func hazard_rects() -> Array[Rect2]:
+	return []
+
+
+## Story 5.2 (D-S52-5): the glyph drawn at each tell mark. Default `!` (drawn one cell above the
+## mark); any other glyph is drawn on the mark itself (Pointer Grab's `*`).
+func tell_glyph() -> String:
+	return "!"

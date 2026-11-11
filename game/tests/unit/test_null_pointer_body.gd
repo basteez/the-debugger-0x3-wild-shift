@@ -1,7 +1,7 @@
 extends GutTest
 ## Story 5.1 AC 3-13, 17-18: the Null Pointer's body. Visibility rule and reveal timers (each
 ## source), the seeded integer drift (speed, re-pick, bounds), the falling column and the hum
-## following the body every tick, the empty-pool GAP loop, the arena / Main wiring, the sky comment
+## following the body every tick, the gap before the first attack (Story 5.2 filled the pools), the arena / Main wiring, the sky comment
 ## and the CombatResolver hooks (a real slash and a real Echo Dash). The body is ticked by hand.
 
 const NP_DEF: BossDef = preload("res://data/bosses/null_pointer/boss_def.tres")
@@ -14,6 +14,14 @@ const TILE := Const.TILE_PX
 const SPAWN := Vector2(256, 144)
 
 var _ctx: SimContext
+
+
+## Story 5.2: a body that holds its attacks (framework hook), so the drift tests see pure GAP drift.
+class IdleBody:
+	extends NullPointerBody
+
+	func _attacks_allowed() -> bool:
+		return false
 
 
 func before_each() -> void:
@@ -184,7 +192,9 @@ func test_patched_stack_is_drawn_while_the_ghost_is_hidden() -> void:
 # --- AC 10: drift ---
 
 func test_drift_speed_repick_and_bounds_over_a_seeded_run() -> void:
-	var b: NullPointerBody = _body()
+	var b := IdleBody.new() # Story 5.2: no attack pauses the drift in this run
+	assert_true(b.setup(NP_DEF, null, null))
+	b.reset_for_fight()
 	var lo: Vector2i = b.min_mtiles()
 	var hi: Vector2i = b.max_mtiles()
 	assert_eq(lo, Vector2i(1000, 1000), "body radius 1 tile inset")
@@ -366,28 +376,29 @@ func test_sky_comment_for_the_null_pointer_fight() -> void:
 	assert_lte(Hud.SKY_NULL_POINTER.length(), Hud.COLS)
 
 
-# --- AC 17: the empty pool runs GAP to GAP ---
+# --- AC 17 (superseded by Story 5.2: the pools are filled): GAP, then the first attack ---
 
-func test_empty_pool_runs_gap_to_gap_without_error() -> void:
+func test_gap_runs_its_90_frames_then_an_attack_starts_without_error() -> void:
 	var b: NullPointerBody = _body()
-	for t: int in 600:
+	for t: int in 89:
 		b.tick(_ctx)
-		assert_eq(b.state, BossController.BossState.GAP, "no attack picked (tick %d)" % t)
+		assert_eq(b.state, BossController.BossState.GAP, "phase 1 gap (tick %d)" % t)
 		assert_null(b.current)
-	assert_null(b.current_attack())
+	b.tick(_ctx)
+	assert_eq(b.state, BossController.BossState.TELL, "Story 5.2: an attack is picked after the 90-frame gap")
+	assert_true(b.current.id in [&"pointer_grab", &"null_rain"])
 	assert_push_error_count(0)
-	# Phase 2 (50%): gap 60, still GAP after the ROAR.
+	# Phase 2 (50%): the ROAR cuts the attack, then gap 60.
 	b.take_hit(350)
 	assert_eq(b.phase_index, 1)
+	assert_eq(b.state, BossController.BossState.ROAR)
+	assert_null(b.current_attack())
 	assert_eq(b.current_weak_window(), Vector2i(A, D), "phase 2 window A->D")
-	for t: int in 200:
-		b.tick(_ctx)
-	assert_eq(b.state, BossController.BossState.GAP)
 
 
 func test_ghost_is_not_a_contact_hazard() -> void:
 	var b: NullPointerBody = _body()
-	assert_false(b.touches_player(b.body_center_px), "D-S51-8: no contact hazard until 5.2")
+	assert_false(b.touches_player(b.body_center_px), "D-S51-8, D-S52-1: the ghost body is never a contact hazard")
 
 
 # --- AC 5, 6: the CombatResolver hooks with real actions ---

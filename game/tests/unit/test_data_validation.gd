@@ -177,7 +177,7 @@ func test_infinite_loop_boss_def_matches_the_gdd() -> void:
 
 func test_null_pointer_boss_def_matches_the_gdd() -> void:
 	var def: BossDef = load("res://data/bosses/null_pointer/boss_def.tres")
-	assert_eq(def.validate(), PackedStringArray(), "valid with empty pools (D-S33-9)")
+	assert_eq(def.validate(), PackedStringArray(), "valid with the 5.2 pools")
 	assert_eq(def.boss_id, &"null_pointer")
 	assert_eq(def.boss_id, Game.BOSS_IDS[1])
 	assert_eq(def.name_signature, "nullPointer")
@@ -193,7 +193,29 @@ func test_null_pointer_boss_def_matches_the_gdd() -> void:
 	for i: int in def.phases.size():
 		var p: PhaseDef = def.phases[i]
 		assert_eq([p.hp_threshold, p.weak_window, p.gap_frames], expected[i], "phase %d" % (i + 1))
-		assert_eq(p.attack_pool.size(), 0, "phase %d pool empty until 5.2 / 5.3" % (i + 1))
+		var ids: Array[StringName] = []
+		for a_def: AttackDef in p.attack_pool:
+			ids.append(a_def.id)
+		assert_eq(ids, [&"pointer_grab", &"null_rain"], "Story 5.2 (D-S52-6): phase %d pool" % (i + 1))
+
+
+# --- Story 5.2 AC 7, 8: the Null Pointer's attacks ---
+
+func test_null_pointer_attack_defs_match_the_gdd() -> void:
+	var expected: Dictionary = {
+		"res://data/bosses/null_pointer/attack_pointer_grab.tres": [&"pointer_grab", 40, 10, 60, &"tell_pointer_grab"],
+		"res://data/bosses/null_pointer/attack_null_rain.tres": [&"null_rain", 45, 20, 40, &"tell_null_rain"],
+	}
+	for path: String in expected:
+		var a_def: AttackDef = load(path)
+		assert_eq(a_def.validate(), PackedStringArray(), path)
+		assert_eq([a_def.id, a_def.tell, a_def.active, a_def.recovery, a_def.tell_sfx], expected[path], path)
+		assert_gte(a_def.tell, 20, "Pillar 2: tell >= 20 frames")
+		assert_ne(a_def.tell_sfx, &"", "non-empty tell_sfx")
+		assert_eq(a_def.recovery_if_no_breakpoint, 0, "same recovery with or without Breakpoint")
+		assert_true(a_def.attack_script.new() is BossAttack)
+	var def: BossDef = load("res://data/bosses/null_pointer/boss_def.tres")
+	assert_same(def.phases[0].attack_pool[0], load("res://data/bosses/null_pointer/attack_pointer_grab.tres"), "the pool shares the .tres")
 
 
 func test_infinite_loop_ring_def_matches_the_gdd() -> void:
