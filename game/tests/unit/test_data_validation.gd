@@ -93,6 +93,24 @@ func test_action_def_chain_cycle_is_invalid() -> void:
 	assert_true(a.validate().is_empty())
 
 
+## Story 5.5: the NULL bit and Null Dodge are found by the scan; the new flags are validated.
+func test_null_bit_data_is_scanned_and_new_flags_validate() -> void:
+	var paths: PackedStringArray = _tres_under(DATA_ROOT)
+	assert_true(paths.has("res://data/bits/bit_null.tres"))
+	assert_true(paths.has("res://data/actions/null_dodge.tres"))
+	var a := ActionDef.new()
+	a.arms_clean_catch = true
+	assert_eq(a.validate().size(), 1, "arms_clean_catch without an invulnerable range")
+	a.invuln_from = 1
+	a.invuln_to = 1
+	assert_true(a.validate().is_empty())
+	var b := ActionDef.new()
+	b.slows_move = true
+	b.active_frames = 0
+	var text: String = "\n".join(b.validate())
+	assert_true(text.contains("slows_move"), text)
+
+
 # --- Story 3.2 (C7, D-S32-16): weak windows and name_signature rules ---
 
 func _valid_boss() -> BossDef:
@@ -343,4 +361,4 @@ func test_bit_loop_echo_and_nop_validate_and_resolve() -> void:
 	assert_false(nop.echoable)
 	assert_not_null(Defs.bit(Register.Bit.LOOP))
 	assert_eq(Defs.solo_action(Register.Bit.LOOP), Defs.ECHO)
-	assert_null(Defs.bit(Register.Bit.NULL_BIT), "NULL waits for Epic 5")
+	assert_same(Defs.solo_action(Register.Bit.NULL_BIT), Defs.NULL_DODGE, "Story 5.5: NULL is Null Dodge")

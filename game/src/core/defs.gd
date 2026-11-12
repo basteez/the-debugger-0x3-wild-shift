@@ -7,6 +7,8 @@ const BIT_ATTACK: BitDef = preload("res://data/bits/bit_attack.tres")
 const BIT_DASH: BitDef = preload("res://data/bits/bit_dash.tres")
 ## Story 3.8 registered LOOP; Story 4.1: its solo action is Echo.
 const BIT_LOOP: BitDef = preload("res://data/bits/bit_loop.tres")
+## Story 5.5: the NULL bit (N); its solo action is Null Dodge. Owned from Story 5.6 (Harvest).
+const BIT_NULL: BitDef = preload("res://data/bits/bit_null.tres")
 ## Story 4.1 (NP-5): LOOP's solo action; the FSM runs the remembered def in its place.
 const ECHO: ActionDef = preload("res://data/actions/echo.tres")
 ## The Epic 6 garbage bit's action (NP-3); LOOP's placeholder in Story 3.8.
@@ -18,13 +20,15 @@ const DASH: ActionDef = preload("res://data/actions/dash.tres")
 const DASH_STRIKE: ActionDef = preload("res://data/actions/dash_strike.tres")
 ## Story 4.2: the D->L combo's action (redirectable, pass_through).
 const ECHO_DASH: ActionDef = preload("res://data/actions/echo_dash.tres")
+## Story 5.5: NULL's solo action (intangible 30 frames, slows_move, arms_clean_catch).
+const NULL_DODGE: ActionDef = preload("res://data/actions/null_dodge.tres")
 ## Ordered combo lookup (Story 2.6, AD-02): COMBOS.get_combo(first, second).
 const COMBOS: ComboTable = preload("res://data/combos/combo_table.tres")
 ## Story 4.3 (AD-12, D-S43-1): the cut-ladder switches, read once by the startup wiring.
 const FEATURE_FLAGS: FeatureFlags = preload("res://data/config/feature_flags.tres")
 
 
-## The def of a bit id; null for a bit with no def yet (NULL_BIT until Epic 5; LOOP since Story 3.8).
+## The def of a bit id; null for an unknown id (LOOP since Story 3.8, NULL_BIT since Story 5.5).
 static func bit(id: int) -> BitDef:
 	match id:
 		Register.Bit.ATTACK:
@@ -33,6 +37,8 @@ static func bit(id: int) -> BitDef:
 			return BIT_DASH
 		Register.Bit.LOOP:
 			return BIT_LOOP
+		Register.Bit.NULL_BIT:
+			return BIT_NULL
 	return null
 
 

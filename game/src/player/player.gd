@@ -50,7 +50,9 @@ func tick(ctx: SimContext) -> void:
 	if dir != Vector2i.ZERO:
 		facing = dir
 	var v_max: float = Const.tiles_per_s_to_px_per_frame(def.speed_tiles_s)
-	if ctx.watch_held: # Story 5.4 (D-S54-5): Watch halves the top speed, same ramp shape
+	# Story 5.4 (D-S54-5): Watch halves the top speed, same ramp shape. Story 5.5 (D-S55-3): so do
+	# Null Dodge's active frames (ctx.move_slowed); one factor, the two never stack.
+	if ctx.watch_held or ctx.move_slowed:
 		v_max *= WATCH_SPEED_FACTOR
 	var target: Vector2 = Vector2.ZERO
 	var step: float = v_max / def.decel_frames

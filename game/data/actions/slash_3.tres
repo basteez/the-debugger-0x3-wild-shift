@@ -18,4 +18,4 @@ hit_shape = SubResource("Resource_arc")
 base_damage = 15
 cooldown_frames = 0
 move_tiles = 0.0
-cancel_into = PackedInt32Array(2)
+cancel_into = PackedInt32Array(2, 4)

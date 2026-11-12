@@ -20,6 +20,10 @@ extends SimSystem
 ## having landed nothing (boss, decoy or practice target), with no K follow-up held by its link
 ## (D-S53-12), with the boss centre within
 ## BossController.whiff_stun_range_px() asks ActionStateMachine.begin_stun(NPE_STUN_FRAMES).
+## Story 5.5 (D-S55-5, D-S55-6): ActionStateMachine.clean_catch_armed is passed to DamageCalc as the
+## Clean Catch factor (x1.5 on top of the state) for every hit of the tick, boss and practice
+## targets alike; it is consumed once, after the tick's hits, only when one of them dealt damage > 0.
+## Whiffs, decoy dispels and pass-throughs never reach the damage path, so they keep it armed.
 
 ## Story 5.3 (D-S53-6): the NullPointerException stun length in sim frames.
 const NPE_STUN_FRAMES := 20
@@ -69,17 +73,24 @@ func tick(_ctx: SimContext) -> void:
 	_landed_serial = serial
 	var is_combo: bool = actions.combo != null
 	var hitstop: int = 0
+	var clean: bool = actions.clean_catch_armed
+	var dealt: int = 0
 	if dispelled > 0:
 		Log.debug(&"combat", "decoy dispelled x%d by %s" % [dispelled, def.id])
 		hitstop = HitFeedback.hitstop_for(is_combo, def.hitstop_frames)
 	if boss_hit:
-		hitstop = maxi(hitstop, _resolve_boss_hit(def, serial, is_combo))
+		var boss_damage: Array[int] = [0]
+		hitstop = maxi(hitstop, _resolve_boss_hit(def, serial, is_combo, clean, boss_damage))
+		dealt += boss_damage[0]
 	for target: PracticeTarget in hit:
-		var damage: int = DamageCalc.compute(def.base_damage, DamageState.multiplier(DamageState.Kind.BASE), false, actions.echo_scale())
+		var damage: int = DamageCalc.compute(def.base_damage, DamageState.multiplier(DamageState.Kind.BASE), clean, actions.echo_scale())
+		dealt += damage
 		target.register_hit(serial, SimClock.sim_frame, def.id, damage)
 		Log.debug(&"combat", "hit %s dmg=%d" % [def.id, damage])
 		EventBus.hit_landed.emit(target.hit_target_id(), damage, DamageState.Kind.BASE, is_combo, target.position_px)
 		hitstop = maxi(hitstop, HitFeedback.hitstop_for(is_combo, def.hitstop_frames))
+	if clean and dealt > 0:
+		actions.consume_clean_catch()
 	SimClock.request_hitstop(hitstop)
 
 
@@ -114,8 +125,8 @@ static func is_attack_slash(def: ActionDef) -> bool:
 
 
 ## The boss hit of this tick (NP-4, D-S32-12): interactions, patch, damage, take_hit, hit_landed.
-## Returns the hit's hit-stop frames.
-func _resolve_boss_hit(def: ActionDef, serial: int, is_combo: bool) -> int:
+## Returns the hit's hit-stop frames; the damage dealt is written to `out_damage[0]` (Story 5.5).
+func _resolve_boss_hit(def: ActionDef, serial: int, is_combo: bool, clean: bool, out_damage: Array[int]) -> int:
 	var interactions: Array[BossInteraction] = [
 		BossInteraction.new(BossInteraction.Kind.HIT, actions.action_window, is_combo, actions.link_second),
 	]
@@ -126,12 +137,13 @@ func _resolve_boss_hit(def: ActionDef, serial: int, is_combo: bool) -> int:
 			Log.debug(&"combat", "patched %s by %s" % [boss.def.boss_id, def.id])
 		EventBus.patched_applied.emit(boss.def.boss_id, WeakWindowTracker.PATCHED_FRAMES)
 	var state: int = DamageState.Kind.PATCHED if boss.weak_window.is_patched() else DamageState.Kind.UNPATCHED
-	var damage: int = DamageCalc.compute(def.base_damage, DamageState.multiplier(state), false, actions.echo_scale())
+	var damage: int = DamageCalc.compute(def.base_damage, DamageState.multiplier(state), clean, actions.echo_scale())
+	out_damage[0] = damage
 	var pos: Vector2 = boss.hit_position() # Story 3.3 (D-S33-14): the `;` for the Infinite Loop
 	boss.mark_hit(serial)
 	boss.take_hit(damage)
 	boss.on_player_hit() # Story 5.1 (AC 5): the Null Pointer's 10-frame flicker
-	Log.debug(&"combat", "boss hit %s dmg=%d state=%d" % [def.id, damage, state])
+	Log.debug(&"combat", "boss hit %s dmg=%d state=%d%s" % [def.id, damage, state, " clean" if clean else ""])
 	EventBus.hit_landed.emit(boss.hit_target_id(), damage, state, is_combo, pos)
 	return HitFeedback.hitstop_for_boss_hit(state, is_combo, def.hitstop_frames, applied)
 

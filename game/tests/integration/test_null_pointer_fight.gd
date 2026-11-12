@@ -119,7 +119,8 @@ func test_fight_2_runs_both_attacks_in_both_phases() -> void:
 
 # --- Story 5.2 AC 11: the visible recovery is the strike-back window ---
 
-func _combat_rig(bits: Array) -> Dictionary:
+## `with_health` (Story 5.5): a PlayerHealth bound to the boss, and the attacks aimed at the player.
+func _combat_rig(bits: Array, with_health: bool = false) -> Dictionary:
 	var buf := InputBuffer.new()
 	var player := Player.new(load("res://data/player/player_def.tres") as PlayerDef, Arena.player_bounds())
 	player.reset_for_fight(SPAWN)
@@ -136,11 +137,17 @@ func _combat_rig(bits: Array) -> Dictionary:
 	var arena := ArenaContext.new()
 	arena.target_source = func() -> Vector2: return Vector2(40, 40) # attacks land far from the player
 	arena.contact_source = func() -> Vector2: return player.position_px
+	var health: PlayerHealth = null
+	if with_health:
+		health = PlayerHealth.new(player.def, fsm)
+		health.reset_for_fight()
+		health.set_active(true)
+		arena.target_source = func() -> Vector2: return player.position_px
 	var boss := NullPointerBody.new()
-	assert_true(boss.setup(NP_DEF, null, arena))
+	assert_true(boss.setup(NP_DEF, health, arena))
 	boss.reset_for_fight()
 	combat.boss = boss
-	return {"buf": buf, "player": player, "reg": reg, "fsm": fsm, "combat": combat, "ctx": ctx, "boss": boss, "t": 0}
+	return {"buf": buf, "player": player, "reg": reg, "fsm": fsm, "combat": combat, "ctx": ctx, "boss": boss, "health": health, "t": 0}
 
 
 ## One tick in SimClock phase order (SHIFTS, ACTIONS, PLAYER, BOSS_HAZARDS, COMBAT).
@@ -152,6 +159,8 @@ func _rig_tick(rig: Dictionary) -> void:
 	(rig["player"] as Player).tick(ctx)
 	(rig["boss"] as NullPointerBody).tick(ctx)
 	(rig["combat"] as CombatResolver).tick(ctx)
+	if rig["health"] != null:
+		(rig["health"] as PlayerHealth).tick(ctx)
 	rig["t"] = rig["t"] + 1
 
 
@@ -266,4 +275,60 @@ func test_a_real_slash_dispels_a_decoy_without_a_stun() -> void:
 	var fsm: ActionStateMachine = rig["fsm"]
 	assert_eq(fsm.stun_left, 0, "a dispel is a landed hit: no NullPointerException")
 	assert_true(boss.hp <= hp, "the boss took at most the slash's own hit")
+	assert_push_error_count(0)
+
+
+# --- Story 5.5 AC 5, 6: a real Null Pointer attack through Null Dodge arms Clean Catch ---
+
+func test_null_dodge_through_an_attack_then_a_slash_deals_clean_catch() -> void:
+	SimClock._pending_hitstop = 0
+	var saved: int = Game.flow_state
+	Game.flow_state = GameScript.FlowState.TITLE # a hit outside the dodge must not record a death
+	var rig: Dictionary = _combat_rig([Register.Bit.NULL_BIT, A], true)
+	var boss: NullPointerBody = rig["boss"]
+	var fsm: ActionStateMachine = rig["fsm"]
+	var health: PlayerHealth = rig["health"]
+	var buf: InputBuffer = rig["buf"]
+	var n: int = 0
+	var hp_lost_in_dodge: bool = false
+	while not fsm.clean_catch_armed and n < 4000:
+		# Dodge (J = N) whenever a live attack is out and N is ready (test-only grant of N, D-S55-1).
+		if boss.state == S.ACTIVE and fsm.action == null and fsm.cooldowns.ready(Register.Bit.NULL_BIT):
+			buf.push(J, rig["t"])
+		var hp: int = health.hp
+		var dodging: bool = fsm.action == Defs.NULL_DODGE and fsm.invulnerable()
+		_rig_tick(rig)
+		if dodging and fsm.invulnerable() and health.hp < hp:
+			hp_lost_in_dodge = true
+		if health.hp < health.def.max_hp:
+			# A hit before the dodge started (its first ACTIVE tick): undo it and its blink, so the
+			# next contact is rejected by the dodge itself (post-hit invulnerability does not arm).
+			health.hp = health.def.max_hp
+			health.dead = false
+			health.invuln_left = 0
+		n += 1
+	SimClock._pending_hitstop = 0
+	assert_true(fsm.clean_catch_armed, "a Null Pointer attack passed through the dodge (%d ticks)" % n)
+	assert_false(hp_lost_in_dodge, "no HP lost on intangible frames")
+	while fsm.action != null:
+		_rig_tick(rig)
+	health.invuln_left = 0
+	var player: Player = rig["player"]
+	_to_recovery_at(rig, player.position_px + Vector2(24, 0))
+	assert_false(boss.weak_window.is_patched())
+	watch_signals(EventBus)
+	var hp_before: int = boss.hp
+	buf.push(K, rig["t"]) # K = A: a solo slash on the unpatched ghost
+	for i: int in 12:
+		_rig_tick(rig)
+	SimClock._pending_hitstop = 0
+	assert_eq(hp_before - boss.hp, 8, "slash 10 x0.5 x1.5 = 7.5 -> 8")
+	var hits: int = get_signal_emit_count(EventBus, "hit_landed")
+	assert_eq(hits, 1, "one hit_landed")
+	if hits == 1:
+		var params: Array = get_signal_parameters(EventBus, "hit_landed", 0)
+		assert_eq(params[1], 8, "hit_landed carries the Clean Catch damage")
+		assert_eq(params[2], DamageState.Kind.UNPATCHED)
+	assert_false(fsm.clean_catch_armed, "consumed by the hit")
+	Game.flow_state = saved as GameScript.FlowState
 	assert_push_error_count(0)

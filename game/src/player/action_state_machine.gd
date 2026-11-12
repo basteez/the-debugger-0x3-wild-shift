@@ -53,6 +53,10 @@ var echoing: bool = false
 var _echo_def: ActionDef = null
 ## Story 5.3 (D-S53-6): STUNNED ticks left; 0 = not stunned. Written only here (begin_stun, tick).
 var stun_left: int = 0
+## Story 5.5 (D-S55-4, D-S55-5): Clean Catch is armed (a hit passed through an arms_clean_catch
+## action's invulnerable frames). Written only by arm_clean_catch / consume_clean_catch /
+## reset_for_fight; CombatResolver passes it to DamageCalc and consumes it on a damaging hit.
+var clean_catch_armed: bool = false
 
 ## The serial at the running J action's start; the link opens only if no shift happened since (review).
 var _start_serial: int = -1
@@ -76,12 +80,14 @@ func tick(ctx: SimContext) -> void:
 	cooldowns.tick()
 	if stun_left > 0:
 		_tick_stun(ctx.poll_frame)
+		ctx.move_slowed = false
 		return
 	var window: Vector2i = _register.active_window() if _register != null else Vector2i.ZERO
 	var serial: int = _register.shift_serial if _register != null else 0
 	_age_link(serial)
 	if ctx.watch_held:
 		_tick_watch(ctx.poll_frame, window, serial)
+		ctx.move_slowed = slows_move_now()
 		return
 	var request: ActionRequest = ActionResolver.resolve(_resolve_input(ctx.poll_frame, window, serial))
 	if request != null and request.def == null:
@@ -96,7 +102,33 @@ func tick(ctx: SimContext) -> void:
 			action_frame += 1
 	state = state_for(action, action_frame)
 	_update_link(window, serial)
+	ctx.move_slowed = slows_move_now()
 	_apply_movement()
+
+
+## Story 5.5 (D-S55-3): true while the running action (an Echo replays the same def) is a slows_move
+## action on one of its ACTIVE frames. Published as SimContext.move_slowed after the frame step.
+func slows_move_now() -> bool:
+	return action != null and action.slows_move and state_for(action, action_frame) == ActionState.ACTIVE
+
+
+## Story 5.5 (D-S55-4): arms Clean Catch (idempotent; logs once per arming). Called by PlayerHealth
+## when a hit is rejected by an arms_clean_catch action's invulnerable frames.
+func arm_clean_catch() -> void:
+	if clean_catch_armed:
+		return
+	clean_catch_armed = true
+	Log.debug(&"action", "clean catch armed by %s" % (action.id if action != null else &""))
+
+
+## Story 5.5 (D-S55-5): returns whether Clean Catch was armed and disarms it (CombatResolver, on a
+## hit that dealt damage > 0).
+func consume_clean_catch() -> bool:
+	var was: bool = clean_catch_armed
+	clean_catch_armed = false
+	if was:
+		Log.debug(&"action", "clean catch consumed")
+	return was
 
 
 ## The resolver's inputs for this tick (Story 2.7 AC6): one object instead of 11 arguments.
@@ -200,6 +232,7 @@ func _discard_action_presses(frame: int) -> void:
 ## Fight start (D-049 b): idle, no action, cooldowns, chain and link cleared, Player unlocked.
 func reset_for_fight() -> void:
 	stun_left = 0
+	clean_catch_armed = false # Story 5.5 (AC 9): fight entry, retry and debug jump come through here
 	_finish()
 	echo.clear() # Story 4.1 (NP-5, AC7): memory is per fight; retry also comes through here
 	cooldowns.reset()
@@ -362,7 +395,8 @@ func _clear_chain() -> void:
 
 ## Movement rules (D-S25-6): STARTUP and ACTIVE of a stationary action lock in place; ACTIVE of a
 ## moving action locks at move_tiles * TILE_PX / active_frames along the captured facing; every
-## other state is unlocked.
+## other state is unlocked. Story 5.5 (D-S55-13): ACTIVE of a slows_move action is unlocked (the
+## player walks at half speed through ctx.move_slowed).
 func _apply_movement() -> void:
 	if _player == null:
 		return
@@ -370,7 +404,10 @@ func _apply_movement() -> void:
 		ActionState.STARTUP:
 			_player.lock_movement(Vector2.ZERO)
 		ActionState.ACTIVE:
-			_player.lock_movement(dash_velocity(action, facing))
+			if action.slows_move:
+				_player.unlock_movement()
+			else:
+				_player.lock_movement(dash_velocity(action, facing))
 		_:
 			_player.unlock_movement()
 

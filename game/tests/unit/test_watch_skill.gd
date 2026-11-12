@@ -179,6 +179,12 @@ func test_begin_fight_clears_watch_state() -> void:
 	assert_false(_clock.ctx.watch_held)
 
 
+func test_begin_fight_clears_move_slowed() -> void:
+	_clock.ctx.move_slowed = true
+	_clock.begin_fight(1)
+	assert_false(_clock.ctx.move_slowed)
+
+
 func test_no_rng_draw() -> void:
 	var state_before: int = _clock.ctx.rng.state
 	_hold(0, 5)

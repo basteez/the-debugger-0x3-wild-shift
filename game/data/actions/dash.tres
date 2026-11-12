@@ -13,4 +13,4 @@ invuln_to = 8
 base_damage = 0
 cooldown_frames = 24
 move_tiles = 4.0
-cancel_into = PackedInt32Array(2)
+cancel_into = PackedInt32Array(2, 4)
