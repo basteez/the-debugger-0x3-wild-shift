@@ -366,7 +366,7 @@ This section uses the `fighting` genre guide's structure for frame data, combos,
 | **`;` Spit** | 3 | 20 frames (the `;` glows) | A projectile at 6 tiles/s, once every 6 s | — | — |
 
 - **Tutorial beats (duck; lines T1–T4 in the Duck line budget):**
-  1. "Q and E shift your bits. Only the two on the left are live; the rest are in code review." Appears as soon as control starts; the ring stays still until the first shift.
+  1. "Q or E shifts your bits. Go on, shift. It's waiting. Only the two on the left are live; the rest are in code review." (rewritten after the 2026-11-10 playtest, D-S44-2; GDD synced by Story 6.9, D-S69-3) Appears as soon as control starts; the ring stays still until the first shift.
   2. "See the semicolon? It's always the semicolon. Hit it when it opens."
   3. "J then K: Dash Strike. Two bits, one commit."
   4. At phase 2: "It refactored itself. Have you tried shifting it off and on again?"
@@ -446,7 +446,7 @@ This section uses the `fighting` genre guide's structure for frame data, combos,
 | # | Trigger | Line |
 |---|---|---|
 | 1 | Intro, panel 3 (hands over ATTACK and DASH) | "Quack. Explain the bug to me. Use these." |
-| 2 | T1 — Boss 1 start | "Q and E shift your bits. Only the two on the left are live; the rest are in code review." |
+| 2 | T1 — Boss 1 start | "Q or E shifts your bits. Go on, shift. It's waiting. Only the two on the left are live; the rest are in code review." |
 | 3 | T2 — first `;` approach | "See the semicolon? It's always the semicolon. Hit it when it opens." |
 | 4 | T3 — Dash Strike | "J then K: Dash Strike. Two bits, one commit." |
 | 5 | T4 — Boss 1 phase 2 | "It refactored itself. Have you tried shifting it off and on again?" |

@@ -3,6 +3,12 @@ extends GutTest
 
 const DATA_ROOT := "res://data/"
 const PLAYER_DEF_PATH := "res://data/player/player_def.tres"
+## Story 6.9 (B4): the shared text resources.
+const TEXT_DEF_PATHS: PackedStringArray = [
+	"res://data/text/fixed_lines.tres",
+	"res://data/text/screen_text.tres",
+	"res://data/text/sky_comments.tres",
+]
 
 
 ## Recursive list of .tres paths under `dir` (sorted for stable output).
@@ -22,6 +28,10 @@ func _tres_under(dir: String) -> PackedStringArray:
 func test_every_data_resource_validates() -> void:
 	var paths: PackedStringArray = _tres_under(DATA_ROOT)
 	assert_true(paths.has(PLAYER_DEF_PATH), "player_def.tres is found by the scan")
+	# Story 6.9 (B4): the shared text resources are Defs and are scanned like the others.
+	for text_path: String in TEXT_DEF_PATHS:
+		assert_true(paths.has(text_path), "%s is found by the scan" % text_path)
+		assert_true(load(text_path) is Def, "%s is a Def" % text_path)
 	for path: String in paths:
 		# Story 3.7 (G3): the MumbleVoice resource needs the mumble_speech GDExtension.
 		if path.ends_with("/duck_voice.tres") and not ClassDB.class_exists(&"MumbleVoice"):

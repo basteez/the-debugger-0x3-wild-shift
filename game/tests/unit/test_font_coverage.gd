@@ -71,6 +71,11 @@ func _used_codepoints() -> Dictionary[int, String]:
 	# Story 6.6 (AC 4, 7): the garbage bit `?` and the `reserved` label Reserved Write flashes.
 	texts.append(Register.glyph_of(Register.Bit.GARBAGE))
 	texts.append(RegisterPanel.RESERVED_LABEL)
+	# Story 6.9 (E3, AC 14): every string of the shared text resources and of the Ending text.
+	texts.append_array((load("res://data/text/fixed_lines.tres") as TextFixedLines).all_text())
+	texts.append_array((load("res://data/text/sky_comments.tres") as TextSkyComments).all_text())
+	texts.append_array((load("res://data/text/screen_text.tres") as TextScreenText).all_text())
+	texts.append_array((load("res://data/ending/ending_text.tres") as EndingText).all_text())
 	var used: Dictionary[int, String] = {}
 	for t: String in texts:
 		for i: int in t.length():

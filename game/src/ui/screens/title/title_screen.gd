@@ -5,8 +5,14 @@ extends Node2D
 
 enum Action { IGNORE, START, OPTION }
 
-const TITLE_TEXT := "The Debugger 0x03: Wild Shift"
-const PROMPT_TEXT := "press any key"
+## Story 6.9 (AC 10): the title line and the prompt are game text, read from data/text/screen_text.tres.
+const SCREEN_TEXT: TextScreenText = preload("res://data/text/screen_text.tres")
+static var TITLE_TEXT: String:
+	get:
+		return SCREEN_TEXT.title
+static var PROMPT_TEXT: String:
+	get:
+		return SCREEN_TEXT.prompt
 ## Pixel font at 2x (16-px glyph cells, Story 1.5 DC2). Y values are the top of each glyph row,
 ## on the 8-px grid; x is centred on the 640-px base and snapped to the 8-px grid.
 const TEXT_SCALE := 2

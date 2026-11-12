@@ -491,3 +491,10 @@ Story 1.3 AC9 / I-6 ("mumble-speech web check, moved to 3.7") is UNBLOCKED. Tizi
 - Review 6.8 (deferred): the 60-frame leave gate lets a player who keeps mashing skip the whole ending (spec D-S68-7); consider a longer gate or an earlier prompt after the 7.8 playtest.
 - Review 6.8 (deferred): `format_clear` is not capped at 59:59 (runs over 1 hour show 60:00+); `test_draw_is_ink_only` greps source only; `EndingScreen._physics_process` and `_unhandled_input` with a real Viewport are not exercised (tests drive `poll`); the clear-time integration assertion recomputes the same subtraction; ENDING entry while focus is lost is untested; the run reset is repeated in three `Game` places.
 - Review 6.8 (accepted): summary card stays on screen after frame 540 (D-S68-12); the owned nibble is always drawn full (D-S68-9); clear time excludes hit-stop and Breakpoint frames (D-S68-14, sim-frame clock).
+
+## Story 6.9 (Game text audit)
+
+- Review 6.9 (fixed): `TextFixedLines.validate` now requires the three boss ids as keys; typed-array construction in the validation test; stale sky-comment doc comment.
+- Review 6.9 (deferred): `fixed_lines.tres` entries are audited only (BossDef.fixed_line stays the runtime source, D-S69-2); `HarvestScreen` could read `FIXED_LINES.line_for` in a later cleanup.
+- Review 6.9 (deferred): `static var` getters replacing legacy `const` names cannot be used in const initializers or `match` patterns (accepted design call); sky comment fields are per-boss named, not an id map; `MAX_CHARS := 80` is not tied to `Hud.COLS`; no pixel-width check on intro captions, title and dead line; hint windows in the audit test come from three hard-coded boss paths, not `Defs`.
+- Review 6.9 (deferred): `MOVED_LITERALS` only matches exact quoted strings (a tripwire, not exhaustive); `press any key` still lives in `screen_text.tres`, `ending_text.tres` and the `EndingText` default; GDD HUD mock-up still shows the old truncated T1 wording; font-coverage appends are not asserted non-empty.

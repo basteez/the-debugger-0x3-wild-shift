@@ -16,12 +16,21 @@ const LOG_LINES := 6
 
 ## Top bar fallback while no boss is in the fight (D-S31-14); boss_header() replaces it otherwise.
 const TOP_BAR := "void fightPlaceholder() // hp ---"
-const SKY := "// TODO: this should terminate"
+## Story 6.9 (AC 7, 8, D-S69-1): the sky comments are game text, read from data/text/sky_comments.tres.
+const SKY_COMMENTS: TextSkyComments = preload("res://data/text/sky_comments.tres")
+## The default sky comment (Infinite Loop, every fight without its own, no boss). Read-only.
+static var SKY: String:
+	get:
+		return SKY_COMMENTS.default_comment
 ## Story 5.1 (AC 2, D-S51-4): the Null Pointer fight's sky comment (GDD sky comment list). Shown while
-## that boss is the HUD's boss; every other fight (and no boss) keeps SKY.
-const SKY_NULL_POINTER := "// FIXME: who owns this pointer?"
+## that boss is the HUD's boss; every other fight (and no boss) keeps SKY. Read-only.
+static var SKY_NULL_POINTER: String:
+	get:
+		return SKY_COMMENTS.null_pointer
 ## Story 6.3 (AC 3): the Segfault fight's sky comment, by boss id (the HUD never names its class).
-const SKY_SEGFAULT := "// HACK: do not read past this line"
+static var SKY_SEGFAULT: String:
+	get:
+		return SKY_COMMENTS.segfault
 ## Story 6.5 (AC 3, D-S65-8): the warning tell line, inverted (BG on INK) in the sky row for the
 ## whole SIGSEGV tell. wildshift8 covers printable ASCII, so lowercase stays.
 const WARNING_TELL_TEXT := "SIGSEGV incoming"

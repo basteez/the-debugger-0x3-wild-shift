@@ -4,7 +4,8 @@ extends GutTest
 
 const LINES_PATH := "res://data/duck/duck_lines.tres"
 const GDD: Dictionary[StringName, String] = {
-	# Story 4.4 (D-S44-2): T1 rewritten for the Infinite Loop start nudge.
+	# Story 4.4 (D-S44-2): T1 rewritten for the Infinite Loop start nudge. Story 6.9 (D-S69-3): the
+	# shipped text wins; the GDD Duck row 2 and tutorial beat 1 now read this exact string.
 	&"t1_shift": "Q or E shifts your bits. Go on, shift. It's waiting. Only the two on the left are live; the rest are in code review.",
 	&"t2_semicolon": "See the semicolon? It's always the semicolon. Hit it when it opens.",
 	&"t3_dash_strike": "J then K: Dash Strike. Two bits, one commit.",
