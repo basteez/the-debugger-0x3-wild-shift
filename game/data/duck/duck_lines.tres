@@ -1,7 +1,12 @@
-[gd_resource type="Resource" script_class="DuckLinesDef" load_steps=12 format=3]
+[gd_resource type="Resource" script_class="DuckLinesDef" load_steps=13 format=3]
 
 [ext_resource type="Script" path="res://src/ui/duck/duck_lines_def.gd" id="1_dlines"]
 [ext_resource type="Script" path="res://src/ui/duck/duck_line_def.gd" id="2_dline"]
+
+[sub_resource type="Resource" id="Resource_intro"]
+script = ExtResource("2_dline")
+id = &"intro_handover"
+text = "Quack. Explain the bug to me. Use these."
 
 [sub_resource type="Resource" id="Resource_t1"]
 script = ExtResource("2_dline")
@@ -65,4 +70,4 @@ text = "Hold R. Pointers point *somewhere*."
 
 [resource]
 script = ExtResource("1_dlines")
-entries = Array[ExtResource("2_dline")]([SubResource("Resource_t1"), SubResource("Resource_t2"), SubResource("Resource_t3"), SubResource("Resource_t4"), SubResource("Resource_h1"), SubResource("Resource_hint_a_d"), SubResource("Resource_hint_d_a"), SubResource("Resource_hint_d_l"), SubResource("Resource_hint_n_a"), SubResource("Resource_hint_l_n"), SubResource("Resource_n1"), SubResource("Resource_n2")])
+entries = Array[ExtResource("2_dline")]([SubResource("Resource_intro"), SubResource("Resource_t1"), SubResource("Resource_t2"), SubResource("Resource_t3"), SubResource("Resource_t4"), SubResource("Resource_h1"), SubResource("Resource_hint_a_d"), SubResource("Resource_hint_d_a"), SubResource("Resource_hint_d_l"), SubResource("Resource_hint_n_a"), SubResource("Resource_hint_l_n"), SubResource("Resource_n1"), SubResource("Resource_n2")])

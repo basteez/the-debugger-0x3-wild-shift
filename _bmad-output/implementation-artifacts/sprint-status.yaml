@@ -152,7 +152,7 @@ development_status:
   6-4-corrupted-tiles-corrupt-memory-and-core-dump: done # cut ladder #4
   6-5-sigsegv-register-corruption: done # cut ladder #4
   6-6-reserved-write-cut-ladder-1: done # cut ladder #1 (FeatureFlags.reserved_write) — first boss cut
-  6-7-intro-sequence: backlog
+  6-7-intro-sequence: done
   6-8-ending-sequence: backlog # stretch summary (clear time / hits) = first-to-drop
   6-9-game-text-audit: backlog
   epic-6-retrospective: optional

@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" path="res://src/ui/duck/duck_clip_def.gd" id="1_nlixs"]
 [ext_resource type="AudioStream" path="res://assets/audio/duck/t1_shift.wav" id="2_altxm"]
+[ext_resource type="AudioStream" path="res://assets/audio/duck/intro_handover.wav" id="2_cblg3"]
 [ext_resource type="AudioStream" path="res://assets/audio/duck/t2_semicolon.wav" id="3_55ltk"]
 [ext_resource type="AudioStream" path="res://assets/audio/duck/t3_dash_strike.wav" id="4_qhd1u"]
 [ext_resource type="AudioStream" path="res://assets/audio/duck/t4_phase_two.wav" id="5_grddf"]
@@ -17,71 +18,77 @@
 
 [sub_resource type="Resource" id="Resource_3244u"]
 script = ExtResource("1_nlixs")
+id = &"intro_handover"
+stream = ExtResource("2_cblg3")
+char_times = PackedFloat32Array(0, 0.05, 0.1, 0.15, 0.2, 0.5, 0.5, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.9, 0.9, 0.95, 1, 1.1, 1.1, 1.15, 1.2, 1.3, 1.3, 1.35, 1.45, 1.45, 1.5, 1.8, 1.8, 1.8, 1.85, 1.9, 2, 2, 2.05, 2.1, 2.15, 2.2, 2.275)
+
+[sub_resource type="Resource" id="Resource_5sgk5"]
+script = ExtResource("1_nlixs")
 id = &"t1_shift"
 stream = ExtResource("2_altxm")
 char_times = PackedFloat32Array(0, 0.1, 0.1, 0.15, 0.25, 0.25, 0.35, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.7, 0.7, 0.75, 0.8, 0.85, 0.95, 0.95, 1, 1.05, 1.1, 1.4, 1.4, 1.4, 1.45, 1.55, 1.55, 1.6, 1.8, 1.8, 1.8, 1.85, 1.9, 1.95, 2, 2.3, 2.3, 2.3, 2.35, 2.4, 2.45, 2.55, 2.55, 2.6, 2.65, 2.7, 2.75, 2.8, 2.85, 3.15, 3.15, 3.15, 3.2, 3.25, 3.3, 3.4, 3.4, 3.45, 3.5, 3.6, 3.6, 3.65, 3.7, 3.8, 3.8, 3.85, 3.95, 3.95, 4, 4.05, 4.15, 4.15, 4.2, 4.25, 4.3, 4.4, 4.4, 4.45, 4.5, 4.6, 4.6, 4.65, 4.7, 4.75, 4.95, 4.95, 4.95, 5, 5.05, 5.15, 5.15, 5.2, 5.25, 5.3, 5.4, 5.4, 5.45, 5.5, 5.6, 5.6, 5.65, 5.75, 5.75, 5.8, 5.85, 5.9, 6, 6, 6.05, 6.1, 6.15, 6.2, 6.25, 6.325)
 
-[sub_resource type="Resource" id="Resource_5sgk5"]
+[sub_resource type="Resource" id="Resource_ubiw4"]
 script = ExtResource("1_nlixs")
 id = &"t2_semicolon"
 stream = ExtResource("3_55ltk")
 char_times = PackedFloat32Array(0, 0.05, 0.1, 0.2, 0.2, 0.25, 0.3, 0.4, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 1.1, 1.1, 1.1, 1.15, 1.2, 1.25, 1.35, 1.35, 1.4, 1.45, 1.5, 1.55, 1.6, 1.7, 1.7, 1.75, 1.8, 1.9, 1.9, 1.95, 2, 2.05, 2.1, 2.15, 2.2, 2.25, 2.3, 2.6, 2.6, 2.6, 2.65, 2.7, 2.8, 2.8, 2.85, 2.95, 2.95, 3, 3.05, 3.1, 3.2, 3.2, 3.25, 3.35, 3.35, 3.4, 3.45, 3.5, 3.55, 3.625)
 
-[sub_resource type="Resource" id="Resource_ubiw4"]
+[sub_resource type="Resource" id="Resource_1awxp"]
 script = ExtResource("1_nlixs")
 id = &"t3_dash_strike"
 stream = ExtResource("4_qhd1u")
 char_times = PackedFloat32Array(0, 0.1, 0.1, 0.15, 0.2, 0.25, 0.35, 0.35, 0.55, 0.55, 0.55, 0.6, 0.65, 0.7, 0.8, 0.8, 0.85, 0.9, 0.95, 1, 1.05, 1.35, 1.35, 1.35, 1.4, 1.45, 1.55, 1.55, 1.6, 1.65, 1.7, 1.9, 1.9, 1.9, 1.95, 2, 2.1, 2.1, 2.15, 2.2, 2.25, 2.3, 2.35, 2.425)
 
-[sub_resource type="Resource" id="Resource_1awxp"]
+[sub_resource type="Resource" id="Resource_jto42"]
 script = ExtResource("1_nlixs")
 id = &"t4_phase_two"
 stream = ExtResource("5_grddf")
 char_times = PackedFloat32Array(0, 0.05, 0.15, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.7, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.25, 1.25, 1.25, 1.3, 1.35, 1.4, 1.5, 1.5, 1.55, 1.6, 1.7, 1.7, 1.75, 1.8, 1.85, 1.9, 2, 2, 2.05, 2.1, 2.15, 2.2, 2.25, 2.3, 2.35, 2.45, 2.45, 2.5, 2.6, 2.6, 2.65, 2.7, 2.8, 2.8, 2.85, 2.9, 3, 3, 3.05, 3.15, 3.15, 3.2, 3.25, 3.3, 3.35, 3.425)
 
-[sub_resource type="Resource" id="Resource_jto42"]
+[sub_resource type="Resource" id="Resource_u7wnx"]
 script = ExtResource("1_nlixs")
 id = &"harvest_shared"
 stream = ExtResource("6_altxm")
 char_times = PackedFloat32Array(0, 0.05, 0.1, 0.2, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.85, 0.85, 0.85, 0.9, 1, 1, 1.05, 1.1, 1.15, 1.2, 1.25, 1.3, 1.4, 1.4, 1.5, 1.5, 1.55, 1.6, 1.8, 1.8, 1.8, 1.85, 1.9, 2, 2, 2.05, 2.1, 2.15, 2.2, 2.25, 2.3, 2.5, 2.5, 2.5, 2.55, 2.6, 2.7, 2.7, 2.75, 2.8, 2.85, 2.9, 2.95, 3.025)
 
-[sub_resource type="Resource" id="Resource_u7wnx"]
+[sub_resource type="Resource" id="Resource_chep2"]
 script = ExtResource("1_nlixs")
 id = &"hint_a_d"
 stream = ExtResource("7_qhd1u")
 char_times = PackedFloat32Array(0, 0.05, 0.1, 0.15, 0.2, 0.5, 0.5, 0.5, 0.55, 0.6, 0.65, 0.75, 0.75, 0.8, 0.85, 0.9, 0.95, 1, 1.2, 1.2, 1.2, 1.25, 1.3, 1.375)
 
-[sub_resource type="Resource" id="Resource_chep2"]
+[sub_resource type="Resource" id="Resource_cdeig"]
 script = ExtResource("1_nlixs")
 id = &"hint_d_a"
 stream = ExtResource("8_grddf")
 char_times = PackedFloat32Array(0, 0.05, 0.1, 0.15, 0.2, 0.5, 0.5, 0.5, 0.55, 0.6, 0.65, 0.75, 0.75, 0.8, 0.85, 0.9, 0.95, 1, 1.2, 1.2, 1.2, 1.25, 1.3, 1.375)
 
-[sub_resource type="Resource" id="Resource_cdeig"]
+[sub_resource type="Resource" id="Resource_dx8xl"]
 script = ExtResource("1_nlixs")
 id = &"hint_d_l"
 stream = ExtResource("9_grddf")
 char_times = PackedFloat32Array(0, 0.05, 0.1, 0.15, 0.2, 0.5, 0.5, 0.5, 0.55, 0.6, 0.65, 0.75, 0.75, 0.8, 0.85, 0.9, 0.95, 1, 1.2, 1.2, 1.2, 1.25, 1.3, 1.375)
 
-[sub_resource type="Resource" id="Resource_dx8xl"]
+[sub_resource type="Resource" id="Resource_xhah1"]
 script = ExtResource("1_nlixs")
 id = &"hint_n_a"
 stream = ExtResource("10_1a20v")
 char_times = PackedFloat32Array(0, 0.05, 0.1, 0.15, 0.2, 0.5, 0.5, 0.5, 0.55, 0.6, 0.65, 0.75, 0.75, 0.8, 0.85, 0.9, 0.95, 1, 1.2, 1.2, 1.2, 1.25, 1.3, 1.375)
 
-[sub_resource type="Resource" id="Resource_xhah1"]
+[sub_resource type="Resource" id="Resource_utmme"]
 script = ExtResource("1_nlixs")
 id = &"hint_l_n"
 stream = ExtResource("11_cblg3")
 char_times = PackedFloat32Array(0, 0.05, 0.1, 0.15, 0.2, 0.5, 0.5, 0.5, 0.55, 0.6, 0.65, 0.75, 0.75, 0.8, 0.85, 0.9, 0.95, 1, 1.2, 1.2, 1.2, 1.25, 1.3, 1.375)
 
-[sub_resource type="Resource" id="Resource_utmme"]
+[sub_resource type="Resource" id="Resource_hwem3"]
 script = ExtResource("1_nlixs")
 id = &"n1_breakpoint"
 stream = ExtResource("10_a7f1e")
 char_times = PackedFloat32Array(0, 0.05, 0.1, 0.15, 0.2, 0.4, 0.4, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 1.15, 1.15, 1.15, 1.2, 1.25, 1.3, 1.4, 1.4, 1.45, 1.5, 1.55, 1.6, 1.8, 1.8, 1.8, 1.85, 1.9, 2, 2, 2.05, 2.1, 2.15, 2.2, 2.5, 2.5, 2.5, 2.55, 2.6, 2.65, 2.7, 2.75, 2.8, 3, 3, 3, 3.1, 3.1, 3.15, 3.2, 3.25, 3.3, 3.35, 3.4, 3.45, 3.55, 3.55, 3.6, 3.65, 3.7, 3.8, 3.8, 3.85, 3.9, 3.95, 4, 4.075)
 
-[sub_resource type="Resource" id="Resource_hwem3"]
+[sub_resource type="Resource" id="Resource_0l4fc"]
 script = ExtResource("1_nlixs")
 id = &"n2_hold_r"
 stream = ExtResource("11_qlkk5")
@@ -89,4 +96,4 @@ char_times = PackedFloat32Array(0, 0.05, 0.1, 0.15, 0.25, 0.25, 0.55, 0.55, 0.55
 
 [resource]
 script = ExtResource("6_65bou")
-entries = Array[ExtResource("1_nlixs")]([SubResource("Resource_3244u"), SubResource("Resource_5sgk5"), SubResource("Resource_ubiw4"), SubResource("Resource_1awxp"), SubResource("Resource_jto42"), SubResource("Resource_u7wnx"), SubResource("Resource_chep2"), SubResource("Resource_cdeig"), SubResource("Resource_dx8xl"), SubResource("Resource_xhah1"), SubResource("Resource_utmme"), SubResource("Resource_hwem3")])
+entries = Array[ExtResource("1_nlixs")]([SubResource("Resource_3244u"), SubResource("Resource_5sgk5"), SubResource("Resource_ubiw4"), SubResource("Resource_1awxp"), SubResource("Resource_jto42"), SubResource("Resource_u7wnx"), SubResource("Resource_chep2"), SubResource("Resource_cdeig"), SubResource("Resource_dx8xl"), SubResource("Resource_xhah1"), SubResource("Resource_utmme"), SubResource("Resource_hwem3"), SubResource("Resource_0l4fc")])

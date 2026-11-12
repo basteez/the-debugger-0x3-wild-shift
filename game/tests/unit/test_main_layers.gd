@@ -73,12 +73,14 @@ func test_arena_and_hud_visible_only_in_fight() -> void:
 		main.apply_flow_state(state, 0)
 		var in_fight: bool = state == GameScript.FlowState.FIGHT
 		var harvest: bool = state == GameScript.FlowState.HARVEST
+		# Story 6.7 (D-S67-2, AC 3): INTRO shows the duck bubble only, like HARVEST; no arena.
+		var duck_only: bool = harvest or state == GameScript.FlowState.INTRO
 		assert_eq(main.get_node(^"Arena").visible, in_fight, "arena in state %d" % state)
 		# Story 3.8 (D-S38-16): HARVEST shows the HUD in duck-only mode (the harvest line).
-		assert_eq(main.get_node(^"Hud").visible, in_fight or harvest, "hud in state %d" % state)
-		assert_eq(main.hud.is_duck_only(), harvest, "duck-only HUD in state %d" % state)
+		assert_eq(main.get_node(^"Hud").visible, in_fight or duck_only, "hud in state %d" % state)
+		assert_eq(main.hud.is_duck_only(), duck_only, "duck-only HUD in state %d" % state)
 		assert_true(main.hud.duck_bubble.visible, "the bubble itself is never hidden")
-		if harvest:
+		if duck_only:
 			assert_false(main.hud.register_panel.visible, "no in-fight register in HARVEST (D-S38-5)")
 			assert_false(main.hp_readout.visible, "no HP readout in HARVEST")
 			assert_false(main.hud.frame.visible, "no boss header in HARVEST (D-S38-13)")
@@ -88,8 +90,12 @@ func test_screen_for_each_state() -> void:
 	var main: Node2D = _main()
 	main.apply_flow_state(GameScript.FlowState.TITLE, 0)
 	assert_true(_screen_of(main) is TitleScreen)
+	main.apply_flow_state(GameScript.FlowState.INTRO, 0)
+	assert_true(_screen_of(main) is IntroScreen, "INTRO shows the real screen (6.7), no placeholder")
+	assert_eq(_screen_of(main).name, &"IntroScreen")
+	assert_eq(_screen_of(main).get_parent(), main.get_node(^"Screens"))
+	assert_eq(PlaceholderScreen.lines_for(GameScript.FlowState.INTRO, 0).size(), 0, "no INTRO placeholder text")
 	var labels: Dictionary[int, String] = {
-		GameScript.FlowState.INTRO: "INTRO",
 		GameScript.FlowState.FIGHT: "FIGHT 2",
 		GameScript.FlowState.ENDING: "ENDING",
 	}

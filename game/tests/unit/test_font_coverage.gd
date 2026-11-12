@@ -51,6 +51,8 @@ func _used_codepoints() -> Dictionary[int, String]:
 	texts.append_array(harvest.text_rows())
 	harvest.free()
 	texts.append(HarvestScreen.FIXED_FALLBACK)
+	# Story 6.7 (D5): the Intro's panel captions and its glyph tear row.
+	texts.append_array(IntroScreen.text_rows())
 	# Story 6.3 (AC 23, D-S63-6): the Segfault dragon's glyphs, its sky line, header and fixed line.
 	var segfault_def: BossDef = load("res://data/bosses/segfault/boss_def.tres")
 	texts.append(SegfaultBody.GLYPHS)
