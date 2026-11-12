@@ -45,6 +45,9 @@ extends Def
 ## Story 5.5 (D-S55-4): a hit rejected by this action's invulnerable frames arms Clean Catch
 ## (PlayerHealth.apply_hit -> ActionStateMachine.arm_clean_catch). Null Dodge only.
 @export var arms_clean_catch: bool = false
+## Story 6.1 (D-S61-3): > 0 = starting this action leaves a Ghost Echo decoy that lives this many
+## sim frames. The FSM only bumps decoy_spawn_serial; GhostEchoSystem owns the decoy. 0 = none.
+@export var decoy_frames: int = 0
 
 
 func total_frames() -> int:
@@ -68,6 +71,8 @@ func validate() -> PackedStringArray:
 		out.append("base_damage must be >= 0 (got %d)" % base_damage)
 	if cooldown_frames < 0:
 		out.append("cooldown_frames must be >= 0 (got %d)" % cooldown_frames)
+	if decoy_frames < 0:
+		out.append("decoy_frames must be >= 0 (got %d)" % decoy_frames)
 	if hitstop_frames < 0:
 		out.append("hitstop_frames must be >= 0 (got %d)" % hitstop_frames)
 	if hitstop_frames > 8:

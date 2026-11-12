@@ -22,6 +22,8 @@ const DASH_STRIKE: ActionDef = preload("res://data/actions/dash_strike.tres")
 const ECHO_DASH: ActionDef = preload("res://data/actions/echo_dash.tres")
 ## Story 5.5: NULL's solo action (intangible 30 frames, slows_move, arms_clean_catch).
 const NULL_DODGE: ActionDef = preload("res://data/actions/null_dodge.tres")
+## Story 6.1: the L->N combo's action (intangible 30 frames, leaves a 120-frame decoy).
+const GHOST_ECHO: ActionDef = preload("res://data/actions/ghost_echo.tres")
 ## Ordered combo lookup (Story 2.6, AD-02): COMBOS.get_combo(first, second).
 const COMBOS: ComboTable = preload("res://data/combos/combo_table.tres")
 ## Story 4.3 (AD-12, D-S43-1): the cut-ladder switches, read once by the startup wiring.

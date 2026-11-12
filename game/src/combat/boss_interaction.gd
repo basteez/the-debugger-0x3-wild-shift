@@ -1,8 +1,8 @@
 class_name BossInteraction
 extends RefCounted
 ## One way the player affected the boss in a tick (Story 3.2, GDD D-017, NP-4). CombatResolver
-## produces HIT and (Story 4.2, Echo Dash) PASS_THROUGH; DECOY_STRUCK (Ghost Echo, 6.1) has no
-## producer yet and exists only for the completion rule and its tests (D-S32-19).
+## produces HIT, (Story 4.2, Echo Dash) PASS_THROUGH and (Story 6.1, Ghost Echo, D-S61-8)
+## DECOY_STRUCK, when a boss attack's hazard strikes the live Ghost Echo decoy.
 
 enum Kind { HIT, PASS_THROUGH, DECOY_STRUCK }
 

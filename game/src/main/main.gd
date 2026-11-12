@@ -106,6 +106,10 @@ func _build_layers() -> void:
 	arena.set_watch_enabled(feature_flags.watch) # Story 5.4 (D-S54-3): the one startup read
 	Game.segfault_enabled = feature_flags.segfault # Story 5.6 review: one startup read for every cut flag
 	add_child(arena)
+	# Story 6.1 (D-S61-10): the Ghost Echo decoy placeholder, under the `@` (presentation/, so Main).
+	var ghost_view := GhostDecoyView.new(arena.ghost_echo.decoy)
+	ghost_view.name = &"GhostDecoyView"
+	arena.add_child(ghost_view)
 	# The player view lives in presentation/, so Main (not the arena/ sim folder) attaches it.
 	var player_view := PlayerView.new(arena.player)
 	player_view.health = arena.health

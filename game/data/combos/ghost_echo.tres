@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="ComboDef" format=3]
+
+; Story 6.1: L->N Ghost Echo. Replaces Null Dodge (NULL's solo) on the [L, N] window; NULL's
+; cooldown applies (D-S26-3). Not gap_free (no gap rule in the GDD for L->N). Shipped globally
+; (D-S61-1, no per-boss gating).
+
+[ext_resource type="Script" path="res://src/register/combo_def.gd" id="1_cdef"]
+[ext_resource type="Resource" path="res://data/actions/ghost_echo.tres" id="2_action"]
+
+[resource]
+script = ExtResource("1_cdef")
+first = 3
+second = 4
+action = ExtResource("2_action")
+display_name = "Ghost Echo"
+gap_free = false

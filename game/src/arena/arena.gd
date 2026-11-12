@@ -71,10 +71,13 @@ var actions: ActionStateMachine = ActionStateMachine.new(SimClock.buffer, player
 var combat: CombatResolver = CombatResolver.new(actions, player)
 ## Player HP and post-hit invulnerability (Story 2.9): COMBAT phase, registered after `combat`.
 var health: PlayerHealth = PlayerHealth.new(PLAYER_DEF, actions)
+## Story 6.1 (D-S61-3): the Ghost Echo decoy's owner (BOSS_HAZARDS, registered before any boss).
+## Its decoy is handed to CombatResolver (DECOY_STRUCK) and read by the aim source below.
+var ghost_echo: GhostEchoSystem = _make_ghost_echo()
 ## The `/* test */` dummy (Story 2.7): null unless a fight was entered with_practice (debug only).
 var practice_target: PracticeTarget = null
-## What bosses read from the arena (Story 3.1, D-S31-10): aim at the player by default (the Ghost
-## Echo decoy replaces target_source in 6.1), the player's own position for body contact, and the
+## What bosses read from the arena (Story 3.1, D-S31-10): aim at the live Ghost Echo decoy, else at
+## the player (Story 6.1, D-S61-7), the player's own position for body contact, and the
 ## PlayerEffects queue (NP-3), ticked in PLAYER_EFFECTS while the arena is in the tree.
 var arena_context: ArenaContext = _make_arena_context()
 ## The boss of the fight (Story 3.1; Story 3.3 loader, D-S33-13): null unless the fight was
@@ -105,6 +108,7 @@ func _enter_tree() -> void:
 	SimClock.register_system(combat)
 	SimClock.register_system(health)
 	SimClock.register_system(arena_context.player_effects)
+	SimClock.register_system(ghost_echo) # before the boss: same phase, registration order
 	if boss != null:
 		SimClock.register_system(boss)
 	if breakpoint_skill != null:
@@ -121,6 +125,8 @@ func _exit_tree() -> void:
 	SimClock.unregister_system(combat)
 	SimClock.unregister_system(health)
 	SimClock.unregister_system(arena_context.player_effects)
+	SimClock.unregister_system(ghost_echo)
+	ghost_echo.clear() # a decoy never outlives the arena's presence in the tree (review 6.1)
 	if boss != null:
 		SimClock.unregister_system(boss)
 	if breakpoint_skill != null:
@@ -155,6 +161,7 @@ func enter_fight(fight_start: PackedInt32Array, with_practice: bool = false, p_b
 	health.set_active(true)
 	_set_practice(with_practice)
 	arena_context.player_effects.clear()
+	ghost_echo.clear() # Story 6.1 (D-S61-6): fight start and retry
 	_set_boss(p_boss_def_path)
 	if breakpoint_skill != null:
 		breakpoint_skill.reset_for_fight(breakpoint_unlocked)
@@ -182,6 +189,7 @@ func leave_fight() -> void:
 	actions.set_active(false)
 	health.set_active(false)
 	_set_practice(false) # a stale target never outlives its fight (review 2.7)
+	ghost_echo.clear() # Story 6.1 (D-S61-6): death, harvest (defeat) and any other exit
 	combat.boss = null # D-S32-23
 	if boss != null:
 		boss.set_active(false)
@@ -291,15 +299,31 @@ func _remove_boss() -> void:
 	boss = null
 
 
-## The default arena context: aim and contact both follow the player; the boss reads the register's
-## shift count (Story 3.3).
+## Builds the Ghost Echo owner and hands its decoy to the resolver (Story 6.1, D-S61-3).
+func _make_ghost_echo() -> GhostEchoSystem:
+	var system := GhostEchoSystem.new(actions)
+	combat.ghost = system.decoy
+	return system
+
+
+## The default arena context: aim at the live Ghost Echo decoy, else the player (Story 6.1,
+## D-S61-7); contact and facing always follow the player; the boss reads the register's shift count
+## (Story 3.3).
 func _make_arena_context() -> ArenaContext:
 	var ctx := ArenaContext.new()
-	ctx.target_source = func() -> Vector2: return player.position_px
+	ctx.target_source = func() -> Vector2: return aim_point()
 	ctx.contact_source = func() -> Vector2: return player.position_px
 	ctx.shift_count = func() -> int: return register.shift_serial # read-only (D-S33-6, NP-3)
 	ctx.facing_source = func() -> Vector2i: return player.facing # Story 5.2 (D-S52-2), read-only
 	return ctx
+
+
+## The bosses' aim point (Story 6.1, D-S61-7): the live Ghost Echo decoy, else the player.
+func aim_point() -> Vector2:
+	var decoy: GhostDecoy = ghost_echo.decoy if ghost_echo != null else null
+	if decoy != null and decoy.is_live():
+		return decoy.position_px
+	return player.position_px
 
 
 ## Drops the previous fight's cached frame so the view never shows the old position for a frame.

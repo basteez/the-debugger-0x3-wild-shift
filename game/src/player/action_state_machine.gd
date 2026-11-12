@@ -57,6 +57,13 @@ var stun_left: int = 0
 ## action's invulnerable frames). Written only by arm_clean_catch / consume_clean_catch /
 ## reset_for_fight; CombatResolver passes it to DamageCalc and consumes it on a damaging hit.
 var clean_catch_armed: bool = false
+## Story 6.1 (D-S61-3): incremented on every start of an action with decoy_frames > 0 (Ghost Echo),
+## never reset in a session. GhostEchoSystem spawns a decoy on each change; the FSM holds no decoy.
+var decoy_spawn_serial: int = 0
+## The spawn point (action_origin_px of that start, D-S61-11), its window and lifetime.
+var decoy_origin_px: Vector2 = Vector2.ZERO
+var decoy_window: Vector2i = Vector2i.ZERO
+var decoy_frames: int = 0
 
 ## The serial at the running J action's start; the link opens only if no shift happened since (review).
 var _start_serial: int = -1
@@ -293,6 +300,12 @@ func _start(request: ActionRequest, serial: int, window: Vector2i = Vector2i.ZER
 	action_origin_px = _player.position_px if _player != null else Vector2.ZERO
 	action_serial += 1
 	_start_serial = serial
+	if action.decoy_frames > 0:
+		# Story 6.1 (D-S61-3, D-S61-11): publish the spawn; GhostEchoSystem builds the decoy.
+		decoy_origin_px = action_origin_px
+		decoy_window = action_window
+		decoy_frames = action.decoy_frames
+		decoy_spawn_serial += 1
 	var cooldown: int = request.def.cooldown_frames
 	if request.combo != null:
 		# D-S26-3: the replaced solo action's cooldown applies to the second bit.

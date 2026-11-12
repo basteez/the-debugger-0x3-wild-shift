@@ -4,7 +4,8 @@
 [ext_resource type="Script" path="res://src/register/combo_def.gd" id="2_cdef"]
 [ext_resource type="Resource" path="res://data/combos/dash_strike.tres" id="3_dash_strike"]
 [ext_resource type="Resource" path="res://data/combos/echo_dash.tres" id="4_echo_dash"]
+[ext_resource type="Resource" path="res://data/combos/ghost_echo.tres" id="5_ghost_echo"]
 
 [resource]
 script = ExtResource("1_ctab")
-combos = Array[ExtResource("2_cdef")]([ExtResource("3_dash_strike"), ExtResource("4_echo_dash")])
+combos = Array[ExtResource("2_cdef")]([ExtResource("3_dash_strike"), ExtResource("4_echo_dash"), ExtResource("5_ghost_echo")])

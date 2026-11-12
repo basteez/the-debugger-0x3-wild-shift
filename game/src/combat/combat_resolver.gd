@@ -24,6 +24,12 @@ extends SimSystem
 ## Clean Catch factor (x1.5 on top of the state) for every hit of the tick, boss and practice
 ## targets alike; it is consumed once, after the tick's hits, only when one of them dealt damage > 0.
 ## Whiffs, decoy dispels and pass-throughs never reach the damage path, so they keep it armed.
+## Story 6.1 (D-S61-8, D-S61-9): first in every tick, whatever the player is doing, a live Ghost Echo
+## decoy (`ghost`) under the boss's ACTIVE attack hazard (BossController.attack_hazard_hit, a point
+## test) produces one BossInteraction.DECOY_STRUCK on the decoy's window -> WeakWindowTracker ->
+## Patched on a match, and the decoy is removed. No damage, no hit_landed, no hit-stop. The player's
+## hits, the Null Pointer decoy dispel and the whiff rule never see the Ghost decoy. A defeated boss
+## clears it (D-S61-6).
 
 ## Story 5.3 (D-S53-6): the NullPointerException stun length in sim frames.
 const NPE_STUN_FRAMES := 20
@@ -36,6 +42,8 @@ var player: Player
 var targets: Array[PracticeTarget] = []
 ## The fight's boss (Story 3.2, D-S32-23): set and cleared by the Arena; null = no boss.
 var boss: BossController = null
+## Story 6.1 (D-S61-3): the Ghost Echo decoy, set by the Arena (GhostEchoSystem.decoy); null = none.
+var ghost: GhostDecoy = null
 ## Story 5.3: ActionStateMachine.action_serial of the last action that landed anything (boss hit,
 ## decoy dispel, practice target hit); -1 = none. Read by the whiff rule.
 var _landed_serial: int = -1
@@ -49,6 +57,7 @@ func _init(p_actions: ActionStateMachine = null, p_player: Player = null) -> voi
 
 ## One world frame (only SimClock calls this).
 func tick(_ctx: SimContext) -> void:
+	_strike_ghost()
 	if actions == null or actions.state != ActionStateMachine.ActionState.ACTIVE:
 		return
 	var def: ActionDef = actions.action
@@ -92,6 +101,30 @@ func tick(_ctx: SimContext) -> void:
 	if clean and dealt > 0:
 		actions.consume_clean_catch()
 	SimClock.request_hitstop(hitstop)
+
+
+## Story 6.1 (D-S61-8): DECOY_STRUCK. A live decoy under the boss's ACTIVE attack hazard (point
+## test at its centre) is struck once: the tracker decides Patched (the only writer), the decoy is
+## removed. Returns true when struck. No damage path, no hit_landed, no hit-stop.
+func _strike_ghost() -> bool:
+	if ghost == null or not ghost.is_live() or boss == null:
+		return false
+	if boss.state == BossController.BossState.DEFEATED:
+		ghost.clear() # D-S61-6: a defeat clears it
+		return false
+	if not boss.attack_hazard_hit(ghost.position_px):
+		return false
+	var interactions: Array[BossInteraction] = [
+		BossInteraction.new(BossInteraction.Kind.DECOY_STRUCK, ghost.window_pair),
+	]
+	if WeakWindowTracker.process(interactions, boss.current_weak_window()):
+		boss.weak_window.apply_patched(WeakWindowTracker.PATCHED_FRAMES)
+		if Debug.enabled:
+			Log.debug(&"combat", "patched %s by ghost decoy" % boss.def.boss_id)
+		EventBus.patched_applied.emit(boss.def.boss_id, WeakWindowTracker.PATCHED_FRAMES)
+	ghost.clear()
+	Log.debug(&"combat", "ghost decoy struck")
+	return true
 
 
 ## Story 5.3 (AC 13-17, D-S53-6, D-S53-11): NullPointerException. On the last ACTIVE frame of a

@@ -5,8 +5,8 @@ extends RefCounted
 ## body only, Story 3.4 D-S34-10), and the PlayerEffects queue. No Player or Register reference is held. Story 3.3 (D-S33-6): the
 ## register's shift count, read-only, through an injectable source.
 
-## Aim-point source. Arena sets it to the player's position_px; Ghost Echo (6.1) swaps in the
-## decoy. Default: the play-area centre (headless tests without an arena).
+## Aim-point source. Arena sets it to the live Ghost Echo decoy's position, else the player's
+## position_px (Story 6.1, D-S61-7). Default: the play-area centre (headless tests without an arena).
 var target_source: Callable = _default_target
 ## The real player's position for body contact (never the decoy, [design call] D-S31-21).
 var contact_source: Callable = _default_target

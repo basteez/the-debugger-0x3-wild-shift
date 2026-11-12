@@ -1,0 +1,28 @@
+[gd_resource type="Resource" script_class="ActionDef" format=3]
+
+; Story 6.1: Ghost Echo, the L->N combo's action (GDD 0/30/8). Replaces Null Dodge on the [L, N]
+; window; NULL's 120-frame cooldown applies (D-S26-3). Intangible on frames 1-30 (the existing
+; invulnerable-frame path, D-S61-2), hits nothing, does not move, does not arm Clean Catch. On its
+; start it leaves a 120-frame decoy at the start point that bosses aim at (decoy_frames, D-S61-3).
+
+[ext_resource type="Script" path="res://src/player/action_def.gd" id="1_adef"]
+
+[resource]
+script = ExtResource("1_adef")
+id = &"ghost_echo"
+startup_frames = 0
+active_frames = 30
+recovery_frames = 8
+invuln_from = 1
+invuln_to = 30
+base_damage = 0
+cooldown_frames = 0
+move_tiles = 0.0
+hitstop_frames = 0
+echoable = false
+echo_action = false
+redirectable = false
+pass_through = false
+slows_move = false
+arms_clean_catch = false
+decoy_frames = 120

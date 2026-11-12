@@ -1,5 +1,5 @@
 # generated: 2026-11-06
-# last_updated: 2026-11-11
+# last_updated: 2026-11-12
 # project: github-gameoff-2026
 # project_key: NOKEY
 # tracking_system: file-system
@@ -81,7 +81,7 @@
 #     basteez/mumble-speech#32 resolved in v0.3.0 (2026-11-07); fallback = pre-render backend.
 
 generated: 2026-11-06
-last_updated: 2026-11-11
+last_updated: 2026-11-12
 project: github-gameoff-2026
 project_key: NOKEY
 tracking_system: file-system
@@ -145,8 +145,8 @@ development_status:
   epic-5-retrospective: optional
 
   # Epic 6: Segfault, Intro & Ending — window Nov 22–25
-  epic-6: backlog
-  6-1-ghost-echo-combo: backlog
+  epic-6: in-progress
+  6-1-ghost-echo-combo: done
   6-2-dereference-combo: backlog
   6-3-segfault-body-and-access-violation: backlog # cut ladder #4 (FeatureFlags.segfault)
   6-4-corrupted-tiles-corrupt-memory-and-core-dump: backlog # cut ladder #4
