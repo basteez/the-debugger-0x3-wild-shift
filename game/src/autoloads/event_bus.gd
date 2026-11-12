@@ -9,6 +9,11 @@ signal pause_toggled(paused: bool)
 ## (two bit ids), the whole ring after the shift, and who shifted it (&"player"; boss effects later).
 @warning_ignore("unused_signal")
 signal register_shifted(direction: int, window: Vector2i, ring: PackedInt32Array, source: StringName)
+## The ring changed size by a boss effect (Story 6.6, D-S66-11): the new active window, the whole
+## ring, and the cause (&"garbage_in" when Reserved Write's `?` is written, &"garbage_out" when it
+## expires or is cut). Emitted only by Register.insert_temporary / remove_temporary.
+@warning_ignore("unused_signal")
+signal register_changed(window: Vector2i, ring: PackedInt32Array, cause: StringName)
 ## A player hit landed (Story 2.7, NP-4): who was hit (&"practice_target" or &"boss", D-S32-11),
 ## the DamageCalc result, the damage state (a DamageState.Kind int, D-S32-7), whether
 ## the hitting action is a combo (D-S27-14) and the target's arena-local position.

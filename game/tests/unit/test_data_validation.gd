@@ -273,9 +273,45 @@ func test_segfault_boss_def_matches_the_gdd() -> void:
 		# Story 6.5 (AC 1, D-S65-1): SIGSEGV in phases 2-3, last in the pool.
 		if i >= 1:
 			pool.append(&"sigsegv")
-		assert_eq(ids, pool, "6.4 / 6.5 AC 1: phase %d pool" % (i + 1))
+		# Story 6.6 (AC 1, D-S66-1): Reserved Write in phase 3 only, last in the pool.
+		if i == 2:
+			pool.append(&"reserved_write")
+		assert_eq(ids, pool, "6.4 / 6.5 / 6.6 AC 1: phase %d pool" % (i + 1))
 		assert_eq(ids.has(&"core_dump"), i == 2, "Core Dump is phase-3-only")
 		assert_eq(ids.has(&"sigsegv"), i >= 1, "SIGSEGV in phases 2-3 only")
+		assert_eq(ids.has(&"reserved_write"), i == 2, "Reserved Write is phase-3-only")
+	assert_eq(def.validate(), PackedStringArray())
+	assert_eq(def.max_hp, 1000)
+	assert_eq(def.drop_bit, 0)
+
+
+## Story 6.6 (AC 2, D-S66-2, D-S66-9): Reserved Write's data: 45 / 600 / 30, exclusive, no
+## Breakpoint-dependent recovery, the data-only tell cue, the script under the leaf folder.
+func test_segfault_reserved_write_def_matches_the_gdd() -> void:
+	var a_def: AttackDef = load("res://data/bosses/segfault/attack_reserved_write.tres")
+	assert_eq(a_def.validate(), PackedStringArray())
+	assert_eq([a_def.id, a_def.tell, a_def.active, a_def.recovery, a_def.recovery_if_no_breakpoint], [&"reserved_write", 45, 600, 30, 0])
+	assert_true(a_def.exclusive)
+	assert_eq(a_def.tell_sfx, &"tell_reserved_write")
+	assert_eq(a_def.attack_script.resource_path, "res://src/bosses/segfault/attacks/reserved_write.gd")
+	assert_true(a_def.attack_script.new() is BossAttack)
+	var def: BossDef = load("res://data/bosses/segfault/boss_def.tres")
+	assert_same(def.phases[2].attack_pool[4], a_def)
+
+
+## Story 6.6 (AC 8, D-S66-5): the garbage bit's def: id 5, glyph `?`, solo action NOP; Defs.bit
+## maps it and keeps ids 1-4.
+func test_garbage_bit_def() -> void:
+	var g: BitDef = load("res://data/bits/bit_garbage.tres")
+	assert_eq(g.validate(), PackedStringArray())
+	assert_eq([g.id, g.glyph], [5, "?"])
+	assert_same(g.solo_action, Defs.NOP)
+	assert_eq(Defs.NOP.validate(), PackedStringArray())
+	assert_same(Defs.bit(Register.Bit.GARBAGE), g)
+	assert_same(Defs.solo_action(Register.Bit.GARBAGE), Defs.NOP)
+	assert_same(Defs.bit(Register.Bit.ATTACK), Defs.BIT_ATTACK)
+	assert_same(Defs.bit(Register.Bit.NULL_BIT), Defs.BIT_NULL)
+	assert_null(Defs.bit(6))
 
 
 ## Story 6.5 (AC 2, D-S65-9): SIGSEGV's data: 60 / 1 / 90 (150 without Breakpoint), exclusive, the
@@ -296,7 +332,7 @@ func test_segfault_sigsegv_def_matches_the_gdd() -> void:
 		for d: AttackDef in p.attack_pool:
 			if d.exclusive and not exclusive.has(d.id):
 				exclusive.append(d.id)
-	assert_eq(exclusive, [&"sigsegv"] as Array[StringName], "SIGSEGV is the only exclusive attack")
+	assert_eq(exclusive, [&"sigsegv", &"reserved_write"] as Array[StringName], "Story 6.6: SIGSEGV and Reserved Write are the exclusive attacks")
 
 
 ## Story 6.4 (AC 2): the tile attacks' data, scripts under src/bosses/segfault/attacks/, shared .tres.

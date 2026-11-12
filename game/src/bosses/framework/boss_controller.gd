@@ -46,6 +46,10 @@ var defeat_frames_elapsed: int = 0
 ## Story 4.3 (AC 13, D-S43-11): FeatureFlags.breakpoint, injected by the arena (never read here).
 ## Off: an attack with recovery_if_no_breakpoint > 0 uses it in place of recovery (SIGSEGV 150).
 var breakpoint_on: bool = true
+## Story 6.6 (AC 3, AD-12): attack ids dropped from every pool before any attack script is built
+## (the cut-ladder wiring: &"reserved_write" when FeatureFlags.reserved_write is off). Injected by
+## the arena before setup; the flag itself is never read here.
+var excluded_attack_ids: Array[StringName] = []
 
 var _health: PlayerHealth
 var _arena: ArenaContext
@@ -85,6 +89,8 @@ func setup(p_def: BossDef, p_health: PlayerHealth, p_arena: ArenaContext) -> boo
 	for phase_def: PhaseDef in def.phases:
 		var pool := PackedInt32Array()
 		for attack_def: AttackDef in phase_def.attack_pool:
+			if excluded_attack_ids.has(attack_def.id):
+				continue # Story 6.6 (AC 3): a cut attack is never instanced
 			var at: int = _defs.find(attack_def)
 			if at < 0:
 				at = _defs.size()

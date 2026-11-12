@@ -62,6 +62,9 @@ func _used_codepoints() -> Dictionary[int, String]:
 	texts.append_array([BossView.TILE_MARKED, BossView.TILE_HAZARD, BossView.TILE_SAFE])
 	# Story 6.5 (AC 3, D-S65-8): the SIGSEGV warning tell line (lowercase kept: the font has it).
 	texts.append(Hud.WARNING_TELL_TEXT)
+	# Story 6.6 (AC 4, 7): the garbage bit `?` and the `reserved` label Reserved Write flashes.
+	texts.append(Register.glyph_of(Register.Bit.GARBAGE))
+	texts.append(RegisterPanel.RESERVED_LABEL)
 	var used: Dictionary[int, String] = {}
 	for t: String in texts:
 		for i: int in t.length():

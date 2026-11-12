@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="AttackDef" format=3]
+
+; Story 6.6 (FR44, cut ladder #1, D-S66-2): phase 3 only. TELL 45 (the `reserved` nibble flashes),
+; ACTIVE 600 (the garbage bit `?` lives in the ring), RECOVERY 30. Dropped from the pool when
+; FeatureFlags.reserved_write is off (BossController.excluded_attack_ids, set by the Arena).
+
+[ext_resource type="Script" path="res://src/bosses/framework/attack_def.gd" id="1_adef"]
+[ext_resource type="Script" path="res://src/bosses/segfault/attacks/reserved_write.gd" id="2_attack"]
+
+[resource]
+script = ExtResource("1_adef")
+id = &"reserved_write"
+tell = 45
+active = 600
+recovery = 30
+exclusive = true
+attack_script = ExtResource("2_attack")
+tell_sfx = &"tell_reserved_write"

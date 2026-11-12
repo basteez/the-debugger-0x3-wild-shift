@@ -463,3 +463,11 @@ Story 1.3 AC9 / I-6 ("mumble-speech web check, moved to 3.7") is UNBLOCKED. Tizi
 - `BossController.can_start` refusal happens after `pick_next` consumed the rng and pick history (never fires under the serial FSM; comment-only).
 - Test gaps: HUD inverted-line draw path and Main wiring have no render test; rotation while a link is open in ACTIVE (held K dropped), negative `n` and |n| > ring size on 3/4-bit rings; tests hard-code cache indices (SIGSEGV 2, Core Dump 3); `_seeded_run` is slow (60k ticks).
 - `Hud._process` polls every frame (cheap) and `AccessViolation` is still not in the leaf guard (from 6.3).
+
+## Deferred from: code review of story 6.6 (Reserved Write)
+
+- `PlayerEffects.apply_all` tracks the live temporary bit via `command is InsertTemporaryBit`; a virtual `PlayerCommand.on_applied` hook would generalize it for later cut-ladder commands. A second insert while one is live is refused with a Register error (unreachable under the 630-frame cycle; no refresh semantics, no test).
+- `Arena.set_reserved_write_enabled` forces a rebuild by blanking `boss_def_path`; `BossController.excluded_attack_ids` is only read in `setup()`. Prefer a setup argument / dirty flag.
+- `Register.insert_temporary` accepts any known bit; could require `Bit.GARBAGE`.
+- Panel hex shows 0x1F for the 5-slot ring while `Register.byte_value()` stays owned-only (0x0F): kept as the intentional "reserved write" visual (D-S66-7); confirm in Chrome.
+- JuiceDirector listens to `register_shifted` only (no reaction to `register_changed`); no DuckHint/Watch-mark test for the `?` bit; no real J/K FSM press test with `?` in the window; no Arena-level retry test with a live `?`; no `shift_serial` assertion at effect level; no test pinning first/last flash frame.

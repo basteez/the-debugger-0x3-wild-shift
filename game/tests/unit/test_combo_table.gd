@@ -97,3 +97,15 @@ func test_dash_strike_shape_covers_the_path() -> void:
 	assert_true(shape.contains(o, right, o + Vector2(5 * TILE, 0)), "the end of the dash")
 	assert_false(shape.contains(o, right, o - Vector2(1 * TILE, 0)), "1 tile behind")
 	assert_false(shape.contains(o, right, o + Vector2(2 * TILE, 1 * TILE)), "1 tile to the side")
+
+
+## Story 6.6 (AC 8, D-S66-5): every pair containing the garbage bit `?` (id 5) has no combo, in
+## both orders, and the shipped table names no id 5.
+func test_every_garbage_pair_has_no_combo() -> void:
+	var g := Register.Bit.GARBAGE
+	for x: int in [A, D, L, N, g]:
+		assert_null(Defs.COMBOS.get_combo(x, g), "(%d, ?)" % x)
+		assert_null(Defs.COMBOS.get_combo(g, x), "(?, %d)" % x)
+	for c: ComboDef in Defs.COMBOS.combos:
+		assert_ne(c.first, g)
+		assert_ne(c.second, g)

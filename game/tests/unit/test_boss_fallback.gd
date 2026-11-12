@@ -123,3 +123,43 @@ func test_segfault_cut_reaches_no_sigsegv() -> void:
 		var path: String = main_script.boss_def_path_for(false, boss, false, false)
 		assert_false(path.contains("segfault"), "boss %d path %s" % [boss, path])
 	assert_eq(GameScript.route_after_defeat(1, false), GameScript.FlowState.ENDING)
+
+
+## Story 6.6 (AC 3, AD-12, cut #1): FeatureFlags.reserved_write. The Arena reads it once and the
+## boss gets the attack id as excluded: with the flag off the Segfault's phase 3 is the 6.5 pool and
+## no Reserved Write script is ever built; on, the shipped pool. Flipping it rebuilds on next entry.
+func test_reserved_write_flag_drives_the_segfault_pool() -> void:
+	for on: bool in [true, false]:
+		var arena := Arena.new()
+		assert_eq(arena.reserved_write_enabled, Defs.FEATURE_FLAGS.reserved_write, "read once at construction")
+		arena.set_reserved_write_enabled(on)
+		add_child_autofree(arena)
+		arena.enter_fight(Register.fight_start_for_boss(2), false, Arena.SEGFAULT_DEF_PATH)
+		var b: BossController = arena.boss
+		assert_not_null(b)
+		var ids: Array[StringName] = []
+		for i: int in b._pick_candidates(2):
+			ids.append(b._defs[i].id)
+		var expected: Array[StringName] = [&"access_violation", &"corrupt_memory", &"core_dump", &"sigsegv"]
+		if on:
+			expected.append(&"reserved_write")
+		assert_eq(ids, expected, "flag %s" % on)
+		var built: bool = false
+		for attack: BossAttack in b._attacks:
+			built = built or attack.has_method(&"reserved_tell")
+		assert_eq(built, on, "the ReservedWrite object exists only with the flag on")
+		arena.leave_fight()
+
+
+func test_flipping_the_reserved_write_flag_rebuilds_the_boss() -> void:
+	var arena := Arena.new()
+	arena.set_reserved_write_enabled(true)
+	add_child_autofree(arena)
+	arena.enter_fight(Register.fight_start_for_boss(2), false, Arena.SEGFAULT_DEF_PATH)
+	var first: BossController = arena.boss
+	assert_eq(first._pick_candidates(2).size(), 5)
+	arena.set_reserved_write_enabled(false)
+	arena.enter_fight(Register.fight_start_for_boss(2), false, Arena.SEGFAULT_DEF_PATH)
+	assert_ne(arena.boss, first, "a new controller without the cut attack")
+	assert_eq(arena.boss._pick_candidates(2).size(), 4)
+	arena.leave_fight()

@@ -104,7 +104,7 @@ func test_core_dump_is_only_in_the_phase_3_pool() -> void:
 	assert_false(b._pick_candidates(0).has(dump), "phase 1")
 	assert_false(b._pick_candidates(1).has(dump), "phase 2")
 	assert_true(b._pick_candidates(2).has(dump), "phase 3")
-	assert_eq(b._pick_candidates(2).size(), 4, "Story 6.5: + SIGSEGV")
+	assert_eq(b._pick_candidates(2).size(), 5, "Story 6.5: + SIGSEGV; Story 6.6: + Reserved Write")
 
 
 func test_the_real_fsm_picks_core_dump_only_in_phase_3() -> void:

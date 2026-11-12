@@ -12,6 +12,10 @@ extends Node2D
 ## Story 5.4 (AC 10, D-S54-8): while Watch is held, the byte-row cells of the boss's current weak
 ## window bits get an INK frame. Reads the injected FightSkill (is_active) and the weak-window source
 ## only; the Register is never changed. Released Watch draws no frame.
+## Story 6.6 (AC 4, D-S66-7, D-S66-8): during Reserved Write's tell the `reserved` label and the
+## reserved nibble's cells flash inverted (ink only, read from the injected reserved_flash_source).
+## While the garbage bit `?` is in the ring (5 slots) the ring is drawn one cell further left, so
+## its first slot takes the last cell of the reserved nibble: the boss wrote into reserved memory.
 
 ## One run of text to draw: top-left HUD cell, text (one glyph per cell) and style.
 class Cell:
@@ -66,6 +70,9 @@ var register: Register
 ## (a Callable returning Vector2i; ZERO = no boss). Injected by Main; read only.
 var watch_skill: FightSkill
 var weak_window_source: Callable
+## Story 6.6: a Callable returning true while the `reserved` nibble's inverted flash half shows
+## (Hud.reserved_flash_on of the fight's boss). Injected by Main; read only. Invalid = never flashes.
+var reserved_flash_source: Callable
 ## True when the last draw framed weak-window cells (so a release outside a fight still clears).
 var _marks_shown: bool = false
 
@@ -108,7 +115,7 @@ func _draw() -> void:
 func _draw_content() -> void:
 	if register == null:
 		return
-	for c: Cell in plan(register.ring, Register.MAX_BITS, Defs.COMBOS):
+	for c: Cell in plan(register.ring, Register.MAX_BITS, Defs.COMBOS, reserved_flash()):
 		var rect := Rect2(GlyphFont.cell_to_px(c.cell, SCALE), Vector2(c.text.length(), 1) * GlyphFont.CELL)
 		if c.style == INVERTED:
 			content.draw_rect(rect, Palette.INK)
@@ -121,6 +128,20 @@ func _draw_content() -> void:
 	_marks_shown = not marks.is_empty()
 	for cell: Vector2i in marks:
 		content.draw_rect(Rect2(GlyphFont.cell_to_px(cell, SCALE), Vector2(GlyphFont.CELL, GlyphFont.CELL)), Palette.INK, false, 1.0)
+
+
+## Story 6.6: true while the reserved nibble's inverted flash half shows.
+func reserved_flash() -> bool:
+	if not reserved_flash_source.is_valid():
+		return false
+	return bool(reserved_flash_source.call())
+
+
+## Story 6.6 (D-S66-7): the byte-row cell index (0..7) of ring slot 0. The owned bits end at the
+## right end of the byte; a 5-slot ring (the garbage bit) reaches one cell into the reserved nibble.
+## Pure.
+static func first_slot_index(ring_size: int, owned_cap: int = Register.MAX_BITS) -> int:
+	return BYTE_BITS - clampi(maxi(owned_cap, ring_size), 0, BYTE_BITS)
 
 
 ## Story 5.4: the weak window to mark now, or ZERO while Watch is not held (or cut, or no boss).
@@ -137,7 +158,7 @@ static func watch_mark_cells(ring: PackedInt32Array, weak: Vector2i, owned_cap: 
 	var out: Array[Vector2i] = []
 	if weak == Vector2i.ZERO:
 		return out
-	var high: int = BYTE_BITS - clampi(owned_cap, 0, BYTE_BITS)
+	var high: int = first_slot_index(ring.size(), owned_cap)
 	for slot: int in ring.size():
 		if ring[slot] == weak.x or ring[slot] == weak.y:
 			out.append(Vector2i(LEFT_COL + high + slot, BYTE_ROW))
@@ -146,23 +167,26 @@ static func watch_mark_cells(ring: PackedInt32Array, weak: Vector2i, owned_cap: 
 
 ## Every cell of the panel for a ring of owned bits (window first), in draw order. Pure: no node,
 ## no Register instance; `ring` is never modified. `owned_cap` is the low-nibble width; `combos` is
-## the combo table (null = Defs.COMBOS).
-static func plan(ring: PackedInt32Array, owned_cap: int = Register.MAX_BITS, combos: ComboTable = null) -> Array[Cell]:
+## the combo table (null = Defs.COMBOS). Story 6.6: `reserved_flash` draws the `reserved` label and
+## the reserved nibble's cells inverted (D-S66-8); a 5-slot ring starts one cell left (D-S66-7).
+static func plan(ring: PackedInt32Array, owned_cap: int = Register.MAX_BITS, combos: ComboTable = null, reserved_flash: bool = false) -> Array[Cell]:
 	if combos == null:
 		combos = Defs.COMBOS
 	var out: Array[Cell] = []
-	var byte_value: int = (1 << ring.size()) - 1
+	var byte_value: int = (1 << ring.size()) - 1 # Reserved Write: the `?` bit shows in the byte (D-S66-7)
 	out.append(Cell.new(Vector2i(LEFT_COL, HEX_ROW), "0x%02X" % byte_value, INK))
 	# 8 bit cells: the reserved high nibble, then the owned bits window first, then unowned slots.
-	var high: int = BYTE_BITS - clampi(owned_cap, 0, BYTE_BITS)
+	var reserved_cells: int = BYTE_BITS - clampi(owned_cap, 0, BYTE_BITS)
+	var high: int = first_slot_index(ring.size(), owned_cap)
 	for i: int in BYTE_BITS:
 		var col: int = LEFT_COL + i
 		var slot: int = i - high
+		var flash: bool = reserved_flash and i < reserved_cells and (slot < 0 or slot >= ring.size())
 		if slot >= 0 and slot < ring.size():
-			out.append(Cell.new(Vector2i(col, BYTE_ROW), Register.glyph_of(ring[slot]), INK))
+			out.append(Cell.new(Vector2i(col, BYTE_ROW), Register.glyph_of(ring[slot]), INVERTED if flash else INK))
 		else:
-			out.append(Cell.new(Vector2i(col, BYTE_ROW), UNOWNED, GREYED))
-	out.append(Cell.new(Vector2i(LEFT_COL, LABEL_ROW), RESERVED_LABEL, GREYED))
+			out.append(Cell.new(Vector2i(col, BYTE_ROW), UNOWNED, INVERTED if flash else GREYED))
+	out.append(Cell.new(Vector2i(LEFT_COL, LABEL_ROW), RESERVED_LABEL, INVERTED if reserved_flash else GREYED))
 	if ring.size() < Register.MIN_BITS:
 		return out
 	var left: Vector2i = Register.window_of(Register.rotated(ring, Register.LEFT))

@@ -133,7 +133,7 @@ func test_insert_rejects_duplicate_full_and_unknown() -> void:
 	_start([A, D, L])
 	_reg.insert(N)
 	assert_false(_reg.insert(5))
-	assert_push_error("unknown bit")
+	assert_push_error("unownable bit ?") # Story 6.6: id 5 is the garbage bit, never harvested
 	assert_eq(_reg.ring, _ring([A, D, L, N]))
 
 
@@ -271,3 +271,111 @@ func test_rotate_rejects_zero_and_short_rings() -> void:
 	_reg.rotate(2)
 	assert_push_error("rotate on a ring of 1 bits")
 	assert_signal_emit_count(EventBus, "register_shifted", 0)
+
+
+# --- Story 6.6 (AC 7, 9, 12, 15, D-S66-3): the temporary garbage slot ---
+
+const G := Register.Bit.GARBAGE
+
+
+func test_garbage_is_a_bit_but_not_ownable() -> void:
+	assert_eq(G, 5)
+	assert_true(Register.is_bit(G))
+	assert_false(Register.is_ownable(G))
+	assert_eq(Register.glyph_of(G), "?")
+	assert_eq(Register.MAX_SLOTS, Register.MAX_BITS + 1)
+
+
+func test_insert_and_set_fight_start_reject_garbage() -> void:
+	_start([A, D])
+	assert_false(_reg.insert(G))
+	assert_push_error("unownable bit ?")
+	assert_false(_reg.set_fight_start(_ring([A, G])))
+	assert_push_error("unownable bit ?")
+	assert_eq(_reg.ring, _ring([A, D]))
+
+
+func test_insert_temporary_on_2_3_and_4_bit_rings() -> void:
+	for start: Array in [[D, A], [A, D, L], [A, D, L, N]] as Array[Array]:
+		_start(start)
+		var serial: int = _reg.shift_serial
+		assert_true(_reg.insert_temporary(G))
+		var expected: Array = start.duplicate()
+		expected.append(G)
+		assert_eq(_reg.ring, _ring(expected), "appended to the right end of %s" % [start])
+		assert_eq(_reg.temporary, G)
+		assert_true(_reg.has_temporary())
+		assert_eq(_reg.owned_count(), start.size(), "the garbage slot is not owned")
+		assert_eq(_reg.active_window(), Vector2i(start[0], start[1]))
+		assert_eq(_reg.shift_serial, serial, "a boss effect is not a player shift")
+		assert_lte(_reg.ring.size(), Register.MAX_SLOTS)
+		assert_true(_reg.remove_temporary())
+		assert_eq(_reg.ring, _ring(start), "owned bits and order unchanged by the pair")
+		assert_false(_reg.has_temporary())
+
+
+func test_insert_temporary_emits_register_changed_with_the_causes() -> void:
+	watch_signals(EventBus)
+	_start([A, D, L, N])
+	_reg.insert_temporary(G)
+	assert_signal_emit_count(EventBus, "register_changed", 1)
+	assert_signal_emitted_with_parameters(EventBus, "register_changed",
+		[Vector2i(A, D), _ring([A, D, L, N, G]), &"garbage_in"])
+	_reg.remove_temporary()
+	assert_signal_emit_count(EventBus, "register_changed", 2)
+	assert_signal_emitted_with_parameters(EventBus, "register_changed",
+		[Vector2i(A, D), _ring([A, D, L, N]), &"garbage_out"])
+	assert_false(_reg.remove_temporary(), "nothing to remove")
+	assert_signal_emit_count(EventBus, "register_changed", 2)
+	assert_signal_not_emitted(EventBus, "register_shifted")
+
+
+func test_insert_temporary_rejects_a_second_slot_unknown_and_owned_bits() -> void:
+	_start([A, D, L, N])
+	assert_true(_reg.insert_temporary(G))
+	assert_false(_reg.insert_temporary(G))
+	assert_push_error("while ? is present")
+	assert_eq(_reg.ring.size(), Register.MAX_SLOTS, "never more than 5 slots")
+	_start([A, D])
+	assert_false(_reg.insert_temporary(99))
+	assert_push_error("unknown bit")
+	assert_false(_reg.insert_temporary(A))
+	assert_push_error("already in the ring")
+	assert_eq(_reg.ring, _ring([A, D]))
+
+
+func test_shift_rotate_and_preview_on_a_5_slot_ring() -> void:
+	_start([A, D, L, N])
+	_reg.insert_temporary(G)
+	assert_eq(_reg.preview(Register.RIGHT), Vector2i(G, A))
+	_reg.shift(Register.RIGHT)
+	assert_eq(_reg.ring, _ring([G, A, D, L, N]))
+	assert_eq(_reg.active_window(), Vector2i(G, A))
+	_reg.shift(Register.LEFT)
+	_reg.shift(Register.LEFT)
+	assert_eq(_reg.ring, _ring([D, L, N, G, A]))
+	_reg.rotate(2)
+	assert_eq(_reg.ring, _ring([G, A, D, L, N]))
+	for i: int in 5:
+		_reg.shift(Register.LEFT)
+	assert_eq(_reg.ring, _ring([G, A, D, L, N]), "a full 5-step cycle")
+	assert_true(_reg.remove_temporary())
+	assert_eq(_reg.ring, _ring([A, D, L, N]), "removed wherever it sits; owned order kept")
+	assert_eq(_reg.active_window(), Vector2i(A, D))
+
+
+func test_harvest_insert_is_refused_while_garbage_is_present() -> void:
+	_start([A, D])
+	_reg.insert_temporary(G)
+	assert_false(_reg.insert(L))
+	assert_push_error("temporary slot")
+	assert_eq(_reg.ring, _ring([A, D, G]))
+
+
+func test_set_fight_start_removes_the_temporary_slot() -> void:
+	_start([A, D, L, N])
+	_reg.insert_temporary(G)
+	_start([A, D, L, N])
+	assert_eq(_reg.ring, _ring([A, D, L, N]))
+	assert_false(_reg.has_temporary())
+	assert_eq(_reg.byte_value(), 0x0F)

@@ -363,7 +363,7 @@ Speeds are authored in tiles/s and frame counts in the `.tres`; conversion to px
 # scripts/autoloads/event_bus.gd
 extends Node
 signal register_shifted(direction: int, window: Vector2i, register: PackedInt32Array, cause: StringName)  # cause: &"player" | &"sigsegv"
-signal register_changed(window: Vector2i, register: PackedInt32Array)  # bit inserted/expired
+signal register_changed(window: Vector2i, ring: PackedInt32Array, cause: StringName)  # &"garbage_in" / &"garbage_out" (Story 6.6)
 signal breakpoint_started
 signal breakpoint_ended
 signal player_died(boss: StringName, deaths_on_boss: int)
@@ -689,7 +689,7 @@ apply: Register.rotate(n) ; LinkState.close() ; EventBus.register_shifted.emit(d
 **Rules:**
 - Bosses never call `Player`/`Register` methods; they only push effects. Effects are applied at one fixed point in the tick.
 - `RotateRegister(n)` rotates `n` slots left (sign = direction) and closes the link (same rule as NP-1).
-- `InsertTemporaryBit(GARBAGE, 600)`: the register appends `?` with an expiry counter; its solo action is `ActionDef.NOP` and `ComboTable` returns null for any pair containing it. On expiry the bit is removed and the window recomputed; event `register_changed`.
+- `InsertTemporaryBit(GARBAGE, 600)`: the register appends `?` (the ring grows to 5 cells; the expiry counter lives in the `PlayerEffects` queue, not in `Register`); its solo action is `ActionDef.NOP` and `ComboTable` returns null for any pair containing it. On expiry (or when cut) the effect queue calls `Register.remove_temporary`, the window is recomputed; `register_changed(window, ring, cause)` fires on insert and removal.
 - **Exclusivity:** `AttackDef.exclusive = true` (SIGSEGV) → the `BossController` only starts it when no other attack or hazard is in ACTIVE and blocks new attacks until its recovery ends. Recovery = `AttackDef.recovery` (90) or `recovery_if_no_breakpoint` (150) when `FeatureFlags.breakpoint` is off.
 - `RunState` restore removes temporary bits and restores the fight-start register.
 
