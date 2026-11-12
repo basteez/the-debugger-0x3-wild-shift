@@ -365,3 +365,13 @@ Story 1.3 AC9 / I-6 ("mumble-speech web check, moved to 3.7") is UNBLOCKED. Tizi
 - AC 13 covers `declared_positions` on 4 facings only; `BossView` glyph/outline drawing has no test.
 - `tell_pointer_grab` / `tell_null_rain` sfx ids are not registered with audio (silent cue).
 - Phase 1 and phase 2 share the same attack pool (D-S52-6); phase escalation is thin.
+
+## Deferred from: code review of story-5.3 (2026-11-11)
+
+- The dispel flash is wiped when the dispelling hit also crosses a phase threshold or kills the boss (D-S53-7 clears flashes); hit-stop shows with no flash. Cosmetic.
+- No unit test for a chain slash (`SLASH_2`/`SLASH_3`) whiffing; `is_attack_slash` covers it in code only.
+- Tell marks are empty for the first TELL frame (spots planned on the next tick).
+- `_tick_stun` drains J/K presses on the last stunned tick too (input feels 21 frames).
+- Whiff range is measured from the player centre at the last ACTIVE frame, the hit shape from the action origin; equal while slashes lock movement. Unify if a slash ever moves the player.
+- Decoy spacing (4 tiles from the body) is checked at plan time; the body drifts during TELL, so a decoy can spawn slightly closer. Tune in playtest.
+- Test weaknesses: `test_a_real_slash_dispels_a_decoy_without_a_stun` ends on a tautological `boss.hp <= hp`; the integration re-cast test removes decoys itself at the cap.

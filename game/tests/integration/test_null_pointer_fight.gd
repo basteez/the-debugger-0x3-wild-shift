@@ -7,6 +7,8 @@ extends GutTest
 ## phase 2, both attacks running in each and hitting the idle player through PlayerHealth, with no
 ## Log.error; and the visible recovery of each attack is the strike-back window: a real Echo Dash
 ## (phase 1, D->L) and a real Dash Strike (phase 2, A->D) Patch the ghost through CombatResolver.
+## Story 5.3 (AC 23): phase 2 also runs Dangling Pointers from a fixed seed: its decoys spawn, the
+## body re-casts them after 900 live ticks, and a real slash dispels one, with no Log.error.
 
 const MainScene := preload("res://src/main/main.tscn")
 const GameScript := preload("res://src/autoloads/game.gd")
@@ -89,7 +91,8 @@ func test_fight_2_runs_both_attacks_in_both_phases() -> void:
 			assert_eq(boss.phase_index, 1)
 			assert_eq(boss.state, S.ROAR)
 		var ticks: int = 0
-		while seen[phase].size() < 2 and ticks < 3000:
+		var want: int = 2 if phase == 0 else 3 # Story 5.3: Dangling Pointers joins phase 2
+		while seen[phase].size() < want and ticks < 3000:
 			SimClock.tick()
 			ticks += 1
 			# The idle player would die; keep it alive so the fight continues (hits still land).
@@ -98,8 +101,9 @@ func test_fight_2_runs_both_attacks_in_both_phases() -> void:
 					or boss.hit_reveal_left > 0 or boss.pass_reveal_left > 0, "visible only in ACTIVE / RECOVERY")
 			if boss.current != null:
 				seen[phase][boss.current.id] = true
-				assert_true(boss.current.id in [&"pointer_grab", &"null_rain"])
-		assert_eq(seen[phase].size(), 2, "phase %d ran both attacks within %d ticks" % [phase + 1, ticks])
+				var ids: Array = [&"pointer_grab", &"null_rain"] if phase == 0 else [&"pointer_grab", &"null_rain", &"dangling_pointers"]
+				assert_true(boss.current.id in ids)
+		assert_eq(seen[phase].size(), want, "phase %d ran every pool attack within %d ticks" % [phase + 1, ticks])
 	assert_eq(Game.flow_state, GameScript.FlowState.FIGHT)
 	assert_gt(get_signal_emit_count(EventBus, "player_damaged"), 0, "the attacks hit the idle player through PlayerHealth")
 	var tells: Array = []
@@ -205,3 +209,60 @@ func test_dash_strike_on_the_visible_recovery_patches_phase_2() -> void:
 	assert_eq(boss.state, S.RECOVERY, "within the recovery")
 	assert_lt(boss.hp, hp_before, "the existing damage path")
 	SimClock._pending_hitstop = 0
+
+
+# --- Story 5.3 AC 23: Dangling Pointers through the real flow ---
+
+func test_fight_2_phase_2_casts_and_recasts_dangling_pointers() -> void:
+	Game.debug_jump(GameScript.FlowState.FIGHT, 1)
+	SimClock.begin_fight(SEED)
+	var boss := _main.arena.boss as NullPointerBody
+	var health: PlayerHealth = _main.arena.health
+	boss.take_hit(350)
+	assert_eq(boss.phase_index, 1)
+	var spawned_at: int = -1
+	var recast_seen: bool = false
+	var ticks: int = 0
+	while ticks < 4000 and not recast_seen:
+		SimClock.tick()
+		ticks += 1
+		health.hp = health.def.max_hp
+		if spawned_at < 0 and not boss.decoys.is_empty():
+			spawned_at = ticks
+		if boss.recast_flicker_left > 0:
+			recast_seen = true
+		assert_lte(boss.decoys.size(), NullPointerBody.DECOY_CAP)
+		for p: Vector2 in boss.decoy_positions():
+			assert_true(ArenaContext.inside_play_area(p))
+		if boss.decoys.size() >= NullPointerBody.DECOY_CAP:
+			boss.decoys.remove_at(0) # keep room so the re-cast has spots to flicker
+	assert_gt(spawned_at, 0, "Dangling Pointers spawned decoys")
+	assert_true(recast_seen, "the body re-cast after its timer (%d ticks)" % ticks)
+	assert_push_error_count(0, "no Log.error during the fight")
+
+
+func test_a_real_slash_dispels_a_decoy_without_a_stun() -> void:
+	var rig: Dictionary = _combat_rig([A, D])
+	var boss: NullPointerBody = rig["boss"]
+	boss.take_hit(350)
+	var n: int = 0
+	while boss.decoys.is_empty() and n < 4000:
+		_rig_tick(rig)
+		n += 1
+	assert_false(boss.decoys.is_empty(), "Dangling Pointers spawned decoys (%d ticks)" % n)
+	var spot: Vector2 = boss.decoy_positions()[0]
+	var player: Player = rig["player"]
+	player.reset_for_fight(spot - Vector2(Const.TILE_PX, 0)) # facing right, the decoy in the arc
+	var before: int = boss.decoys.size()
+	var hp: int = boss.hp
+	var buf: InputBuffer = rig["buf"]
+	buf.push(J, rig["t"])
+	for i: int in 10:
+		_rig_tick(rig)
+	SimClock._pending_hitstop = 0
+	assert_eq(boss.decoys.size(), before - 1, "the slash dispelled the decoy")
+	assert_eq(boss.dispel_flash_positions().size(), 1)
+	var fsm: ActionStateMachine = rig["fsm"]
+	assert_eq(fsm.stun_left, 0, "a dispel is a landed hit: no NullPointerException")
+	assert_true(boss.hp <= hp, "the boss took at most the slash's own hit")
+	assert_push_error_count(0)

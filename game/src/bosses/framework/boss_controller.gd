@@ -401,6 +401,18 @@ func on_pass_through() -> void:
 	pass
 
 
+## Story 5.3 (D-S53-5): CombatResolver asks the body to dispel decoys under a player hit shape.
+## Returns how many were dispelled. Default: no decoys, 0.
+func decoy_hit(_shape: HitShape, _origin: Vector2, _facing: Vector2) -> int:
+	return 0
+
+
+## Story 5.3 (D-S53-6): the range (px, centre to centre) within which a whiffed ATTACK slash stuns
+## the player (NullPointerException). Default 0.0: no stun (Infinite Loop, test boss).
+func whiff_stun_range_px() -> float:
+	return 0.0
+
+
 ## Debug F6 (AC 7): HP to 0 through take_hit.
 func debug_kill() -> void:
 	take_hit(hp)

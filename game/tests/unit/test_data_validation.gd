@@ -177,7 +177,7 @@ func test_infinite_loop_boss_def_matches_the_gdd() -> void:
 
 func test_null_pointer_boss_def_matches_the_gdd() -> void:
 	var def: BossDef = load("res://data/bosses/null_pointer/boss_def.tres")
-	assert_eq(def.validate(), PackedStringArray(), "valid with the 5.2 pools")
+	assert_eq(def.validate(), PackedStringArray(), "valid with the 5.3 pools")
 	assert_eq(def.boss_id, &"null_pointer")
 	assert_eq(def.boss_id, Game.BOSS_IDS[1])
 	assert_eq(def.name_signature, "nullPointer")
@@ -193,10 +193,13 @@ func test_null_pointer_boss_def_matches_the_gdd() -> void:
 	for i: int in def.phases.size():
 		var p: PhaseDef = def.phases[i]
 		assert_eq([p.hp_threshold, p.weak_window, p.gap_frames], expected[i], "phase %d" % (i + 1))
+	# Story 5.3 (AC 5, D-S53-10): Dangling Pointers joins phase 2 only.
+	var pools: Array = [[&"pointer_grab", &"null_rain"], [&"pointer_grab", &"null_rain", &"dangling_pointers"]]
+	for i: int in def.phases.size():
 		var ids: Array[StringName] = []
-		for a_def: AttackDef in p.attack_pool:
+		for a_def: AttackDef in def.phases[i].attack_pool:
 			ids.append(a_def.id)
-		assert_eq(ids, [&"pointer_grab", &"null_rain"], "Story 5.2 (D-S52-6): phase %d pool" % (i + 1))
+		assert_eq(ids, pools[i], "Story 5.3 (D-S53-10): phase %d pool" % (i + 1))
 
 
 # --- Story 5.2 AC 7, 8: the Null Pointer's attacks ---
@@ -205,6 +208,8 @@ func test_null_pointer_attack_defs_match_the_gdd() -> void:
 	var expected: Dictionary = {
 		"res://data/bosses/null_pointer/attack_pointer_grab.tres": [&"pointer_grab", 40, 10, 60, &"tell_pointer_grab"],
 		"res://data/bosses/null_pointer/attack_null_rain.tres": [&"null_rain", 45, 20, 40, &"tell_null_rain"],
+		# Story 5.3 (AC 4, D-S53-1)
+		"res://data/bosses/null_pointer/attack_dangling_pointers.tres": [&"dangling_pointers", 30, 60, 30, &"tell_dangling_pointers"],
 	}
 	for path: String in expected:
 		var a_def: AttackDef = load(path)

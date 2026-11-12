@@ -66,3 +66,8 @@ signal breakpoint_started()
 ## Emitted once per end; the gate is already cleared.
 @warning_ignore("unused_signal")
 signal breakpoint_ended()
+## The player was stunned (Story 5.3, FR38, D-S53-6): the reason (&"NullPointerException" for a
+## whiffed slash near the Null Pointer). Emitted once per stun by ActionStateMachine.begin_stun from
+## the sim tick; LogPanel prints the reason.
+@warning_ignore("unused_signal")
+signal player_stunned(reason: StringName)

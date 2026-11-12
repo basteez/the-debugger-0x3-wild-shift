@@ -7,6 +7,8 @@ extends SimSystem
 ## Story 2.6: owns the combo LinkState (D-S26-4) and starts combos and link follow-ups.
 
 ## STUNNED and WATCHING are declared for Epics 4-6 and never entered in Story 2.5.
+## Story 5.3 (D-S53-6): STUNNED is entered by begin_stun (CombatResolver's NullPointerException):
+## stun_left ticks with no movement and no action; J/K presses are discarded, shifts stay usable.
 enum ActionState { IDLE_MOVE, STARTUP, ACTIVE, RECOVERY, STUNNED, WATCHING }
 
 var state: ActionState = ActionState.IDLE_MOVE
@@ -48,6 +50,8 @@ var echo: EchoMemory = EchoMemory.new()
 var echoing: bool = false
 ## The Echo def that started the running echo (its echo_damage_pct); null when not echoing.
 var _echo_def: ActionDef = null
+## Story 5.3 (D-S53-6): STUNNED ticks left; 0 = not stunned. Written only here (begin_stun, tick).
+var stun_left: int = 0
 
 ## The serial at the running J action's start; the link opens only if no shift happened since (review).
 var _start_serial: int = -1
@@ -69,6 +73,9 @@ func tick(ctx: SimContext) -> void:
 	if not active:
 		return
 	cooldowns.tick()
+	if stun_left > 0:
+		_tick_stun(ctx.poll_frame)
+		return
 	var window: Vector2i = _register.active_window() if _register != null else Vector2i.ZERO
 	var serial: int = _register.shift_serial if _register != null else 0
 	_age_link(serial)
@@ -133,8 +140,39 @@ func frame_in_state() -> int:
 	return 0
 
 
+## Story 5.3 (D-S53-6): stuns the player for `frames` ticks starting on the next tick: the running
+## action, its chain and its link are cancelled now (the _finish rules), movement is locked, and
+## EventBus.player_stunned(reason) is emitted once. A stun in progress is not stacked or extended.
+func begin_stun(frames: int, reason: StringName = &"") -> void:
+	if not active or frames <= 0 or stun_left > 0:
+		return
+	_finish()
+	link.close()
+	stun_left = frames
+	state = ActionState.STUNNED
+	if _player != null:
+		_player.lock_movement(Vector2.ZERO)
+	Log.debug(&"action", "stunned %d (%s)" % [frames, reason])
+	EventBus.player_stunned.emit(reason)
+
+
+## One STUNNED tick: J/K presses live this tick are consumed and dropped (not kept for later) and
+## the player stays locked. All `frames` stunned ticks report STUNNED; the tick after the last one
+## runs the normal path (input read, IDLE_MOVE, movement unlocked).
+func _tick_stun(frame: int) -> void:
+	if _buffer != null:
+		for key: StringName in ActionResolver.KEYS:
+			while _buffer.consume(key, frame):
+				pass
+	stun_left -= 1
+	state = ActionState.STUNNED
+	if _player != null:
+		_player.lock_movement(Vector2.ZERO)
+
+
 ## Fight start (D-049 b): idle, no action, cooldowns, chain and link cleared, Player unlocked.
 func reset_for_fight() -> void:
+	stun_left = 0
 	_finish()
 	echo.clear() # Story 4.1 (NP-5, AC7): memory is per fight; retry also comes through here
 	cooldowns.reset()
@@ -149,6 +187,7 @@ func reset_for_fight() -> void:
 func set_active(on: bool) -> void:
 	active = on
 	if not on:
+		stun_left = 0
 		_finish()
 		link.close()
 		state = ActionState.IDLE_MOVE
