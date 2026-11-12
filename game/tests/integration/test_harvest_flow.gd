@@ -122,7 +122,7 @@ func test_defeat_hitstop_reassembly_then_harvest_after_the_tick() -> void:
 	assert_eq(Game.run.fight_attempt, attempt_before + 1)
 	assert_false(_main.hud.duck_bubble.is_showing(), "the harvest line never finishes into FIGHT (AC 9)")
 	assert_false(_main.hud.is_duck_only())
-	assert_null(arena.boss, "Fight 2 has no body yet (D-S38-15)")
+	assert_true(arena.boss is NullPointerBody, "Story 5.1: Fight 2 is the Null Pointer")
 
 
 func test_harvest_cap_ends_it_at_480_frames() -> void:

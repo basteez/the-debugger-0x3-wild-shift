@@ -275,7 +275,8 @@ static func breakpoint_unlocked_for(boss_index: int) -> bool:
 
 ## The boss def a FIGHT loads (Story 3.3, D-S33-11, D-S33-13): the framework test boss on
 ## Shift+F3 (takes precedence), no boss in the Shift+F2 practice sandbox (D-S33-22), the Infinite
-## Loop for boss 0 in every build, none (placeholder header) for boss 1 and 2 until their stories.
+## Loop for boss 0 in every build, the Null Pointer for boss 1 (Story 5.1), none (placeholder
+## header) for boss 2 until its story.
 ## Pure.
 static func boss_def_path_for(debug_test_boss: bool, boss_index: int, practice: bool = false) -> String:
 	if debug_test_boss:
@@ -284,6 +285,8 @@ static func boss_def_path_for(debug_test_boss: bool, boss_index: int, practice: 
 		return ""
 	if boss_index == 0:
 		return Arena.INFINITE_LOOP_DEF_PATH
+	if boss_index == 1: # Story 5.1 (AC 3)
+		return Arena.NULL_POINTER_DEF_PATH
 	return ""
 
 

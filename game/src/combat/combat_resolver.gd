@@ -78,6 +78,7 @@ func _resolve_boss_hit(def: ActionDef, serial: int, is_combo: bool) -> int:
 	var pos: Vector2 = boss.hit_position() # Story 3.3 (D-S33-14): the `;` for the Infinite Loop
 	boss.mark_hit(serial)
 	boss.take_hit(damage)
+	boss.on_player_hit() # Story 5.1 (AC 5): the Null Pointer's 10-frame flicker
 	Log.debug(&"combat", "boss hit %s dmg=%d state=%d" % [def.id, damage, state])
 	EventBus.hit_landed.emit(boss.hit_target_id(), damage, state, is_combo, pos)
 	return HitFeedback.hitstop_for_boss_hit(state, is_combo, def.hitstop_frames, applied)
@@ -96,6 +97,7 @@ func _resolve_pass_through(def: ActionDef, serial: int) -> void:
 			Log.debug(&"combat", "patched %s by %s (pass-through)" % [boss.def.boss_id, def.id])
 		EventBus.patched_applied.emit(boss.def.boss_id, WeakWindowTracker.PATCHED_FRAMES)
 	boss.mark_hit(serial)
+	boss.on_pass_through() # Story 5.1 (AC 6): the Null Pointer's 60-frame reveal
 	Log.debug(&"combat", "boss pass-through %s" % def.id)
 
 

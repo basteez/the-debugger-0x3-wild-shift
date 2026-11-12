@@ -30,7 +30,7 @@ func _line(id: StringName, text: String) -> DuckLineDef:
 func test_the_four_tutorial_lines_equal_the_gdd_strings() -> void:
 	var lines: DuckLinesDef = _lines()
 	assert_not_null(lines)
-	assert_eq(lines.entries.size(), 7, "T1-T4 (D-S36-3), the 3.8 harvest line, the two 4.4 hint windows")
+	assert_eq(lines.entries.size(), 8, "T1-T4 (D-S36-3), the 3.8 harvest line, the two 4.4 hint windows, the 5.1 D->L window")
 	for i: int in DuckDirector.DUCK_IDS.size():
 		var id: StringName = DuckDirector.DUCK_IDS[i]
 		assert_eq(lines.entries[i].id, id, "order follows the beats")

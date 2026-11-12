@@ -27,6 +27,8 @@ const TEST_BOSS_PX := SPAWN_PX + Vector2(0, -5 * TILE_PX)
 ## Boss 1 (Story 3.3, D-S33-11, D-S33-13): the Infinite Loop, the boss of FIGHT boss 0. Its def
 ## path picks the InfiniteLoopBody class; any other path gets a plain BossController.
 const INFINITE_LOOP_DEF_PATH := "res://data/bosses/infinite_loop/boss_def.tres"
+## Story 5.1 (AC 3): Boss 2, the Null Pointer, the boss of FIGHT boss 1 (NullPointerBody).
+const NULL_POINTER_DEF_PATH := "res://data/bosses/null_pointer/boss_def.tres"
 ## Story 4.3 (AD-12, D-S43-2): the Breakpoint leaf module, loaded by path only when its flag is on,
 ## so the arena never names its class (held as a FightSkill).
 const BREAKPOINT_SKILL_PATH := "res://src/skills/breakpoint/breakpoint_skill.gd"
@@ -185,7 +187,7 @@ func _set_boss(path: String) -> void:
 			return
 		boss = controller
 		boss_def_path = path
-		boss.body_center_px = TEST_BOSS_PX # the Infinite Loop places itself in reset (D-S33-18)
+		boss.body_center_px = TEST_BOSS_PX # the Infinite Loop and the Null Pointer place themselves in reset (D-S33-18)
 		if is_inside_tree():
 			SimClock.register_system(boss)
 	boss.breakpoint_on = breakpoint_enabled # D-S43-11: the SIGSEGV fallback reads the flag
@@ -222,6 +224,8 @@ func set_breakpoint_enabled(on: bool) -> void:
 static func boss_class_for(path: String) -> GDScript:
 	if path == INFINITE_LOOP_DEF_PATH:
 		return InfiniteLoopBody
+	if path == NULL_POINTER_DEF_PATH:
+		return NullPointerBody
 	return BossController
 
 

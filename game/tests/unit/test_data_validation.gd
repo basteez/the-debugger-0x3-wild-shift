@@ -173,6 +173,29 @@ func test_infinite_loop_boss_def_matches_the_gdd() -> void:
 	assert_eq(ids, [[&"head_rush"], [&"head_rush", &"constrict"], [&"head_rush", &"constrict", &"nested_loop"]], "Story 3.5 AC 1 pools (the Spit is not a pool attack)")
 
 
+# --- Story 5.1 AC 15-17: the Null Pointer's data ---
+
+func test_null_pointer_boss_def_matches_the_gdd() -> void:
+	var def: BossDef = load("res://data/bosses/null_pointer/boss_def.tres")
+	assert_eq(def.validate(), PackedStringArray(), "valid with empty pools (D-S33-9)")
+	assert_eq(def.boss_id, &"null_pointer")
+	assert_eq(def.boss_id, Game.BOSS_IDS[1])
+	assert_eq(def.name_signature, "nullPointer")
+	assert_eq(def.max_hp, 700)
+	assert_eq(def.drop_bit, Register.Bit.NULL_BIT)
+	assert_eq(def.fixed_line, "if (ptr != null) ptr.deref();")
+	assert_almost_eq(def.body_radius_tiles, 1.0, 0.001, "D-S51-5")
+	var a := Register.Bit.ATTACK
+	var d := Register.Bit.DASH
+	var l := Register.Bit.LOOP
+	var expected: Array = [[100, Vector2i(d, l), 90], [50, Vector2i(a, d), 60]]
+	assert_eq(def.phases.size(), 2)
+	for i: int in def.phases.size():
+		var p: PhaseDef = def.phases[i]
+		assert_eq([p.hp_threshold, p.weak_window, p.gap_frames], expected[i], "phase %d" % (i + 1))
+		assert_eq(p.attack_pool.size(), 0, "phase %d pool empty until 5.2 / 5.3" % (i + 1))
+
+
 func test_infinite_loop_ring_def_matches_the_gdd() -> void:
 	var ring: RingDef = load("res://data/bosses/infinite_loop/ring_def.tres")
 	assert_eq(ring.validate(), PackedStringArray())
