@@ -106,3 +106,20 @@ func test_segfault_cut_builds_no_grid_or_tile_attack() -> void:
 	var body_script: GDScript = load(Arena.SEGFAULT_BODY_PATH)
 	var b: BossController = body_script.new()
 	assert_null(b.get(&"tiles"), "no grid before the first reset_for_fight")
+
+
+## Story 6.5 (AC 9): the shipped SIGSEGV recovers 90 frames with Breakpoint, 150 without.
+func test_shipped_sigsegv_uses_the_fallback() -> void:
+	var a := load("res://data/bosses/segfault/attack_sigsegv.tres") as AttackDef
+	assert_eq(BossController.effective_recovery(a, true), 90)
+	assert_eq(BossController.effective_recovery(a, false), 150)
+
+
+## Story 6.5 (AC 13): with FeatureFlags.segfault off no Segfault def is reachable, so SIGSEGV never
+## runs: boss index 2 gets no def path and the 5.6 cut path (Null Pointer -> ENDING) holds.
+func test_segfault_cut_reaches_no_sigsegv() -> void:
+	var main_script: GDScript = load("res://src/main/main.gd")
+	for boss: int in 3:
+		var path: String = main_script.boss_def_path_for(false, boss, false, false)
+		assert_false(path.contains("segfault"), "boss %d path %s" % [boss, path])
+	assert_eq(GameScript.route_after_defeat(1, false), GameScript.FlowState.ENDING)

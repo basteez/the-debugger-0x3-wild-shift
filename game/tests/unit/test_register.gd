@@ -223,3 +223,51 @@ func test_inserting_into_a_full_ring_or_a_duplicate_is_rejected() -> void:
 	assert_false(_reg.insert(L))
 	assert_push_error("insert into a full register")
 	assert_eq(_reg.ring, _ring([A, D, L, N]))
+
+
+# --- Story 6.5 (AC 6, 17, D-S65-4, D-S65-5): rotate(n), the SIGSEGV path ---
+
+func test_rotate_by_2_on_3_and_4_bit_rings() -> void:
+	_start([A, D, L])
+	_reg.rotate(2)
+	assert_eq(_reg.ring, _ring([D, L, A]), "+2 on 3 bits = two `>>` = one `<<`")
+	_start([A, D, L, N])
+	_reg.rotate(2)
+	assert_eq(_reg.ring, _ring([L, N, A, D]), "+2 on 4 bits swaps the halves")
+	assert_eq(_reg.active_window(), Vector2i(L, N))
+	_reg.rotate(-1)
+	assert_eq(_reg.ring, _ring([N, A, D, L]), "a negative count rotates `<<`")
+
+
+func test_rotate_on_a_2_bit_ring_is_a_ring_no_op_but_still_emits() -> void:
+	watch_signals(EventBus)
+	_start([D, A])
+	_reg.rotate(2)
+	assert_eq(_reg.ring, _ring([D, A]), "D-S65-4: +2 mod 2 leaves the ring as it was")
+	assert_signal_emit_count(EventBus, "register_shifted", 1)
+	assert_signal_emitted_with_parameters(EventBus, "register_shifted",
+		[Register.RIGHT, Vector2i(D, A), _ring([D, A]), &"sigsegv"])
+
+
+func test_rotate_emits_once_with_the_sigsegv_source_and_keeps_the_serial() -> void:
+	watch_signals(EventBus)
+	_start([A, D, L, N])
+	var serial: int = _reg.shift_serial
+	_reg.rotate(2)
+	assert_signal_emit_count(EventBus, "register_shifted", 1)
+	assert_signal_emitted_with_parameters(EventBus, "register_shifted",
+		[Register.RIGHT, Vector2i(L, N), _ring([L, N, A, D]), &"sigsegv"])
+	assert_eq(_reg.shift_serial, serial, "D-S65-5 (amended): a rotation is not a player shift")
+	_reg.shift(Register.LEFT)
+	assert_eq(_reg.shift_serial, serial + 1, "shift() still bumps it")
+
+
+func test_rotate_rejects_zero_and_short_rings() -> void:
+	watch_signals(EventBus)
+	_start([A, D, L])
+	_reg.rotate(0)
+	assert_push_error("rotate by 0 slots")
+	_reg.ring = PackedInt32Array([A])
+	_reg.rotate(2)
+	assert_push_error("rotate on a ring of 1 bits")
+	assert_signal_emit_count(EventBus, "register_shifted", 0)

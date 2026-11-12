@@ -454,3 +454,12 @@ Story 1.3 AC9 / I-6 ("mumble-speech web check, moved to 3.7") is UNBLOCKED. Tizi
 - Corrupt Memory marks are uniform over all rows, including the dragon band (about a third of marks); `·` glyph vertical placement to be eyeballed; font atlas now exactly full (112 glyphs).
 - Test gaps: Corrupt Memory hazard set equals tell set tile for tile; flag-off test does not build an Arena; probabilistic pool/count assertions over many seeds; unused `const T`/`_tells`/`GameScript` declarations.
 - `check_guards.sh` now also covers `data/bosses/segfault` path leaks; `AccessViolation` class name still not covered.
+
+## Deferred from: code review of story 6.5 (SIGSEGV and register corruption)
+
+- `Register.rotate` emits `register_shifted` (click, slide) even when the ring is unchanged (2-bit ring, or n a multiple of the ring size): kept by D-S65-4; revisit in 7.8. `rotate(0)` logs an error and `RotateRegister.apply` still closes the link afterwards (unreachable with the fixed +2); `rotate` could return a bool.
+- `PlayerEffects` dispatches by `has_method` on an `Array[RefCounted]`; a `PlayerCommand` base class would fail at parse time (do with 6.6 Reserved Write). Commands pushed before `bind` are dropped with one error.
+- Warning tell is polled in `Hud._process`, `WarningBorder._process`, `sky_text` and the frame draw by `has_method`; a virtual `BossAttack.warning_tell()` default false would be tidier.
+- `BossController.can_start` refusal happens after `pick_next` consumed the rng and pick history (never fires under the serial FSM; comment-only).
+- Test gaps: HUD inverted-line draw path and Main wiring have no render test; rotation while a link is open in ACTIVE (held K dropped), negative `n` and |n| > ring size on 3/4-bit rings; tests hard-code cache indices (SIGSEGV 2, Core Dump 3); `_seeded_run` is slow (60k ticks).
+- `Hud._process` polls every frame (cheap) and `AccessViolation` is still not in the leaf guard (from 6.3).

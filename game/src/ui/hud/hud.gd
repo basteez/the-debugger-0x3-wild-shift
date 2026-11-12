@@ -22,6 +22,9 @@ const SKY := "// TODO: this should terminate"
 const SKY_NULL_POINTER := "// FIXME: who owns this pointer?"
 ## Story 6.3 (AC 3): the Segfault fight's sky comment, by boss id (the HUD never names its class).
 const SKY_SEGFAULT := "// HACK: do not read past this line"
+## Story 6.5 (AC 3, D-S65-8): the warning tell line, inverted (BG on INK) in the sky row for the
+## whole SIGSEGV tell. wildshift8 covers printable ASCII, so lowercase stays.
+const WARNING_TELL_TEXT := "SIGSEGV incoming"
 const REG_TITLE := "reg"
 const LOG_HEADER := "── console ─────────────────────────────────────────────────────────────────────"
 ## One per arena tile row (DC6): drawn at cols 13-14 on HUD row 2 + 2 * index.
@@ -44,6 +47,8 @@ const SEPARATOR_COL := 15
 ## The fight's boss (Story 3.1), set by Main on every flow change; null = placeholder top bar.
 ## Read only: the header shows its live HP (AD-05).
 var boss: BossController = null
+## Story 6.5: the warning state the frame last drew.
+var _warning_shown: bool = false
 
 
 func _ready() -> void:
@@ -80,9 +85,30 @@ func top_bar_text() -> String:
 	return boss_header(boss.def.name_signature, boss.hp)
 
 
-## The sky row text: the fight's boss comment (D-S51-4), SKY otherwise.
+## The sky row text: the fight's boss comment (D-S51-4), SKY otherwise. Story 6.5 (D-S65-8): the
+## warning tell line while a warning tell runs.
 func sky_text() -> String:
+	if warning_tell_on(boss):
+		return WARNING_TELL_TEXT
 	return sky_for(boss.def.boss_id if boss != null and boss.def != null else &"")
+
+
+## Story 6.5 (AC 3, 4, D-S65-7): true while the boss's current attack reports a warning tell
+## (SIGSEGV), read by method so the HUD never names the cut-ladder leaf's classes. Pure read (AD-05).
+static func warning_tell_on(b: BossController) -> bool:
+	if b == null:
+		return false
+	var attack: BossAttack = b.current_attack()
+	return attack != null and attack.has_method(&"warning_tell") and bool(attack.call(&"warning_tell"))
+
+
+## Story 6.5: the frame redraws when the warning tell starts or ends (the HUD otherwise redraws on
+## boss events only).
+func _process(_delta: float) -> void:
+	var on: bool = warning_tell_on(boss)
+	if on != _warning_shown:
+		_warning_shown = on
+		frame.queue_redraw()
 
 
 ## The sky comment for `boss_id` (D-S51-4): the Null Pointer's and the Segfault's own lines, SKY for

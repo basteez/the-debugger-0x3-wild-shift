@@ -718,6 +718,7 @@ func test_player_effects_drains_its_queue() -> void:
 	assert_eq(fx.pending(), 2)
 	fx.tick(_ctx)
 	assert_eq(fx.pending(), 0)
+	assert_push_error("not bound") # Story 6.5: an unbound queue drops its commands with an error
 	fx.push(RefCounted.new())
 	fx.clear()
 	assert_eq(fx.pending(), 0)

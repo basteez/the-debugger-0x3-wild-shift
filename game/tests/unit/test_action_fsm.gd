@@ -666,3 +666,27 @@ func test_chain_and_combo_starts_increment_the_serial() -> void:
 	_run_to(12) # Dash Strike starts on tick 11
 	assert_eq(_fsm.action, Defs.DASH_STRIKE)
 	assert_eq(_fsm.action_serial, 2)
+
+
+# --- Story 6.5 (D-S65-5 amended): a SIGSEGV rotation closes the link, not the ATTACK chain ---
+
+func test_a_rotation_during_startup_opens_no_link_on_the_new_pair() -> void:
+	_ring([A, D, Register.Bit.LOOP])
+	_press(J)
+	_run_to(3) # slash STARTUP on window (A, D)
+	PlayerEffects.RotateRegister.new(2).apply(_reg, _fsm.link)
+	assert_eq(_reg.active_window(), Vector2i(D, Register.Bit.LOOP))
+	_run_to(7) # tick 6, frame 7: the link would open here
+	assert_false(_fsm.link.is_open(), "J started on (A, D): no link on (D, L)")
+
+
+func test_a_rotation_keeps_the_chain_when_the_slot_still_holds_attack() -> void:
+	_ring([A, D])
+	_press(J)
+	_run_to(10)
+	PlayerEffects.RotateRegister.new(2).apply(_reg, _fsm.link) # 2-bit ring: same window
+	_run_to(16)
+	_press(J)
+	_run_to(22)
+	_tick()
+	assert_eq(_fsm.action, Defs.SLASH_1.chain_next, "hit 2: the rotation is not a player shift")

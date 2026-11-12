@@ -65,6 +65,24 @@ func shift(direction: int) -> void:
 	EventBus.register_shifted.emit(direction, active_window(), ring.duplicate(), &"player")
 
 
+## Story 6.5 (NP-3, D-S65-4, D-S65-5): a boss effect's rotation (SIGSEGV +2), applied only through
+## the PlayerEffects queue. Rotates |n| slots in the direction of n's sign (+ = `>>`), reduced modulo
+## the ring size (+2 on a 2-bit ring leaves it unchanged), and emits register_shifted once with
+## `source`. Not a player shift: shift_serial is untouched, so an ATTACK chain survives (it still
+## needs its slot to hold A); the PlayerEffects command closes the link itself (NP-1).
+func rotate(n: int, source: StringName = &"sigsegv") -> void:
+	if n == 0:
+		Log.error(&"register", "rotate by 0 slots")
+		return
+	if ring.size() < MIN_BITS:
+		Log.error(&"register", "rotate on a ring of %d bits" % ring.size())
+		return
+	var direction: int = RIGHT if n > 0 else LEFT
+	for i: int in absi(n) % ring.size():
+		ring = rotated(ring, direction)
+	EventBus.register_shifted.emit(direction, active_window(), ring.duplicate(), source)
+
+
 ## The two leftmost owned bits (J, K).
 func active_window() -> Vector2i:
 	return window_of(ring)

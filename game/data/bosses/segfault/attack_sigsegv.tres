@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="AttackDef" format=3]
+
+[ext_resource type="Script" path="res://src/bosses/framework/attack_def.gd" id="1_adef"]
+[ext_resource type="Script" path="res://src/bosses/segfault/attacks/sigsegv.gd" id="2_attack"]
+
+[resource]
+script = ExtResource("1_adef")
+id = &"sigsegv"
+tell = 60
+active = 1
+recovery = 90
+exclusive = true
+recovery_if_no_breakpoint = 150
+attack_script = ExtResource("2_attack")
+tell_sfx = &"tell_sigsegv"

@@ -13,7 +13,13 @@ func _ready() -> void:
 func _draw() -> void:
 	var hud := get_parent() as Hud
 	_text(Vector2i(0, 0), hud.top_bar_text() if hud != null else Hud.TOP_BAR)
-	_text(Vector2i(0, 1), hud.sky_text() if hud != null else Hud.SKY) # Story 5.1 (D-S51-4)
+	var warning: bool = hud != null and Hud.warning_tell_on(hud.boss)
+	if warning: # Story 6.5 (D-S65-8): the tell line is an inverted ink cell run (INK/BG only)
+		var line: String = hud.sky_text()
+		draw_rect(Rect2(GlyphFont.cell_to_px(Vector2i(0, 1), SCALE), Vector2(GlyphFont.text_width(line, SCALE), GlyphFont.CELL * SCALE)), Palette.INK)
+		GlyphFont.draw_cell(self, Vector2i(0, 1), line, Palette.BG, SCALE)
+	else:
+		_text(Vector2i(0, 1), hud.sky_text() if hud != null else Hud.SKY) # Story 5.1 (D-S51-4)
 	_box(Hud.REGISTER, Hud.REG_TITLE)
 	for i: int in Hud.LINE_NO.size():
 		_text(Vector2i(Hud.LINE_NO_COL, Hud.line_no_row(i)), Hud.LINE_NO[i])
