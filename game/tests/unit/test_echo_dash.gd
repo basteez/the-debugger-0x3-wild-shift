@@ -442,8 +442,11 @@ func test_echo_dash_through_the_segfault_claw_patches_in_phase_one() -> void:
 	var sf := SegfaultBody.new()
 	assert_true(sf.setup(sf_def, null, arena))
 	sf.reset_for_fight()
+	# The phase-1 pool picks claw or Corrupt at random and _ctx.rng is unseeded: pin the seed and
+	# allow enough frames that a run of Corrupt picks cannot starve the wait for the claw.
+	_ctx.rng.seed = 6003
 	var guard: int = 0
-	while not (sf.state == BossController.BossState.ACTIVE and sf.tiles.attack_cells == 0) and guard < 900:
+	while not (sf.state == BossController.BossState.ACTIVE and sf.tiles.attack_cells == 0) and guard < 6000:
 		sf.tick(_ctx)
 		guard += 1
 	assert_eq(sf.state, BossController.BossState.ACTIVE, "in the claw's ACTIVE frames")
