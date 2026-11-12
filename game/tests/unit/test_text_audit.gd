@@ -42,7 +42,9 @@ const GDD_SKY_SEGFAULT := "// HACK: do not read past this line"
 ## AC 13 allowlist: the `data`-class strings moved by this story, and the scripts that held them.
 ## Each quoted string must never reappear (with its quotes) in its former script.
 const MOVED_LITERALS: Dictionary[String, PackedStringArray] = {
-	"res://src/ui/hud/hud.gd": [GDD_SKY_DEFAULT, GDD_SKY_NULL_POINTER, GDD_SKY_SEGFAULT],
+	# Inline literals, not the GDD_SKY_* consts: consts referenced inside a const typed Dictionary
+	# resolved to empty strings on the Linux CI build (Godot 4.7.2).
+	"res://src/ui/hud/hud.gd": ["// TODO: this should terminate", "// FIXME: who owns this pointer?", "// HACK: do not read past this line"],
 	"res://src/ui/screens/harvest/harvest_screen.gd": ["press any key", "// bug fixed"],
 	"res://src/ui/screens/title/title_screen.gd": ["The Debugger 0x03: Wild Shift", "press any key"],
 	"res://src/ui/screens/intro/intro_screen.gd": ["2 a.m.", "stuck on a bug", "squeeze", "QUACK", "The Clearing"],
@@ -211,5 +213,8 @@ func test_moved_strings_never_reappear_as_literals_in_their_former_scripts() -> 
 		var source: String = FileAccess.get_file_as_string(path)
 		assert_gt(source.length(), 0, path)
 		for text: String in MOVED_LITERALS[path]:
+			assert_ne(text, "", "%s: a moved literal resolved to empty, so it would match anything" % path)
+			if text.is_empty():
+				continue
 			var quoted: String = "\"%s\"" % text
 			assert_false(source.contains(quoted), "%s holds the literal %s (move it to data/text)" % [path, quoted])
