@@ -2,7 +2,8 @@ class_name ComboDef
 extends Def
 ## One ordered combo (Story 2.6, AD-02): the window (first, second) that fires it, the ActionDef
 ## that replaces K's solo action, and the HUD name. Read-only at runtime. The cooldown is not stored
-## here: the second bit's solo cooldown applies (D-S26-3).
+## here: the second bit's solo cooldown applies (D-S26-3). Story 4.2 adds the gap_free rule, Story 6.2
+## the requires_first_active gate.
 
 ## GDD: combo names are at most 11 characters.
 const NAME_MAX_CHARS := 11
@@ -20,6 +21,12 @@ const DEFS_PATH := "res://src/core/defs.gd"
 ## vulnerable. A K press on the window outside that rule is consumed and dropped (no hold, no
 ## link_second fallback). Echo Dash (D->L) sets it; Dash Strike does not.
 @export var gap_free: bool = false
+## Story 6.2 (D-S62-2, D-S62-6): the combo fires only while the running action (the first bit's solo)
+## has its last executed frame inside its ACTIVE frames; it then starts on the press tick and
+## replaces that action at once (even mid-ACTIVE), with no held press. Outside that window the K
+## press falls back to the second bit's solo action flagged link_second (no drop). Dereference
+## (N->A) sets it.
+@export var requires_first_active: bool = false
 
 
 func validate() -> PackedStringArray:
@@ -47,6 +54,10 @@ func validate() -> PackedStringArray:
 		out.append("first bit's solo startup %d + 1 exceeds the %d-frame press lifetime" % [first_solo.startup_frames, InputBuffer.PRESS_LIFETIME_FRAMES])
 	if gap_free and (action == null or action.invuln_from != 1):
 		out.append("a gap_free combo's action must be invulnerable from its frame 1")
+	if requires_first_active and first_solo != null and first_solo.active_frames < 1:
+		out.append("requires_first_active needs a first-bit solo with active_frames >= 1 (got %d)" % first_solo.active_frames)
+	if requires_first_active and gap_free:
+		out.append("requires_first_active and gap_free are mutually exclusive (the gate branch runs first)")
 	if display_name.length() < 1 or display_name.length() > NAME_MAX_CHARS:
 		out.append("display_name must be 1-%d characters (got '%s')" % [NAME_MAX_CHARS, display_name])
 	return out

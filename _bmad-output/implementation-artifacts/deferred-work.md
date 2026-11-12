@@ -178,7 +178,7 @@ Story 1.3 AC9 / I-6 ("mumble-speech web check, moved to 3.7") is UNBLOCKED. Tizi
 - [design call] The link can close for one tick between chain hits (hit 2 frame 7 vs hit 1 count k=19) and reopen, losing a held K; extend the count on chain start if seen.
 - F9 overlay `left N` reads 18 before the count starts (J ACTIVE); pass `counting` and show `-`.
 - `LinkOp.DROP` branch is unreachable in play (cooldown on the target cannot start mid-link); `LinkState.held_key`/`held_slot` are never read. Remove or test when another action touches the target cooldown.
-- `ComboDef.validate`: check `second` has a solo def, `action.cooldown_frames == 0`, no word longer than 10 chars ("Dereference" is cut to "Dereferenc" on the panel; fix in Story 6.2), and J startup + 1 <= 8 (buffered K stays live until the link opens).
+- `ComboDef.validate`: check `second` has a solo def, `action.cooldown_frames == 0`, no word longer than 10 chars ("Dereference" is cut to "Dereferenc" on the panel; fix in Story 6.2 — RESOLVED in Story 6.2: hyphenated "Derefer-" / "ence", D-S62-5), and J startup + 1 <= 8 (buffered K stays live until the link opens).
 - `ComboTable` index is lazy and never invalidated; the pair key packs `first*256+second` (use `Vector2i`).
 - ~~`resolve` has 11 positional args~~ (RESOLVED in Story 2.7: `ResolveInput`); `format_lines` still has 10 args (two adjacent bools); introduce a context object. `combos == null` silently falls back to `Defs.COMBOS`.
 - FSM boundary tests call `before_each()` mid-test and fold two scenarios in one; split them. DROP/hit-stop/pause-with-held-press have no FSM test.
@@ -413,3 +413,23 @@ Story 1.3 AC9 / I-6 ("mumble-speech web check, moved to 3.7") is UNBLOCKED. Tizi
 - Test gaps: same-tick player hit alongside a strike, boss contact vs decoy, real phase transition keeping the decoy, 8-frame buffer edge for K, GhostDecoyView top_left_for, Breakpoint freeze.
 - GhostDecoyView draws INK at 1x (no alpha in palette) instead of "dim ink"; draws under PlayerView.
 
+
+## Deferred from: code review of Story 6.2 (Dereference combo)
+
+- Gate (`first_active_ok`) checks only the running def's frames, not that it is the first bit's solo; latent for future requires_first_active combos (N->A only opens from Null Dodge).
+- `validate()` checks the static solo for an Echo/LOOP first bit, whereas the runtime gate sees `echo.last`; latent.
+- Held K in the gate branch with a cooling-down target is not aged out (unreachable today: ATTACK cd 0, HOLD only in recovery).
+- Gate skips `echo_blocked` for an Echo-def second bit (harmless for N->A).
+- A K buffered 1-8 frames before J still fires Dereference once the gate opens (design call, same as other combos); untested.
+- `wrap_name`: names over 11 chars (rejected by validate) or 21+ char words leave a dangling hyphen after the NAME_ROWS truncation; non-ASCII vowels fall to hard cut; missing tests for empty/double-space/10-11 char words.
+- Test strength: AC 5 (Clean Catch armed then ignored hit), AC 7 boss-hit hit-stop, AC 10 decoy with a target in range, AC 3 echo-memory assertion that does not prove Null Dodge writes it.
+
+## Deferred from: code review of Story 6.2 (Dereference combo)
+
+- Gate (`first_active_ok`) checks only the running def's frames, not that it is the first bit's solo; latent for future requires_first_active combos (N->A only opens from Null Dodge).
+- `validate()` checks the static solo for an Echo/LOOP first bit, whereas the runtime gate sees `echo.last`; latent.
+- Held K in the gate branch with a cooling-down target is not aged out (unreachable today: ATTACK cd 0, HOLD only in recovery).
+- Gate skips `echo_blocked` for an Echo-def second bit (harmless for N->A).
+- A K buffered 1-8 frames before J still fires Dereference once the gate opens (design call, same as other combos); untested.
+- `wrap_name`: names over 11 chars (rejected by validate) or 21+ char words leave a dangling hyphen after the NAME_ROWS truncation; non-ASCII vowels fall to hard cut; missing tests for empty/double-space/10-11 char words.
+- Test strength: AC 5 (Clean Catch armed then ignored hit), AC 7 boss-hit hit-stop, AC 10 decoy with a target in range, AC 3 echo-memory assertion that does not prove Null Dodge writes it.

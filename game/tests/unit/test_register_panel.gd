@@ -219,5 +219,6 @@ func test_plan_uses_the_injected_combo_table() -> void:
 func test_wrap_name() -> void:
 	assert_eq(RegisterPanel.wrap_name("Dash Strike"), PackedStringArray(["Dash", "Strike"]))
 	assert_eq(RegisterPanel.wrap_name("Ghost Echo"), PackedStringArray(["Ghost Echo"]))
-	assert_eq(RegisterPanel.wrap_name("Dereference"), PackedStringArray(["Dereferenc"]), "cut to 10 cells")
+	assert_eq(RegisterPanel.wrap_name("Dereference"), PackedStringArray(["Derefer-", "ence"]), "Story 6.2: hyphenated over two rows")
+	assert_eq(RegisterPanel.wrap_name("Xxxxxxxxxxxxx"), PackedStringArray(["Xxxxxxxxx-", "xxxx"]), "no vowel break: hard cut")
 	assert_eq(RegisterPanel.wrap_name("a b c d e f g h i j k l m n o p q r s t u v w"), PackedStringArray(["a b c d e", "f g h i j"]))
