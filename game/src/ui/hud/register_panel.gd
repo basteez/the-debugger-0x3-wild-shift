@@ -9,6 +9,9 @@ extends Node2D
 ## the slid cells inside the REGISTER box, off the border and the col-12 gap).
 ## Story 2.6 (FR7, D-S26-10, D-S26-14): the active window and each preview show their combo name
 ## (word-wrapped on two rows of 10 cells) where a combo exists, and only the bit glyphs where none.
+## Story 5.4 (AC 10, D-S54-8): while Watch is held, the byte-row cells of the boss's current weak
+## window bits get an INK frame. Reads the injected FightSkill (is_active) and the weak-window source
+## only; the Register is never changed. Released Watch draws no frame.
 
 ## One run of text to draw: top-left HUD cell, text (one glyph per cell) and style.
 class Cell:
@@ -59,6 +62,13 @@ const CLIP_RECT := Rect2(8, 24, 80, 144)
 ## The register to show. Injected by Main (null-safe: nothing is drawn without one).
 var register: Register
 
+## Story 5.4: the Watch module (null = Watch is cut, never marks) and the boss's current weak window
+## (a Callable returning Vector2i; ZERO = no boss). Injected by Main; read only.
+var watch_skill: FightSkill
+var weak_window_source: Callable
+## True when the last draw framed weak-window cells (so a release outside a fight still clears).
+var _marks_shown: bool = false
+
 ## Horizontal slide of the cells in px (Story 2.4 shift juice). Set by JuiceDirector; 0 = rest,
 ## which draws exactly as Story 2.3.
 var slide_px: int = 0:
@@ -85,6 +95,9 @@ func _init() -> void:
 func _process(_delta: float) -> void:
 	if register != null and register.active:
 		content.queue_redraw()
+	elif _marks_shown:
+		content.queue_redraw() # Story 5.4: never leave a stale Watch frame
+
 
 
 ## The clip mask: an opaque rect over the interior. Not shown (CLIP_CHILDREN_ONLY).
@@ -104,6 +117,31 @@ func _draw_content() -> void:
 		GlyphFont.draw_cell(content, c.cell, c.text, Palette.INK, SCALE)
 		if c.style == GREYED or c.style == FADED:
 			content.draw_texture_rect(checker_texture(), rect, true)
+	var marks: Array[Vector2i] = watch_mark_cells(register.ring, current_weak_window(), Register.MAX_BITS)
+	_marks_shown = not marks.is_empty()
+	for cell: Vector2i in marks:
+		content.draw_rect(Rect2(GlyphFont.cell_to_px(cell, SCALE), Vector2(GlyphFont.CELL, GlyphFont.CELL)), Palette.INK, false, 1.0)
+
+
+## Story 5.4: the weak window to mark now, or ZERO while Watch is not held (or cut, or no boss).
+func current_weak_window() -> Vector2i:
+	if watch_skill == null or not watch_skill.is_active() or not weak_window_source.is_valid():
+		return Vector2i.ZERO
+	var w: Variant = weak_window_source.call()
+	return w if w is Vector2i else Vector2i.ZERO
+
+
+## Story 5.4 (AC 10): the byte-row cells holding a bit of `weak` (x and y), in ring order. Pure:
+## `ring` is never modified; ZERO marks nothing. A weak bit the player does not own is not marked.
+static func watch_mark_cells(ring: PackedInt32Array, weak: Vector2i, owned_cap: int = Register.MAX_BITS) -> Array[Vector2i]:
+	var out: Array[Vector2i] = []
+	if weak == Vector2i.ZERO:
+		return out
+	var high: int = BYTE_BITS - clampi(owned_cap, 0, BYTE_BITS)
+	for slot: int in ring.size():
+		if ring[slot] == weak.x or ring[slot] == weak.y:
+			out.append(Vector2i(LEFT_COL + high + slot, BYTE_ROW))
+	return out
 
 
 ## Every cell of the panel for a ring of owned bits (window first), in draw order. Pure: no node,

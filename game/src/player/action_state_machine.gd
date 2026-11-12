@@ -7,6 +7,7 @@ extends SimSystem
 ## Story 2.6: owns the combo LinkState (D-S26-4) and starts combos and link follow-ups.
 
 ## STUNNED and WATCHING are declared for Epics 4-6 and never entered in Story 2.5.
+## Story 5.4 (D-S54-5): WATCHING is reported while Watch is held (ctx.watch_held) and no action runs.
 ## Story 5.3 (D-S53-6): STUNNED is entered by begin_stun (CombatResolver's NullPointerException):
 ## stun_left ticks with no movement and no action; J/K presses are discarded, shifts stay usable.
 enum ActionState { IDLE_MOVE, STARTUP, ACTIVE, RECOVERY, STUNNED, WATCHING }
@@ -79,6 +80,9 @@ func tick(ctx: SimContext) -> void:
 	var window: Vector2i = _register.active_window() if _register != null else Vector2i.ZERO
 	var serial: int = _register.shift_serial if _register != null else 0
 	_age_link(serial)
+	if ctx.watch_held:
+		_tick_watch(ctx.poll_frame, window, serial)
+		return
 	var request: ActionRequest = ActionResolver.resolve(_resolve_input(ctx.poll_frame, window, serial))
 	if request != null and request.def == null:
 		_apply_link_op(request)
@@ -160,14 +164,37 @@ func begin_stun(frames: int, reason: StringName = &"") -> void:
 ## the player stays locked. All `frames` stunned ticks report STUNNED; the tick after the last one
 ## runs the normal path (input read, IDLE_MOVE, movement unlocked).
 func _tick_stun(frame: int) -> void:
-	if _buffer != null:
-		for key: StringName in ActionResolver.KEYS:
-			while _buffer.consume(key, frame):
-				pass
+	_discard_action_presses(frame)
 	stun_left -= 1
 	state = ActionState.STUNNED
 	if _player != null:
 		_player.lock_movement(Vector2.ZERO)
+
+
+## Story 5.4 (D-S54-5): one tick with Watch held (after the stun check, so a stun keeps its rule).
+## J/K presses live this tick are consumed and dropped (never kept for later), so no new action,
+## chain hit, cancel, combo, link follow-up or Echo starts. A running action runs its normal frames
+## to the end; its chain record and the link keep their own rules (the link still ages above and
+## opens / counts below). Idle reports WATCHING. Shifts (SHIFTS phase) are not touched.
+func _tick_watch(frame: int, window: Vector2i, serial: int) -> void:
+	_discard_action_presses(frame)
+	if action != null:
+		if action_frame >= action.total_frames():
+			_finish()
+		else:
+			action_frame += 1
+	state = state_for(action, action_frame) if action != null else ActionState.WATCHING
+	_update_link(window, serial)
+	_apply_movement()
+
+
+## Consumes every J/K press live at `frame` and drops it (stun and Watch).
+func _discard_action_presses(frame: int) -> void:
+	if _buffer == null:
+		return
+	for key: StringName in ActionResolver.KEYS:
+		while _buffer.consume(key, frame):
+			pass
 
 
 ## Fight start (D-049 b): idle, no action, cooldowns, chain and link cleared, Player unlocked.

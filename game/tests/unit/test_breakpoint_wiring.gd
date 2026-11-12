@@ -91,7 +91,8 @@ func test_flag_off_arena_builds_nothing_and_space_does_nothing() -> void:
 	var arena := _arena(false)
 	assert_null(arena.breakpoint_skill)
 	for s: SimSystem in SimClock.get(&"_systems"):
-		assert_false(s is FightSkill, "no skill registered")
+		# Story 5.4: the Watch module is a FightSkill too; only the Breakpoint one must be absent.
+		assert_false(s is FightSkill and s.get_script().resource_path == Arena.BREAKPOINT_SKILL_PATH, "no Breakpoint skill registered")
 	arena.enter_fight(Register.fight_start_for_boss(1), false, Arena.TEST_BOSS_DEF_PATH, true)
 	assert_false(arena.boss.breakpoint_on, "the SIGSEGV fallback sees the flag off")
 	SimClock.input_source = SpaceInput.new()

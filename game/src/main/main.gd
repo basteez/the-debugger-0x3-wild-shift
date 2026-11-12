@@ -15,6 +15,8 @@ const GameFlow := preload("res://src/autoloads/game.gd")
 const HudScene := preload("res://src/ui/hud/hud.tscn")
 ## Story 4.3 (AD-12, D-S43-2): the Breakpoint overlay, loaded by path only when the module is on.
 const BREAKPOINT_OVERLAY_PATH := "res://src/skills/breakpoint/breakpoint_overlay.gd"
+## Story 5.4 (AD-12, D-S54-3): the Watch read-outs, loaded by path only when the module is on.
+const WATCH_OVERLAY_PATH := "res://src/skills/watch/watch_overlay.gd"
 ## Render layer order (AD-07): Arena -> Entities -> Particles -> HUD -> Pause -> ScreenFX.
 const LAYER_ORDER: Array[StringName] = [&"Arena", &"Entities", &"Particles", &"Hud", &"Pause", &"ScreenFX"]
 const HUD_LAYER := 10
@@ -59,6 +61,8 @@ var feature_flags: FeatureFlags = Defs.FEATURE_FLAGS
 var breakpoint_overlay: Node2D
 ## Story 4.3 (AC 10): the HUD `brk` cooldown readout; null when the module is off.
 var breakpoint_readout: BreakpointReadout
+## Story 5.4: the Watch read-outs above the boss (a child of the Arena); null when the module is off.
+var watch_overlay: Node2D
 
 
 func _ready() -> void:
@@ -99,6 +103,7 @@ func _build_layers() -> void:
 	arena.name = &"Arena"
 	arena.visible = false
 	arena.set_breakpoint_enabled(feature_flags.breakpoint_enabled) # D-S43-1: the one startup read
+	arena.set_watch_enabled(feature_flags.watch) # Story 5.4 (D-S54-3): the one startup read
 	add_child(arena)
 	# The player view lives in presentation/, so Main (not the arena/ sim folder) attaches it.
 	var player_view := PlayerView.new(arena.player)
@@ -150,6 +155,7 @@ func _build_layers() -> void:
 	hp_readout.health = arena.health
 	hud.add_child(hp_readout)
 	_build_breakpoint_views()
+	_build_watch_views()
 	pause_layer = CanvasLayer.new()
 	pause_layer.name = &"Pause"
 	pause_layer.layer = PAUSE_LAYER
@@ -205,6 +211,23 @@ func _build_breakpoint_views() -> void:
 	hud.add_child(breakpoint_readout)
 
 
+## Story 5.4 (AC 8-10, AC 14): the read-out overlay and the register panel's weak-window marks exist
+## only when the arena built the Watch module (flag on). The overlay sits above the boss view.
+func _build_watch_views() -> void:
+	if arena.watch_skill == null:
+		return
+	var script := load(WATCH_OVERLAY_PATH) as GDScript
+	if script != null:
+		watch_overlay = script.new() as Node2D
+		watch_overlay.name = &"WatchReadouts"
+		watch_overlay.set(&"skill", arena.watch_skill)
+		arena.add_child(watch_overlay)
+	hud.register_panel.watch_skill = arena.watch_skill
+	var a: Arena = arena
+	hud.register_panel.weak_window_source = func() -> Vector2i:
+		return a.boss.current_weak_window() if a.boss != null else Vector2i.ZERO
+
+
 func _on_flow_state_changed(_from: int, to: int) -> void:
 	apply_flow_state(to, Game.run.boss_index)
 
@@ -237,7 +260,7 @@ func apply_flow_state(state: int, boss_index: int) -> void:
 	hud.set_duck_only(harvest)
 	if in_fight:
 		var practice: bool = wants_practice()
-		arena.enter_fight(fight_start_ring(Game.run, boss_index), practice, boss_def_path_for(wants_test_boss(), boss_index, practice), breakpoint_unlocked_for(boss_index))
+		arena.enter_fight(fight_start_ring(Game.run, boss_index), practice, boss_def_path_for(wants_test_boss(), boss_index, practice), breakpoint_unlocked_for(boss_index), watch_unlocked_for(boss_index))
 	else:
 		arena.leave_fight()
 	_attach_practice_target()
@@ -270,6 +293,11 @@ static func fight_start_ring(run: RunState, boss_index: int) -> PackedInt32Array
 
 ## Breakpoint is usable from Fight 2 on, i.e. after Boss 1 (Story 4.3, AC 3, D-S43-6). Pure.
 static func breakpoint_unlocked_for(boss_index: int) -> bool:
+	return boss_index >= 1
+
+
+## Watch is usable from Boss 2 on (Story 5.4, AC 1, D-S54-4): the same rule as Breakpoint. Pure.
+static func watch_unlocked_for(boss_index: int) -> bool:
 	return boss_index >= 1
 
 
@@ -310,6 +338,8 @@ func _attach_boss(in_fight: bool = true) -> void:
 	if is_instance_valid(boss_view):
 		boss_view.boss = b
 		boss_view.queue_redraw()
+	if is_instance_valid(watch_overlay):
+		watch_overlay.set(&"boss", b) # Story 5.4: the read-outs follow the fight's boss
 	if is_instance_valid(hud):
 		hud.set_boss(b)
 

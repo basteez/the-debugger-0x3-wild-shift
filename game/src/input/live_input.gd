@@ -25,3 +25,8 @@ func move_for_frame() -> Vector2i:
 	return Vector2i(
 		int(signf(Input.get_axis(&"move_left", &"move_right"))),
 		int(signf(Input.get_axis(&"move_up", &"move_down"))))
+
+
+## Story 5.4 (D-S54-2): R held this frame (the `watch` action), false when the action is not mapped.
+func watch_held_for_frame() -> bool:
+	return InputMap.has_action(&"watch") and Input.is_action_pressed(&"watch")

@@ -13,3 +13,9 @@ func presses_for_frame() -> Array[StringName]:
 ## each component in {-1, 0, 1}. Called once per polled frame by SimClock, after presses_for_frame.
 func move_for_frame() -> Vector2i:
 	return Vector2i.ZERO
+
+
+## Story 5.4 (D-S54-2): Watch held this physics frame (a held state, not a press). Called once per
+## polled frame by SimClock, after move_for_frame. Default: never held.
+func watch_held_for_frame() -> bool:
+	return false
