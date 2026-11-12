@@ -1,8 +1,9 @@
 extends GutTest
 ## Story 6.3 AC 14-19: Access Violation on the real Segfault def. No scene tree: the body is
 ## ticked directly with an ArenaContext whose aim and contact position the test drives, and a
-## PlayerHealth ticked after it (SimClock order). The only pool attack is Access Violation, so the
-## real FSM picks it with no forcing.
+## PlayerHealth ticked after it (SimClock order). Story 6.4: the pools now hold the tile attacks too,
+## so ClawBody narrows the candidates to Access Violation (cache index 0, first in every pool); the
+## real FSM still runs the attack.
 
 const GameScript := preload("res://src/autoloads/game.gd")
 const PLAYER_DEF: PlayerDef = preload("res://data/player/player_def.tres")
@@ -19,6 +20,16 @@ var _target_px: Vector2
 var _health: PlayerHealth
 var _saved_state: int
 var _tells: Array = []
+
+
+## Story 6.4: the real Segfault body with Access Violation as its only candidate.
+class ClawBody:
+	extends SegfaultBody
+
+	var _claw_only := PackedInt32Array([0])
+
+	func _pick_candidates(_phase: int) -> PackedInt32Array:
+		return _claw_only
 
 
 class FakeActions:
@@ -57,8 +68,9 @@ func _body() -> SegfaultBody:
 	_health = PlayerHealth.new(PLAYER_DEF, FakeActions.new())
 	_health.reset_for_fight()
 	_health.set_active(true)
-	var b := SegfaultBody.new()
+	var b := ClawBody.new()
 	assert_true(b.setup(SF_DEF, _health, _arena))
+	assert_eq(b.attack_for(CLAW), b._attacks[0], "the claw is cache index 0")
 	b.reset_for_fight()
 	return b
 

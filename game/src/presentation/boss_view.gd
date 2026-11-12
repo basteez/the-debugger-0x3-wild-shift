@@ -30,6 +30,8 @@ extends Node2D
 ## Story 5.3 (D-S53-9): Dangling Pointers' tell marks and the re-cast spots are a `null` flicker
 ## (DECOY_FLICKER_BLOCK frames on, the same off, from SimClock.sim_frame); a dispelled decoy flashes
 ## as an inverted `null` cell while the body's flash timer runs. Live decoys are never drawn.
+## Story 6.4 (D-S64-10): Segfault's tile attacks (detected by method) draw their floor tiles under
+## the dragon: `░` marked, `▓` hazard, `·` safe. INK only.
 
 const GLYPH_SCALE := 2
 const TELL_MARK := "!"
@@ -63,6 +65,11 @@ const GHOST_SCALE := 1
 const REASSEMBLY_SWAP := 0.5
 ## Story 5.3 (D-S53-9): the decoy flicker's on / off block in sim frames.
 const DECOY_FLICKER_BLOCK := 4
+## Story 6.4 (D-S64-10): the corrupted-tile glyphs: marked (TELL), live hazard (ACTIVE), and Core
+## Dump's safe tile (TELL).
+const TILE_MARKED := "░"
+const TILE_HAZARD := "▓"
+const TILE_SAFE := "·"
 
 var boss: BossController
 ## Story 5.1: the Null Pointer's hum, a child built in _ready; silent unless the boss is one.
@@ -249,14 +256,18 @@ func _draw_glyph_body(body: BossController) -> void:
 		return
 	var jitter := Vector2(jitter_offset(body.jitter_level(), SimClock.sim_frame), 0.0)
 	var flash: bool = roar_flash_on(body.state == BossController.BossState.ROAR, body.frames_left)
+	var attack: BossAttack = body.current_attack()
+	var tile_attack: bool = is_tile_attack(attack)
+	if tile_attack: # Story 6.4: the floor tiles first, so the dragon is drawn over them
+		_draw_tiles(attack, cell)
 	var top: float = INF
 	var bottom: float = -INF
 	for k: int in sources.size():
 		_draw_ring_cell(sources[k], glyphs[k], flash, cell, jitter)
 		top = minf(top, sources[k].y - cell.y / 2.0)
 		bottom = maxf(bottom, sources[k].y + cell.y / 2.0)
-	var attack: BossAttack = body.current_attack()
-	_draw_attack(attack, cell, body.state == BossController.BossState.ACTIVE)
+	if not tile_attack:
+		_draw_attack(attack, cell, body.state == BossController.BossState.ACTIVE)
 	if attack != null and attack.has_method(&"claw_arc"):
 		var arc: PackedVector2Array = attack.call(&"claw_arc")
 		if arc.size() >= 2:
@@ -267,6 +278,24 @@ func _draw_glyph_body(body: BossController) -> void:
 	# review: the number sits below the whole 4-row body, not over its middle rows
 	var below: float = (bottom - body.body_center_px.y + _number_scale * GlyphFont.CELL / 2.0) if not sources.is_empty() else cell.y
 	_draw_number(Vector2(0, below))
+
+
+## Story 6.4 (AD-12): true for an attack that draws corrupted floor tiles (Corrupt Memory, Core
+## Dump), read by method so this view never names the cut-ladder leaf's classes. Pure.
+static func is_tile_attack(attack: BossAttack) -> bool:
+	return attack != null and attack.has_method(&"tile_marks") and attack.has_method(&"safe_tiles")
+
+
+## Story 6.4 (AC 4, 5, 7, 8, 15, D-S64-6, D-S64-10): the corrupted tiles through the attack's
+## getters: `░` on each marked tile (TELL), `·` on each safe tile (Core Dump TELL), `▓` on each live
+## hazard tile (ACTIVE), one glyph cell per 16 px tile. INK only (red is reserved). Reads only.
+func _draw_tiles(attack: BossAttack, cell: Vector2) -> void:
+	for p: Vector2 in attack.call(&"tile_marks"):
+		GlyphFont.draw_at(self, line_top_left(p, cell), TILE_MARKED, Palette.INK, GLYPH_SCALE)
+	for p: Vector2 in attack.call(&"safe_tiles"):
+		GlyphFont.draw_at(self, line_top_left(p, cell), TILE_SAFE, Palette.INK, GLYPH_SCALE)
+	for p: Vector2 in attack.hazard_positions():
+		GlyphFont.draw_at(self, line_top_left(p, cell), TILE_HAZARD, Palette.INK, GLYPH_SCALE)
 
 
 ## Story 5.3 (D-S53-9): true on the "on" blocks of the decoy flicker. Pure.

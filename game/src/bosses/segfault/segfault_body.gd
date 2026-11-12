@@ -39,11 +39,23 @@ var pos_mtiles: Vector2i = SPAWN_MTILES
 var drift_rem: int = 0
 ## -1 left, +1 right, 0 = not picked yet (picked from SimContext.rng on the first drifting tick).
 var drift_dir: int = 0
+## Story 6.4 (D-S64-3): the corrupted-tile grid, created on the first reset_for_fight and cleared in
+## place afterwards. Null until then (and never built with FeatureFlags.segfault off: no body).
+var tiles: CorruptedTiles = null
+## Story 6.4 (D-S64-2): the fight's SimContext.rng, kept from _tick_body so the tile attacks can ask
+## for random cells without naming the RNG (test_attack_isolation).
+var _rng: RandomNumberGenerator = null
 
 
 ## Fight start and retry (AC 21): the framework reset, then the dragon back to its spawn with no
 ## direction (the next drifting tick re-seeds it from the fight's RNG).
+## Story 6.4 (AC 3, 11): the tile grid is allocated once here, then cleared in place (marks,
+## hazards and the entry latch).
 func reset_for_fight() -> void:
+	if tiles == null:
+		tiles = CorruptedTiles.new()
+	else:
+		tiles.reset()
 	super.reset_for_fight()
 	pos_mtiles = SPAWN_MTILES
 	drift_rem = 0
@@ -53,6 +65,7 @@ func reset_for_fight() -> void:
 
 ## One live tick (AC 8): no drift during an attack's ACTIVE and RECOVERY.
 func _tick_body(ctx: SimContext) -> void:
+	_rng = ctx.rng # Story 6.4 (D-S64-2): before the FSM step that may enter a tile attack's TELL
 	if state == BossState.ACTIVE or state == BossState.RECOVERY:
 		return
 	_drift(ctx.rng)
@@ -134,5 +147,36 @@ static func cell_glyphs() -> PackedStringArray:
 
 
 ## D-S63-5: the body circle (framework default) plus the live attack's hazard (ACTIVE only).
+## Story 6.4 (D-S64-5): the tile grid's entry latch is updated on every call (the framework calls
+## this once per live tick); while a tile attack runs, its tiles hurt only on an entry, never per
+## tick, so attack_hazard_hit is not asked for it.
 func touches_player(p: Vector2) -> bool:
+	var attack: BossAttack = current_attack()
+	var tile_attack: bool = is_tile_attack(attack)
+	var entered: bool = false
+	if tiles != null:
+		entered = tiles.entry_hit(p, tile_attack and state == BossState.ACTIVE)
+	if tile_attack:
+		return super.touches_player(p) or entered
 	return super.touches_player(p) or attack_hazard_hit(p)
+
+
+## Story 6.4: true for Corrupt Memory and Core Dump (the attacks that write the tile grid).
+static func is_tile_attack(attack: BossAttack) -> bool:
+	return attack is CorruptMemory or attack is CoreDump
+
+
+## Story 6.4 (D-S64-2, D-S64-4): Corrupt Memory's draw at TELL entry. A uniform count in
+## [min_count, max_count], then that many distinct tiles uniform over the grid, all from the fight's
+## SimContext.rng. Returns how many tiles were marked (0 before the first tick or without a grid).
+func mark_random_tiles(min_count: int, max_count: int) -> int:
+	if tiles == null or _rng == null:
+		return 0
+	return tiles.mark_random(_rng, _rng.randi_range(min_count, max_count))
+
+
+## Story 6.4 (AC 10): a cut tile attack leaves no mark or hazard, even without an arena context
+## (the framework calls on_cancel only with one).
+func _on_attack_cancelled() -> void:
+	if tiles != null:
+		tiles.reset()
