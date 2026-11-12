@@ -20,8 +20,14 @@ const HARVEST_MAX_FRAMES := 480
 const HARVEST_SKIP_FRAMES := 120
 ## Boss ids by boss_index (I-5): the `player_died` payload and the boss signatures.
 const BOSS_IDS: Array[StringName] = [&"infinite_loop", &"null_pointer", &"segfault"]
+## Story 6.8 (AC 4-6, D-S68-1, D-S68-7): the Ending's timeline holds at ENDING_HOLD_FRAMES (30 s, the
+## cap of the whole ending) and waits for the player; a press leaves it only after
+## ENDING_LEAVE_GATE_FRAMES sim frames, so the input that ended the last fight never counts.
+const ENDING_HOLD_FRAMES := 900
+const ENDING_LEAVE_GATE_FRAMES := 60
 ## States where Esc and focus loss pause (Story 1.7 DC1): the 60 Hz clock drives the Intro cap and the fight.
-const PAUSABLE_STATES: Array[FlowState] = [FlowState.INTRO, FlowState.FIGHT]
+## Story 6.8 (D-S68-6): the Ending too, so its timeline freezes on Esc.
+const PAUSABLE_STATES: Array[FlowState] = [FlowState.INTRO, FlowState.FIGHT, FlowState.ENDING]
 ## [design call] D-FIX-FS-1 (fullscreen Esc lock): in browser fullscreen Esc exits fullscreen and never
 ## reaches the canvas, and the blur pauses the game. So the `pause` action is Esc or P, and while
 ## paused a left click / tap resumes, unless it comes less than CLICK_RESUME_GUARD_MSEC (wall clock,
@@ -49,6 +55,13 @@ var run: RunState = RunState.new()
 var death_frame: int = -1
 ## Sim frame on which HARVEST was entered (Story 3.8, B3); -1 outside HARVEST.
 var harvest_start_frame: int = -1
+## Sim frame on which ENDING was entered (Story 6.8, AC 1); -1 outside ENDING.
+var ending_start_frame: int = -1
+## Story 6.8 (AC 14-16): the run's clear-time and hits record. Not restored by a retry.
+var stats: RunStats = RunStats.new()
+## Story 6.8 (AC 15): the stats snapshot taken on ENDING entry ({clear_frames, hits, debug_jumped});
+## empty outside ENDING. The Ending's stretch summary card reads it.
+var ending_summary: Dictionary = {}
 ## True only while retry() re-enters FIGHT: the snapshot is restored, not re-captured (D-S29-4).
 var _retrying: bool = false
 ## Web only: the JS focus callback, kept alive for the session (a freed callback is never called).
@@ -189,6 +202,7 @@ func start_run_from_title(frame: int) -> void:
 	first_input_frame = frame
 	intro_start_frame = frame
 	run = RunState.new()
+	stats = RunStats.new() # Story 6.8: a new run, new stats
 	Log.info(&"flow", "title -> intro at f=%d" % frame)
 	_set_flow_state(FlowState.INTRO)
 
@@ -219,7 +233,7 @@ func finish_intro(frame: int, skip_requested: bool = false) -> bool:
 
 
 ## Placeholder advance gesture (Story 1.6): the next state in the run sequence. In INTRO it is a
-## gated skip (Story 6.7), never an unconditional start.
+## gated skip (Story 6.7), never an unconditional start; in ENDING a gated leave (Story 6.8).
 func advance() -> void:
 	if SimClock.paused: # DC4: a key press during pause never skips the fight
 		return
@@ -237,12 +251,39 @@ func advance() -> void:
 			run.start_boss(run.boss_index + 1)
 			_set_flow_state(FlowState.FIGHT)
 		FlowState.ENDING:
-			run = RunState.new()
-			first_input_frame = -1
-			intro_start_frame = -1
-			_set_flow_state(FlowState.TITLE)
+			# Story 6.8 (AC 7): the same leave gate as the Ending screen; no unconditional reset.
+			if can_leave_ending(SimClock.sim_frame):
+				finish_ending(SimClock.sim_frame, true)
 		FlowState.DEAD:
 			Log.warn(&"flow", "advance ignored in DEAD")
+
+
+## Pure (Story 6.8, AC 6, D-S68-7): true once a press may leave an ending entered at `start_frame`.
+static func ending_leave_open_at(start_frame: int, frame: int) -> bool:
+	return start_frame >= 0 and frame > start_frame + ENDING_LEAVE_GATE_FRAMES
+
+
+## Story 6.8 (AC 6): true in ENDING once the leave gate has passed.
+func can_leave_ending(frame: int) -> bool:
+	return flow_state == FlowState.ENDING and ending_leave_open_at(ending_start_frame, frame)
+
+
+## Story 6.8 (AC 6, 7, 8): ENDING -> TITLE on a leave press (`skip_requested`, accepted only when
+## can_leave_ending). The ending never times out (D-S68-1). Refused (false, no log) while paused
+## (DC4), outside ENDING or before the gate. The only place the ENDING -> TITLE run reset runs.
+func finish_ending(frame: int, skip_requested: bool = false) -> bool:
+	if SimClock.paused or flow_state != FlowState.ENDING:
+		return false
+	if not (skip_requested and can_leave_ending(frame)):
+		return false
+	Log.info(&"flow", "ending -> title at f=%d" % frame)
+	run = RunState.new()
+	stats = RunStats.new()
+	ending_summary = {}
+	first_input_frame = -1
+	intro_start_frame = -1
+	_set_flow_state(FlowState.TITLE)
+	return true
 
 
 ## Pure (Story 5.6, D-S56-3): the index of the run's last fight. With the Segfault cut (cut ladder #4,
@@ -334,6 +375,7 @@ func debug_grant_bit(boss: BossController) -> bool:
 		Log.warn(&"debug", "F8 ignored: bit %s already owned" % Register.glyph_of(bit))
 		return false
 	var to: FlowState = route_after_defeat(run.boss_index, segfault_enabled)
+	stats.debug_jumped = true # Story 6.8 (D-S68-5): a debug-granted bit makes the run not a clear
 	Log.info(&"debug", "F8 grant %s -> %s" % [Register.glyph_of(bit), FlowState.keys()[to]])
 	_set_flow_state(to)
 	return true
@@ -350,9 +392,11 @@ func debug_jump(target: FlowState, boss_index: int) -> void:
 		return
 	if target == FlowState.TITLE:
 		run = RunState.new()
+		stats = RunStats.new() # Story 6.8: the next run starts clean
 		first_input_frame = -1
 		intro_start_frame = -1
 	else:
+		stats.debug_jumped = true # Story 6.8 (AC 16, D-S68-5): a debug-jumped run is not a clear
 		if target == FlowState.FIGHT:
 			run.start_boss(boss_index) # D-S29-14: a debug jump into a fight is a new boss
 		else:
@@ -376,6 +420,11 @@ func _set_flow_state(to: FlowState) -> void:
 	if to != FlowState.DEAD:
 		death_frame = -1
 	harvest_start_frame = SimClock.sim_frame if to == FlowState.HARVEST else -1
+	# Story 6.8 (AC 1, 15): the Ending's timeline origin and the stats snapshot, taken on entry.
+	ending_start_frame = SimClock.sim_frame if to == FlowState.ENDING else -1
+	ending_summary = stats.snapshot(SimClock.sim_frame) if to == FlowState.ENDING else {}
+	if to == FlowState.FIGHT and stats.fight_start_frame < 0:
+		stats.fight_start_frame = SimClock.sim_frame # Story 6.8 (D-S68-4): Fight 1 starts the clear time
 	if to == FlowState.FIGHT:
 		if not _retrying: # D-S29-4: every FIGHT entry but a retry captures the snapshot
 			run.fight_start_ring = Register.fight_start_for_boss(run.boss_index)
@@ -386,7 +435,10 @@ func _set_flow_state(to: FlowState) -> void:
 
 
 ## Story 2.9 (D-S29-2): PlayerHealth reports every landed hit; the lethal one (hp 0) is a death.
+## Story 6.8 (AC 14, D-S68-4): every landed hit in FIGHT counts for the run, the lethal one included.
 func on_player_damaged(hp: int) -> void:
+	if flow_state == FlowState.FIGHT:
+		stats.hits += 1
 	if hp <= 0:
 		record_death(SimClock.sim_frame)
 

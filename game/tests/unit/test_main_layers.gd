@@ -74,7 +74,8 @@ func test_arena_and_hud_visible_only_in_fight() -> void:
 		var in_fight: bool = state == GameScript.FlowState.FIGHT
 		var harvest: bool = state == GameScript.FlowState.HARVEST
 		# Story 6.7 (D-S67-2, AC 3): INTRO shows the duck bubble only, like HARVEST; no arena.
-		var duck_only: bool = harvest or state == GameScript.FlowState.INTRO
+		# Story 6.8 (AC 3): so does ENDING (duck line 9).
+		var duck_only: bool = harvest or state == GameScript.FlowState.INTRO or state == GameScript.FlowState.ENDING
 		assert_eq(main.get_node(^"Arena").visible, in_fight, "arena in state %d" % state)
 		# Story 3.8 (D-S38-16): HARVEST shows the HUD in duck-only mode (the harvest line).
 		assert_eq(main.get_node(^"Hud").visible, in_fight or duck_only, "hud in state %d" % state)
@@ -97,7 +98,6 @@ func test_screen_for_each_state() -> void:
 	assert_eq(PlaceholderScreen.lines_for(GameScript.FlowState.INTRO, 0).size(), 0, "no INTRO placeholder text")
 	var labels: Dictionary[int, String] = {
 		GameScript.FlowState.FIGHT: "FIGHT 2",
-		GameScript.FlowState.ENDING: "ENDING",
 	}
 	for state: int in labels:
 		var old: Node = _screen_of(main)
@@ -108,6 +108,12 @@ func test_screen_for_each_state() -> void:
 		assert_eq(screen.lines[0], labels[state])
 		assert_eq(screen.get_parent(), main.get_node(^"Screens"))
 		assert_true(not is_instance_valid(old) or old.is_queued_for_deletion(), "old screen freed")
+	# Story 6.8 (AC 2, D7): ENDING shows the real screen; the placeholder serves FIGHT only.
+	main.apply_flow_state(GameScript.FlowState.ENDING, 2)
+	assert_true(_screen_of(main) is EndingScreen, "ENDING shows the real screen (6.8), no placeholder")
+	assert_eq(_screen_of(main).name, &"EndingScreen")
+	assert_eq(_screen_of(main).get_parent(), main.get_node(^"Screens"))
+	assert_eq(PlaceholderScreen.lines_for(GameScript.FlowState.ENDING, 0).size(), 0, "no ENDING placeholder text")
 	main.apply_flow_state(GameScript.FlowState.HARVEST, 1)
 	assert_true(_screen_of(main) is HarvestScreen, "HARVEST shows the real screen (3.8), no placeholder")
 	assert_eq(PlaceholderScreen.lines_for(GameScript.FlowState.HARVEST, 0).size(), 0, "no HARVEST placeholder text")

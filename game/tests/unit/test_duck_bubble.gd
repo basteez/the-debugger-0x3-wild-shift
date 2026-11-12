@@ -40,7 +40,8 @@ func test_wrap_fits_every_tutorial_line() -> void:
 	# Story 5.1: + the Null Pointer's D->L hint line. Story 5.6: + N1 (Breakpoint) and N2 (Hold R).
 	# Story 6.3: + the Segfault's N->A and L->N hint windows (the template, D-039 counts it once).
 	# Story 6.7: + the intro hand-over line, first in the file (4 rows).
-	var expected_lines: Array[int] = [4, 11, 7, 4, 7, 6, 2, 2, 2, 2, 2, 7, 4]
+	# Story 6.8: + the ending line (line 9) after harvest_shared (3 rows).
+	var expected_lines: Array[int] = [4, 11, 7, 4, 7, 6, 3, 2, 2, 2, 2, 2, 7, 4]
 	var texts: PackedStringArray = _texts()
 	for i: int in texts.size():
 		var lines: PackedStringArray = DuckBubble.wrap(texts[i], DuckBubble.WRAP_WIDTH)

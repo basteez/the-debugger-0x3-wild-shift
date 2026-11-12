@@ -53,6 +53,10 @@ func _used_codepoints() -> Dictionary[int, String]:
 	texts.append(HarvestScreen.FIXED_FALLBACK)
 	# Story 6.7 (D5): the Intro's panel captions and its glyph tear row.
 	texts.append_array(IntroScreen.text_rows())
+	# Story 6.8 (D6, AC 13, 18): every Ending text (caption, desk art, register cells, `0xFF`, the
+	# commit row, the credits, the prompt) and a sample of the stretch summary rows.
+	texts.append_array(EndingScreen.text_rows())
+	texts.append_array(EndingScreen.summary_rows({&"clear_frames": 1234567, &"hits": 1234567890}))
 	# Story 6.3 (AC 23, D-S63-6): the Segfault dragon's glyphs, its sky line, header and fixed line.
 	var segfault_def: BossDef = load("res://data/bosses/segfault/boss_def.tres")
 	texts.append(SegfaultBody.GLYPHS)

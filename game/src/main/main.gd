@@ -11,6 +11,7 @@ const PauseScreenScript := preload("res://src/ui/screens/pause/pause_screen.gd")
 const DeadScreenScript := preload("res://src/ui/screens/dead/dead_screen.gd")
 const HarvestScreenScript := preload("res://src/ui/screens/harvest/harvest_screen.gd")
 const IntroScreenScript := preload("res://src/ui/screens/intro/intro_screen.gd")
+const EndingScreenScript := preload("res://src/ui/screens/ending/ending_screen.gd")
 const DebugKeysScript := preload("res://src/debug/debug_keys.gd")
 const GameFlow := preload("res://src/autoloads/game.gd")
 const HudScene := preload("res://src/ui/hud/hud.tscn")
@@ -276,8 +277,9 @@ func apply_flow_state(state: int, boss_index: int) -> void:
 		hud.log_panel.clear()
 	arena.visible = in_fight
 	# Story 3.8 (D-S38-16): HARVEST shows the HUD's duck bubble only (the harvest line).
-	# Story 6.7 (D-S67-2): so does INTRO (duck line 1 on panel 3).
-	var duck_only: bool = state == GameFlow.FlowState.HARVEST or state == GameFlow.FlowState.INTRO
+	# Story 6.7 (D-S67-2): so does INTRO (duck line 1 on panel 3). Story 6.8 (AC 3): and ENDING (line 9).
+	var duck_only: bool = state == GameFlow.FlowState.HARVEST or state == GameFlow.FlowState.INTRO \
+			or state == GameFlow.FlowState.ENDING
 	hud.visible = in_fight or duck_only
 	hud.set_duck_only(duck_only)
 	if in_fight:
@@ -403,7 +405,9 @@ func _make_screen(state: int, boss_index: int) -> Node:
 			return make_harvest_screen(boss_index)
 		GameFlow.FlowState.INTRO:
 			return IntroScreenScript.new() # Story 6.7 (AC 11)
-		GameFlow.FlowState.FIGHT, GameFlow.FlowState.ENDING:
+		GameFlow.FlowState.ENDING:
+			return make_ending_screen() # Story 6.8 (AC 2)
+		GameFlow.FlowState.FIGHT:
 			var screen: PlaceholderScreen = PlaceholderScreenScript.new()
 			screen.setup(state, boss_index)
 			return screen
@@ -412,6 +416,14 @@ func _make_screen(state: int, boss_index: int) -> Node:
 			dead.name = &"DeadScreen"
 			return dead
 	return null
+
+
+## Story 6.8 (AC 2, AD-12): the ENDING screen; the stretch summary card follows the cut-ladder flag
+## read here by the wiring (FeatureFlags.ending_summary, D-S68-3).
+func make_ending_screen() -> EndingScreen:
+	var ending: EndingScreen = EndingScreenScript.new()
+	ending.summary_enabled = feature_flags.ending_summary
+	return ending
 
 
 ## Story 3.8 (E3): the HARVEST screen for the defeated boss (the arena keeps the controller after the

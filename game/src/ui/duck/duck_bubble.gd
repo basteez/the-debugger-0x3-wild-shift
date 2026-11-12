@@ -262,7 +262,7 @@ func _sync_draw() -> void:
 ## screen requests its line after this (deferred), so the line survives its own entry.
 ## Story 6.7 (AC 5, D-S67-6): leaving INTRO (skip or cap) clears the intro line the same way.
 func _on_flow_state_changed(from: int, to: int) -> void:
-	if to != Game.FlowState.FIGHT or from == Game.FlowState.HARVEST or from == Game.FlowState.INTRO:
+	if to != Game.FlowState.FIGHT or from == Game.FlowState.HARVEST or from == Game.FlowState.INTRO or from == Game.FlowState.ENDING:
 		clear()
 
 

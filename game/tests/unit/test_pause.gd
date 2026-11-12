@@ -41,7 +41,7 @@ func _esc(pressed: bool = true, echo: bool = false) -> InputEventKey:
 func test_pause_in_fight_and_intro_sets_the_clock_and_emits_once() -> void:
 	watch_signals(EventBus)
 	var expected: int = 0
-	for state: S in [S.FIGHT, S.INTRO]:
+	for state: S in [S.FIGHT, S.INTRO, S.ENDING]: # Story 6.8 (D-S68-6): ENDING is pausable
 		SimClock.paused = false
 		var game: Node = _game(state)
 		assert_true(game.set_paused(true, &"esc"))
@@ -52,8 +52,8 @@ func test_pause_in_fight_and_intro_sets_the_clock_and_emits_once() -> void:
 	assert_signal_emitted_with_parameters(EventBus, "pause_toggled", [true])
 
 
-func test_pause_refused_outside_intro_and_fight() -> void:
-	for state: S in [S.TITLE, S.HARVEST, S.ENDING, S.DEAD]:
+func test_pause_refused_outside_intro_fight_and_ending() -> void:
+	for state: S in [S.TITLE, S.HARVEST, S.DEAD]:
 		var game: Node = _game(state)
 		watch_signals(EventBus)
 		assert_false(game.set_paused(true, &"esc"), "refused in %s" % S.keys()[state])

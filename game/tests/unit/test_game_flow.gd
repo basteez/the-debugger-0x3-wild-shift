@@ -5,14 +5,26 @@ const GameScript := preload("res://src/autoloads/game.gd")
 const S := GameScript.FlowState
 
 var _saved_enabled: bool
+var _saved_frame: int
+var _saved_paused: bool
 
 
 func before_each() -> void:
 	_saved_enabled = Debug.enabled
+	_saved_frame = SimClock.sim_frame
+	_saved_paused = SimClock.paused
 
 
 func after_each() -> void:
 	Debug.enabled = _saved_enabled
+	SimClock.sim_frame = _saved_frame
+	SimClock.paused = _saved_paused
+
+
+## Story 6.8 (AC 6, 7): moves the sim clock past the Ending's leave gate, so advance() leaves it.
+func _pass_ending_gate(game: Node) -> void:
+	if game.flow_state == S.ENDING:
+		SimClock.sim_frame = game.ending_start_frame + GameScript.ENDING_LEAVE_GATE_FRAMES + 1
 
 
 func _game() -> Node:
@@ -40,6 +52,7 @@ func test_full_sequence_and_boss_index_via_placeholder_advance() -> void:
 		[S.HARVEST, 0], [S.FIGHT, 1], [S.HARVEST, 1], [S.FIGHT, 2], [S.ENDING, 2], [S.TITLE, 0],
 	]
 	for step: Array in expected:
+		_pass_ending_gate(game)
 		game.advance()
 		assert_eq(game.flow_state, step[0], "state after advance")
 		assert_eq(game.run.boss_index, step[1], "boss_index in %d" % step[0])
@@ -54,6 +67,7 @@ func test_ending_to_title_gives_a_fresh_run_state() -> void:
 	game.start_run_from_title(1)
 	_skip_intro(game)
 	for i: int in 6:
+		_pass_ending_gate(game)
 		game.advance()
 	assert_eq(game.flow_state, S.TITLE)
 	assert_ne(game.run, old)
@@ -307,6 +321,7 @@ func test_a_new_run_takes_a_new_run_seed() -> void:
 	game.advance() # HARVEST
 	game.advance() # FIGHT 3
 	game.advance() # ENDING
+	_pass_ending_gate(game)
 	game.advance() # TITLE: a new RunState
 	assert_eq(game.run.run_seed, 0, "reset on the title")
 	assert_eq(game.run.fight_attempt, 0)
@@ -631,6 +646,7 @@ func test_advance_fight_2_with_segfault_off_goes_to_ending() -> void:
 	_fight(game, 1)
 	game.advance()
 	assert_eq(game.flow_state, S.ENDING)
+	_pass_ending_gate(game)
 	game.advance()
 	assert_eq(game.flow_state, S.TITLE, "the Ending still returns to the title")
 	_fight(game, 0)
@@ -665,3 +681,157 @@ func test_f8_on_fight_2_with_segfault_on_grants_null_and_routes_to_harvest() -> 
 	assert_true(game.finish_harvest(SimClock.sim_frame))
 	assert_eq(game.run.fight_start_ring, Register.fight_start_for_boss(2), "[A, D, L, N]")
 	assert_eq(game.run.fight_start_ring.count(Register.Bit.NULL_BIT), 1, "N once, not granted twice")
+
+
+# --- Story 6.8: the Ending's leave gate, pause and the run stats ---
+
+## A run that entered ENDING at sim frame `frame` through a real route (Fight 3 defeated).
+func _ending_at(game: Node, frame: int) -> void:
+	game.segfault_enabled = true
+	SimClock.sim_frame = frame - 10
+	_fight(game, 2)
+	SimClock.sim_frame = frame
+	assert_true(game.finish_defeat(_dead_boss()))
+	assert_eq(game.flow_state, S.ENDING)
+
+
+func test_ending_entry_records_its_start_frame() -> void:
+	var game: Node = _game()
+	_ending_at(game, 500)
+	assert_eq(game.ending_start_frame, 500, "AC 1")
+	SimClock.sim_frame = 600
+	Debug.enabled = true
+	game.debug_jump(S.TITLE, 0)
+	assert_eq(game.ending_start_frame, -1, "-1 outside ENDING")
+
+
+func test_leave_gate_is_sixty_frames_after_the_entry() -> void:
+	assert_eq(GameScript.ENDING_LEAVE_GATE_FRAMES, 60)
+	assert_eq(GameScript.ENDING_HOLD_FRAMES, 900, "30 s cap of the whole ending")
+	var game: Node = _game()
+	_ending_at(game, 1000)
+	assert_false(game.can_leave_ending(1000), "the defeat frame never leaves")
+	assert_false(game.can_leave_ending(1060), "gate + 0")
+	assert_true(game.can_leave_ending(1061), "gate + 1")
+	assert_false(GameScript.ending_leave_open_at(-1, 5000), "no ending entered")
+
+
+func test_finish_ending_refuses_before_the_gate_and_without_a_press() -> void:
+	var game: Node = _game()
+	_ending_at(game, 1000)
+	assert_false(game.finish_ending(1000, true), "refused on the defeat frame")
+	assert_false(game.finish_ending(1060, true), "refused at the gate")
+	assert_false(game.finish_ending(5000), "no timeout: only a press leaves (D-S68-1)")
+	assert_eq(game.flow_state, S.ENDING)
+
+
+func test_finish_ending_refuses_while_paused() -> void:
+	var game: Node = _game()
+	_ending_at(game, 1000)
+	assert_true(game.set_paused(true, &"esc"), "ENDING is pausable (D-S68-6)")
+	assert_false(game.finish_ending(2000, true), "DC4: nothing moves while paused")
+	SimClock.sim_frame = 2000
+	game.advance()
+	assert_eq(game.flow_state, S.ENDING, "a paused ending neither leaves nor advances")
+	game.set_paused(false, &"esc")
+
+
+func test_finish_ending_resets_the_run() -> void:
+	var game: Node = _game()
+	_ending_at(game, 1000)
+	var old_run: RunState = game.run
+	watch_signals(EventBus)
+	assert_true(game.finish_ending(1061, true))
+	assert_eq(game.flow_state, S.TITLE)
+	assert_ne(game.run, old_run, "a new RunState")
+	assert_eq(game.first_input_frame, -1)
+	assert_eq(game.intro_start_frame, -1)
+	assert_eq(game.ending_summary, {}, "AC 15: the snapshot is cleared")
+	assert_eq(game.stats.hits, 0, "new stats")
+	assert_eq(game.stats.fight_start_frame, -1)
+	assert_signal_emitted_with_parameters(EventBus, "flow_state_changed", [S.ENDING, S.TITLE])
+
+
+func test_advance_in_ending_goes_through_the_gate() -> void:
+	var game: Node = _game()
+	_ending_at(game, 1000)
+	game.advance()
+	assert_eq(game.flow_state, S.ENDING, "AC 7: no unconditional reset on the defeat frame")
+	SimClock.sim_frame = 1060
+	game.advance()
+	assert_eq(game.flow_state, S.ENDING, "nor at the gate")
+	SimClock.sim_frame = 1061
+	game.advance()
+	assert_eq(game.flow_state, S.TITLE)
+
+
+func test_ending_is_pausable_and_focus_loss_pauses_it() -> void:
+	assert_true(S.ENDING in GameScript.PAUSABLE_STATES)
+	var game: Node = _game()
+	game._web_eval = func(_code: String) -> void: pass
+	_ending_at(game, 1000)
+	game.on_focus_lost()
+	assert_true(SimClock.paused, "a focus loss pauses the ending")
+	game.set_paused(false, &"esc")
+
+
+func test_stats_count_from_fight_1_and_every_landed_hit() -> void:
+	var game: Node = _game()
+	SimClock.sim_frame = 100
+	game.start_run_from_title(100)
+	assert_eq(game.stats.fight_start_frame, -1, "the Intro is not counted (D-S68-4)")
+	SimClock.sim_frame = 200
+	assert_true(game.finish_intro(200, true))
+	assert_eq(game.stats.fight_start_frame, 200, "Fight 1 entry")
+	game.on_player_damaged(4)
+	game.on_player_damaged(3)
+	assert_eq(game.stats.hits, 2)
+	assert_false(game.stats.debug_jumped)
+
+
+func test_stats_snapshot_on_ending_survives_a_retry_before_it() -> void:
+	var game: Node = _game()
+	game.segfault_enabled = false # cut #4: the Null Pointer is the last fight
+	SimClock.sim_frame = 100
+	game.start_run_from_title(100)
+	SimClock.sim_frame = 160
+	assert_true(game.finish_intro(160, true))
+	game.advance() # HARVEST
+	game.advance() # FIGHT 2
+	game.on_player_damaged(2)
+	SimClock.sim_frame = 400
+	game.on_player_damaged(0) # the lethal hit counts and kills
+	assert_eq(game.flow_state, S.DEAD)
+	SimClock.sim_frame = 400 + GameScript.RETRY_DELAY_FRAMES
+	assert_true(game.retry(SimClock.sim_frame))
+	assert_eq(game.stats.hits, 2, "a retry does not restore the stats")
+	assert_eq(game.stats.fight_start_frame, 160, "nor the clear-time origin")
+	game.on_player_damaged(4)
+	SimClock.sim_frame = 160 + 3600
+	game.advance() # ENDING
+	assert_eq(game.flow_state, S.ENDING)
+	assert_eq(game.ending_summary, {&"clear_frames": 3600, &"hits": 3, &"debug_jumped": false})
+
+
+func test_hits_outside_fight_are_not_counted() -> void:
+	var game: Node = _game()
+	game.on_player_damaged(3)
+	assert_eq(game.stats.hits, 0, "TITLE")
+
+
+func test_debug_jump_flags_the_run() -> void:
+	var game: Node = _game()
+	_fight(game, 0)
+	assert_true(game.stats.debug_jumped, "AC 16: a debug-jumped run is not a clear")
+	game.debug_jump(S.ENDING, 0)
+	assert_true(game.ending_summary[&"debug_jumped"])
+	game.debug_jump(S.TITLE, 0)
+	assert_false(game.stats.debug_jumped, "a jump to TITLE starts the next run clean")
+	game.start_run_from_title(SimClock.sim_frame)
+	assert_false(game.stats.debug_jumped)
+
+
+func test_run_stats_clear_frames() -> void:
+	assert_eq(RunStats.clear_frames(-1, 500), 0, "no fight yet")
+	assert_eq(RunStats.clear_frames(100, 700), 600)
+	assert_eq(RunStats.clear_frames(700, 100), 0, "never negative")

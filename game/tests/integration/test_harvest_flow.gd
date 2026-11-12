@@ -228,7 +228,7 @@ func test_null_pointer_defeat_with_segfault_off_goes_to_the_ending() -> void:
 	assert_true(_main.poll_defeat())
 	assert_eq(Game.flow_state, GameScript.FlowState.ENDING, "AC 6: FIGHT -> ENDING, no HARVEST")
 	assert_null(_main.current_screen as HarvestScreen, "no HarvestScreen is built on the cut path")
-	assert_true(_main.current_screen is PlaceholderScreen, "the ENDING placeholder (6.8 replaces it)")
+	assert_true(_main.current_screen is EndingScreen, "Story 6.8: the real Ending screen")
 	assert_eq(_main.find_children("*", "HarvestScreen", true, false).size(), 0)
 	assert_false(Game.run.fight_start_ring.has(N), "NULL is never dropped")
 	assert_eq(arena.register.ring, PackedInt32Array([A, D, L]), "no bit inserted")

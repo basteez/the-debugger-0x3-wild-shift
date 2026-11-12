@@ -14,6 +14,8 @@ const GDD: Dictionary[StringName, String] = {
 const INTRO_TEXT := "Quack. Explain the bug to me. Use these."
 ## Story 3.8 (E4, FR45 line 8): the shared harvest line.
 const HARVEST_TEXT := "Bug squashed. It dropped a bit: new windows, new combos."
+## Story 6.8 (AC 9, 11; FR45 line 9): the ending line, right after the harvest line (GDD order).
+const ENDING_TEXT := "Quack. Works on your machine now."
 ## GDD D-039: the duck speaks at most 10 lines in the whole game.
 const LINE_BUDGET := 10
 ## Story 5.6 (FR45 lines 6-7, D-S56-1): the Null Pointer tutorial lines.
@@ -37,7 +39,7 @@ func _line(id: StringName, text: String) -> DuckLineDef:
 func test_the_four_tutorial_lines_equal_the_gdd_strings() -> void:
 	var lines: DuckLinesDef = _lines()
 	assert_not_null(lines)
-	assert_eq(lines.entries.size(), 13, "the 6.7 intro line, T1-T4 (D-S36-3), the 3.8 harvest line, the two 4.4 hint windows, the 5.1 D->L window, the 6.3 N->A and L->N windows, the 5.6 N1-N2")
+	assert_eq(lines.entries.size(), 14, "the 6.7 intro line, T1-T4 (D-S36-3), the 3.8 harvest line, the 6.8 ending line, the two 4.4 hint windows, the 5.1 D->L window, the 6.3 N->A and L->N windows, the 5.6 N1-N2")
 	for i: int in DuckDirector.DUCK_IDS.size():
 		var id: StringName = DuckDirector.DUCK_IDS[i]
 		assert_eq(lines.entries[i + 1].id, id, "order follows the beats, after the intro line")
@@ -62,6 +64,18 @@ func test_harvest_line_is_the_sixth_entry_and_the_budget_holds() -> void:
 	assert_lte(budget_count(lines), LINE_BUDGET, "duck line budget (GDD D-039, the hint template counts once)")
 
 
+## Story 6.8 (A1, AC 11): GDD Duck row 9 follows the shared harvest line (row 8), before the hint
+## template, with the exact text; the Ending screen's id resolves.
+func test_ending_line_follows_the_harvest_line_and_equals_the_gdd_string() -> void:
+	var lines: DuckLinesDef = _lines()
+	assert_eq(lines.entries[6].id, &"ending")
+	assert_eq(lines.find(&"ending").text, ENDING_TEXT)
+	assert_eq(lines.find(EndingScreen.LINE_ID).text, ENDING_TEXT, "the screen's id resolves")
+	assert_true(DuckLineDef.is_ascii(ENDING_TEXT))
+	assert_eq(lines.find(&"ending").validate(), PackedStringArray(), "fits the bubble")
+	assert_true(DuckHint.is_hint_id(lines.entries[7].id), "the hint windows follow it")
+
+
 ## Lines counted against D-039: every entry but the hint windows, plus one for the hint template.
 static func budget_count(lines: DuckLinesDef) -> int:
 	var n: int = 0
@@ -75,7 +89,8 @@ static func budget_count(lines: DuckLinesDef) -> int:
 
 
 func test_budget_counts_the_hint_template_once() -> void:
-	assert_eq(budget_count(_lines()), 9, "intro (Story 6.7), T1-T4, harvest, the hint template, N1-N2 (Story 5.6)")
+	assert_eq(budget_count(_lines()), 10, "intro (Story 6.7), T1-T4, harvest, the ending (Story 6.8), the hint template, N1-N2 (Story 5.6): the D-039 budget is full")
+	assert_eq(budget_count(_lines()), LINE_BUDGET, "Story 6.8: the 6.9 audit must not add a line")
 
 
 func test_null_pointer_lines_equal_the_gdd_strings() -> void:
