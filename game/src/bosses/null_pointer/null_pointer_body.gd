@@ -8,9 +8,9 @@ extends BossController
 ## falling `null` glyphs follows it (D-S51-2); the hum (presentation, NullPointerHum) follows
 ## body_center_px. Motion state is integer (D-S33-2 style): milli-tiles plus a per-axis remainder;
 ## body_center_px is derived from it for drawing and circle math only. Reveal timers are sim state,
-## counted in _tick_body and never written by presentation (AC 9). No attacks yet (5.2, 5.3): the
-## phase pools are empty and the FSM sits in GAP (D-S33-9). Story 5.1 (D-S51-8): the ghost itself is
-## not a contact hazard; only a live attack's hazard is (attack_hazard_hit, none until 5.2).
+## counted in _tick_body and never written by presentation (AC 9). Story 5.1 (D-S51-8) and Story 5.2
+## (D-S52-1): the ghost itself is never a contact hazard; only a live attack's hazard is
+## (attack_hazard_hit: Pointer Grab and Null Rain, ACTIVE only).
 
 ## Milli-units per unit (D-S33-2).
 const MILLI := 1000
@@ -201,6 +201,6 @@ func trail_positions() -> PackedVector2Array:
 	return out
 
 
-## D-S51-8: the ghost is not a contact hazard; only a live attack's hazard is (none until 5.2).
+## D-S51-8, D-S52-1: the ghost is not a contact hazard; only a live attack's hazard is (ACTIVE only).
 func touches_player(p: Vector2) -> bool:
 	return attack_hazard_hit(p)
