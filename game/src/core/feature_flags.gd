@@ -6,13 +6,15 @@ extends Def
 ## and the GDD fallback for its cut reads the flag (e.g. SIGSEGV recovery 150 frames).
 ## Must not reference Defs (preload cycle, 4.2 lesson).
 
-## Cut #4: reserved-nibble write (Epic 5).
+## Cut #1: Segfault's Reserved Write (Story 6.6). Story 5.6 (D-S56-8): numbering follows the GDD cut
+## ladder (Out of Scope) and sprint-status.yaml.
 @export var reserved_write: bool = true
-## Cut #2: Watch (Epic 6).
+## Cut #2: Watch (Story 5.4). Off: Null Pointer flicker fallback, no Watch duck line (Story 5.6).
 @export var watch: bool = true
 ## Cut #3: Breakpoint (Story 4.3; `breakpoint` is a GDScript keyword, D-S43-17). Off: no skill, no HUD readout, SIGSEGV recovery 150.
 @export var breakpoint_enabled: bool = true
-## Cut #1: Segfault boss (Epic 6).
+## Cut #4: the Segfault boss (Epic 6). Off: the Ending plays right after the Null Pointer and NULL is
+## never dropped (Story 5.6, Game.segfault_enabled).
 @export var segfault: bool = true
 
 

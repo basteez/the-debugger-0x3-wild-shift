@@ -347,3 +347,107 @@ func test_director_disconnects_the_hint_signals_on_exit() -> void:
 	remove_child(_director)
 	assert_false(EventBus.breakpoint_started.is_connected(_director._on_breakpoint_started))
 	assert_false(EventBus.player_died.is_connected(_director._on_player_died))
+
+
+# --- Story 5.6: the Null Pointer beats (AC 1, 2, 3, 9; D-S56-1, D-S56-2) ---
+
+const NP := &"null_pointer"
+const N1_MASK := 1 << DuckDirector.N1_BIT
+const N2_MASK := 1 << DuckDirector.N2_BIT
+
+
+func test_null_pointer_ids_stay_out_of_duck_ids_and_exist_in_the_data() -> void:
+	assert_false(DuckDirector.DUCK_IDS.has(DuckDirector.N1))
+	assert_false(DuckDirector.DUCK_IDS.has(DuckDirector.N2))
+	assert_eq(DuckDirector.N1, &"n1_breakpoint")
+	assert_eq(DuckDirector.N2, &"n2_hold_r")
+	assert_eq(DuckDirector.N1_BIT, DuckDirector.DUCK_IDS.size(), "bits follow the Infinite Loop beats")
+	assert_not_null(VoiceService.LINES.find(DuckDirector.N1))
+	assert_not_null(VoiceService.LINES.find(DuckDirector.N2))
+
+
+func test_due_null_pointer_beat_n1_then_n2() -> void:
+	assert_eq(DuckDirector.due_null_pointer_beat(0, true, NP, true), DuckDirector.N1_BIT)
+	assert_eq(DuckDirector.due_null_pointer_beat(N1_MASK, true, NP, true), DuckDirector.N2_BIT, "N2 after N1")
+	assert_eq(DuckDirector.due_null_pointer_beat(N1_MASK | N2_MASK, true, NP, true), -1, "each once per run")
+	assert_eq(DuckDirector.due_null_pointer_beat(N2_MASK, true, NP, true), DuckDirector.N1_BIT, "N1 is never skipped")
+	assert_eq(DuckDirector.due_null_pointer_beat(_first(4), true, NP, true), DuckDirector.N1_BIT, "the Infinite Loop beats do not block")
+
+
+func test_due_null_pointer_beat_needs_a_live_null_pointer_fight() -> void:
+	assert_eq(DuckDirector.due_null_pointer_beat(0, false, NP, true), -1, "not in FIGHT or DEFEATED")
+	for id: StringName in [IL, &"test_boss", &"segfault", &""]:
+		assert_eq(DuckDirector.due_null_pointer_beat(0, true, id, true), -1, String(id))
+	assert_eq(DuckDirector.due_null_pointer_beat(-1, true, NP, true), -1, "bad mask")
+
+
+func test_watch_off_never_requests_n2_but_keeps_n1() -> void:
+	# AC 3 (cut ladder #2): the Breakpoint line does not depend on Watch.
+	assert_eq(DuckDirector.due_null_pointer_beat(0, true, NP, false), DuckDirector.N1_BIT)
+	assert_eq(DuckDirector.due_null_pointer_beat(N1_MASK, true, NP, false), -1)
+
+
+func test_null_pointer_bits_do_not_skip_the_infinite_loop_beats() -> void:
+	# D-S56-10: a debug jump to Fight 2 before Fight 1 must not mark T1-T4 as skipped.
+	assert_eq(DuckDirector.due_beat(N1_MASK | N2_MASK, true, IL, 0, false, 0), 0)
+	assert_eq(DuckDirector.due_beat(_first(1) | N1_MASK, true, IL, 1, false, 0), 1)
+
+
+func test_poll_says_both_null_pointer_lines_once() -> void:
+	_fight(Register.fight_start_for_boss(1), Arena.NULL_POINTER_DEF_PATH)
+	assert_eq(_director.poll(), DuckDirector.N1_BIT, "the Breakpoint line when control begins")
+	assert_signal_emitted_with_parameters(EventBus, "duck_line_requested", [&"n1_breakpoint", "Space: Breakpoint. Time stops, you shift. Finally, a debugger that works."])
+	assert_eq(_director.poll(), DuckDirector.N2_BIT, "then the Watch line (no bubble: always room)")
+	assert_signal_emitted_with_parameters(EventBus, "duck_line_requested", [&"n2_hold_r", "Hold R. Pointers point *somewhere*."])
+	assert_eq(_director.poll(), -1)
+	assert_signal_emit_count(EventBus, "duck_line_requested", 2)
+
+
+func test_poll_with_watch_off_says_only_the_breakpoint_line() -> void:
+	_fight(Register.fight_start_for_boss(1), Arena.NULL_POINTER_DEF_PATH)
+	_director.watch_enabled = false
+	assert_eq(_director.poll(), DuckDirector.N1_BIT)
+	assert_eq(_director.poll(), -1, "AC 3: line 2 is never requested")
+	assert_eq(_director.requested & N2_MASK, 0)
+	assert_signal_emit_count(EventBus, "duck_line_requested", 1)
+
+
+func test_poll_on_a_defeated_null_pointer_says_nothing() -> void:
+	_fight(Register.fight_start_for_boss(1), Arena.NULL_POINTER_DEF_PATH)
+	_arena.boss.state = BossController.BossState.DEFEATED
+	assert_eq(_director.poll(), -1)
+	assert_eq(_director.requested, 0)
+
+
+func test_null_pointer_beats_wait_for_bubble_room() -> void:
+	_fight(Register.fight_start_for_boss(1), Arena.NULL_POINTER_DEF_PATH)
+	var bubble := DuckBubble.new()
+	add_child_autofree(bubble)
+	_director.bubble = bubble
+	assert_eq(_director.poll(), DuckDirector.N1_BIT)
+	assert_true(bubble.is_showing(), "line 1 on screen")
+	for i: int in DuckBubble.MAX_PENDING:
+		if bubble.has_room():
+			VoiceService.say("hint_a_d") # fill the queue behind line 1
+	assert_false(bubble.has_room())
+	assert_eq(_director.poll(), -1, "D-S56-2: N2 waits while the bubble has no room")
+	assert_eq(_director.requested & N2_MASK, 0, "still due")
+	for i: int in 400:
+		if bubble.has_room():
+			break
+		bubble.step(0.25)
+	assert_true(bubble.has_room())
+	assert_eq(_director.poll(), DuckDirector.N2_BIT, "then line 2")
+
+
+func test_null_pointer_beats_kept_on_retry_reset_on_title() -> void:
+	_fight(Register.fight_start_for_boss(1), Arena.NULL_POINTER_DEF_PATH)
+	assert_eq(_director.poll(), DuckDirector.N1_BIT)
+	assert_eq(_director.poll(), DuckDirector.N2_BIT)
+	EventBus.flow_state_changed.emit(GameScript.FlowState.FIGHT, GameScript.FlowState.DEAD)
+	EventBus.flow_state_changed.emit(GameScript.FlowState.DEAD, GameScript.FlowState.FIGHT)
+	assert_eq(_director.poll(), -1, "AC 9: a retry does not repeat the beats")
+	EventBus.flow_state_changed.emit(GameScript.FlowState.FIGHT, GameScript.FlowState.TITLE)
+	assert_eq(_director.requested, 0)
+	Game.flow_state = GameScript.FlowState.FIGHT
+	assert_eq(_director.poll(), DuckDirector.N1_BIT, "a new run says them again")

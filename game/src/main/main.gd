@@ -104,6 +104,7 @@ func _build_layers() -> void:
 	arena.visible = false
 	arena.set_breakpoint_enabled(feature_flags.breakpoint_enabled) # D-S43-1: the one startup read
 	arena.set_watch_enabled(feature_flags.watch) # Story 5.4 (D-S54-3): the one startup read
+	Game.segfault_enabled = feature_flags.segfault # Story 5.6 review: one startup read for every cut flag
 	add_child(arena)
 	# The player view lives in presentation/, so Main (not the arena/ sim folder) attaches it.
 	var player_view := PlayerView.new(arena.player)
@@ -182,6 +183,7 @@ func _build_layers() -> void:
 	duck_director.name = &"DuckDirector"
 	duck_director.arena = arena
 	duck_director.bubble = hud.duck_bubble # Story 4.4 (D-S44-4): request only when it has room
+	duck_director.watch_enabled = arena.watch_enabled # Story 5.6 (D-S56-1): the Watch line follows the flag
 	add_child(duck_director)
 	# Story 2.8 combo shake: the camera is a child of the Arena, placed at the canvas origin so
 	# offset zero keeps today's framing exactly (D-S28-5). The driver lives in presentation/, so

@@ -60,6 +60,10 @@ var _focus_lost: bool = false
 var _paused_at_msec: int = -1
 ## Runs a JS snippet on web (JavaScriptBridge.eval); a no-op elsewhere. Tests swap in a recorder.
 var _web_eval: Callable = _eval_on_web
+## Story 5.6 (D-S56-3): cut ladder #4. Off: the Segfault fight is cut, the Null Pointer's defeat goes
+## straight to ENDING and NULL is never dropped. Read once (AD-12); tests may override it before
+## the fight, the same pattern as Arena.watch_enabled.
+var segfault_enabled: bool = Defs.FEATURE_FLAGS.segfault
 
 
 func _ready() -> void:
@@ -225,7 +229,7 @@ func advance() -> void:
 			run.start_boss(0)
 			_set_flow_state(FlowState.FIGHT)
 		FlowState.FIGHT:
-			_set_flow_state(FlowState.ENDING if run.boss_index >= LAST_BOSS_INDEX else FlowState.HARVEST)
+			_set_flow_state(route_after_defeat(run.boss_index, segfault_enabled)) # Story 5.6 (D-S56-3)
 		FlowState.HARVEST:
 			run.start_boss(run.boss_index + 1)
 			_set_flow_state(FlowState.FIGHT)
@@ -238,10 +242,23 @@ func advance() -> void:
 			Log.warn(&"flow", "advance ignored in DEAD")
 
 
-## Pure (Story 3.8, D-S38-2): where a finished defeat of boss `index` goes. Fights 1 and 2 drop a bit
-## (HARVEST); the last boss drops nothing and goes straight to ENDING (GDD D-012).
-static func route_after_defeat(index: int) -> FlowState:
-	return FlowState.ENDING if index >= LAST_BOSS_INDEX else FlowState.HARVEST
+## Pure (Story 5.6, D-S56-3): the index of the run's last fight. With the Segfault cut (cut ladder #4,
+## `segfault_on` false) the Null Pointer (index 1) is the last fight.
+static func last_fight_index(segfault_on: bool) -> int:
+	return LAST_BOSS_INDEX if segfault_on else LAST_BOSS_INDEX - 1
+
+
+## Pure (Story 3.8, D-S38-2; Story 5.6, D-S56-3): where a finished defeat of boss `index` goes. A boss
+## before the last fight drops a bit (HARVEST); the last fight drops nothing and goes straight to
+## ENDING (GDD D-012), which is the Null Pointer when the Segfault is cut (GDD cut ladder #4).
+static func route_after_defeat(index: int, segfault_on: bool) -> FlowState:
+	return FlowState.ENDING if index >= last_fight_index(segfault_on) else FlowState.HARVEST
+
+
+## Pure (Story 5.6, D-S56-3): true when the defeat of boss `index` drops its bit (a HARVEST follows).
+## False for the last fight, so NULL is never dropped when the Segfault is cut.
+static func drops_bit(index: int, segfault_on: bool) -> bool:
+	return index >= 0 and route_after_defeat(index, segfault_on) == FlowState.HARVEST
 
 
 ## Story 3.8 (B1, AC 5, AC 6, D-S38-11): FIGHT -> HARVEST / ENDING once `boss` (the arena's boss) has
@@ -253,7 +270,7 @@ func finish_defeat(boss: BossController) -> bool:
 		return false
 	if boss == null or not boss.defeat_finished():
 		return false
-	var to: FlowState = route_after_defeat(run.boss_index)
+	var to: FlowState = route_after_defeat(run.boss_index, segfault_enabled)
 	Log.info(&"flow", "boss %d defeated -> %s" % [run.boss_index, FlowState.keys()[to]])
 	_set_flow_state(to)
 	return true
@@ -303,6 +320,9 @@ func debug_grant_bit(boss: BossController) -> bool:
 	if boss == null or boss.def == null:
 		Log.warn(&"debug", "F8 ignored: no boss in this fight")
 		return false
+	if not drops_bit(run.boss_index, segfault_enabled): # Story 5.6 (D-S56-4): the cut path drops nothing
+		Log.warn(&"debug", "F8 ignored: %s drops no bit (Segfault cut, cut ladder #4)" % boss.def.boss_id)
+		return false
 	var bit: int = boss.def.drop_bit
 	if Defs.bit(bit) == null:
 		Log.warn(&"debug", "F8 ignored: %s drops no bit with a BitDef" % boss.def.boss_id)
@@ -310,7 +330,7 @@ func debug_grant_bit(boss: BossController) -> bool:
 	if run.fight_start_ring.has(bit):
 		Log.warn(&"debug", "F8 ignored: bit %s already owned" % Register.glyph_of(bit))
 		return false
-	var to: FlowState = route_after_defeat(run.boss_index)
+	var to: FlowState = route_after_defeat(run.boss_index, segfault_enabled)
 	Log.info(&"debug", "F8 grant %s -> %s" % [Register.glyph_of(bit), FlowState.keys()[to]])
 	_set_flow_state(to)
 	return true
@@ -321,7 +341,7 @@ func debug_jump(target: FlowState, boss_index: int) -> void:
 	if not Debug.enabled:
 		return
 	var valid: bool = target == FlowState.TITLE or target == FlowState.ENDING \
-			or (target == FlowState.FIGHT and boss_index >= 0 and boss_index <= LAST_BOSS_INDEX)
+			or (target == FlowState.FIGHT and boss_index >= 0 and boss_index <= last_fight_index(segfault_enabled))
 	if not valid:
 		Log.warn(&"debug", "jump rejected: %s boss=%d" % [FlowState.keys()[target], boss_index])
 		return

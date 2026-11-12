@@ -362,3 +362,13 @@ func test_bit_loop_echo_and_nop_validate_and_resolve() -> void:
 	assert_not_null(Defs.bit(Register.Bit.LOOP))
 	assert_eq(Defs.solo_action(Register.Bit.LOOP), Defs.ECHO)
 	assert_same(Defs.solo_action(Register.Bit.NULL_BIT), Defs.NULL_DODGE, "Story 5.5: NULL is Null Dodge")
+
+
+## Story 5.6 (A6): the two Null Pointer duck lines validate.
+func test_null_pointer_duck_lines_validate() -> void:
+	var lines := load("res://data/duck/duck_lines.tres") as DuckLinesDef
+	for id: StringName in [&"n1_breakpoint", &"n2_hold_r"]:
+		var line: DuckLineDef = lines.find(id)
+		assert_not_null(line, String(id))
+		if line != null:
+			assert_eq(line.validate(), PackedStringArray(), String(id))

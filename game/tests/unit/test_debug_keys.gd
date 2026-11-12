@@ -24,6 +24,7 @@ func after_each() -> void:
 	Game.flow_state = _saved_state as GameScript.FlowState
 	Game.run.boss_index = _saved_boss
 	Game.first_input_frame = _saved_first
+	Game.segfault_enabled = Defs.FEATURE_FLAGS.segfault # Story 5.6: tests may flip the cut flag
 
 
 func _key(code: Key, pressed: bool = true, echo: bool = false, shift: bool = false, ctrl: bool = false) -> InputEventKey:
@@ -406,6 +407,7 @@ func test_f8_grants_the_loop_on_fight_1_and_goes_to_harvest() -> void:
 ## Story 5.5: NULL has a BitDef now, so F8 on Fight 2 grants N through the existing Story 3.8 route
 ## (the debug path to try Null Dodge before Story 5.6's real Harvest, D-S55-1).
 func test_f8_grants_null_on_fight_2_and_is_a_no_op_outside_fight() -> void:
+	Game.segfault_enabled = true # Story 5.6: the flag-on route (the cut path is tested below)
 	var main: Node2D = _main_with_debug()
 	var keys: DebugKeys = main.get_node(^"DebugKeys")
 	keys.handle_key(_key(KEY_F3)) # FIGHT boss 1: the Null Pointer, drop_bit = N
@@ -428,3 +430,18 @@ func test_f8_does_nothing_in_release() -> void:
 	Game.flow_state = GameScript.FlowState.FIGHT
 	assert_false(Game.debug_grant_bit(main.arena.boss), "the Game gate refuses too")
 	assert_eq(Game.flow_state, GameScript.FlowState.FIGHT)
+
+
+## Story 5.6 (AC 7, D-S56-4): with the Segfault cut (cut ladder #4) F8 on Fight 2 grants nothing and
+## leaves the flow alone; the flag-on behaviour is the Story 5.5 test above.
+func test_f8_on_fight_2_with_segfault_off_does_nothing() -> void:
+	var main: Node2D = _main_with_debug()
+	Game.segfault_enabled = false # after Main's startup read (it copies FeatureFlags.segfault)
+	var keys: DebugKeys = main.get_node(^"DebugKeys")
+	keys.handle_key(_key(KEY_F3))
+	assert_eq(Game.flow_state, GameScript.FlowState.FIGHT)
+	assert_true(keys.handle_key(_key(KEY_F8)), "F8 is still consumed")
+	assert_eq(Game.flow_state, GameScript.FlowState.FIGHT, "no flow change")
+	assert_null(main.current_screen as HarvestScreen, "no Harvest")
+	assert_false(Game.run.fight_start_ring.has(Register.Bit.NULL_BIT), "nothing granted")
+	keys.handle_key(_key(KEY_F1)) # back to TITLE: a fresh RunState for the next test
