@@ -20,6 +20,8 @@ const SKY := "// TODO: this should terminate"
 ## Story 5.1 (AC 2, D-S51-4): the Null Pointer fight's sky comment (GDD sky comment list). Shown while
 ## that boss is the HUD's boss; every other fight (and no boss) keeps SKY.
 const SKY_NULL_POINTER := "// FIXME: who owns this pointer?"
+## Story 6.3 (AC 3): the Segfault fight's sky comment, by boss id (the HUD never names its class).
+const SKY_SEGFAULT := "// HACK: do not read past this line"
 const REG_TITLE := "reg"
 const LOG_HEADER := "── console ─────────────────────────────────────────────────────────────────────"
 ## One per arena tile row (DC6): drawn at cols 13-14 on HUD row 2 + 2 * index.
@@ -83,10 +85,13 @@ func sky_text() -> String:
 	return sky_for(boss.def.boss_id if boss != null and boss.def != null else &"")
 
 
-## The sky comment for `boss_id` (D-S51-4): the Null Pointer's own line, SKY for any other. Pure.
+## The sky comment for `boss_id` (D-S51-4): the Null Pointer's and the Segfault's own lines, SKY for
+## any other. Pure.
 static func sky_for(boss_id: StringName) -> String:
 	if boss_id == &"null_pointer":
 		return SKY_NULL_POINTER
+	if boss_id == &"segfault": # Story 6.3 (AC 3)
+		return SKY_SEGFAULT
 	return SKY
 
 

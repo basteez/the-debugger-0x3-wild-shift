@@ -433,6 +433,34 @@ func test_pass_through_on_the_weak_window_patches_once_without_damage() -> void:
 	assert_eq(SimClock._pending_hitstop, 0, "no hit-stop")
 
 
+func test_echo_dash_through_the_segfault_claw_patches_in_phase_one() -> void:
+	# Story 6.3 AC 18: the claw's ACTIVE frames are hazardous but the body is still hittable.
+	var sf_def: BossDef = load("res://data/bosses/segfault/boss_def.tres")
+	var arena := ArenaContext.new()
+	arena.target_source = func() -> Vector2: return Vector2(300, 150)
+	arena.contact_source = func() -> Vector2: return Vector2(-1000, -1000)
+	var sf := SegfaultBody.new()
+	assert_true(sf.setup(sf_def, null, arena))
+	sf.reset_for_fight()
+	var guard: int = 0
+	while sf.state != BossController.BossState.ACTIVE and guard < 600:
+		sf.tick(_ctx)
+		guard += 1
+	assert_eq(sf.state, BossController.BossState.ACTIVE, "in the claw's ACTIVE frames")
+	assert_eq(sf.phase_index, 0)
+	var win: Vector2i = sf.current_weak_window()
+	_ring([win.x, win.y])
+	sf.body_center_px = SPAWN + Vector2(56, 0)
+	_combat.boss = sf
+	_buf.push(J, 0)
+	_run_to(3)
+	_buf.push(K, _t)
+	_tick()
+	assert_same(_fsm.action, Defs.ECHO_DASH)
+	assert_true(sf.weak_window.is_patched(), "Patched through the claw")
+	assert_eq(sf.hp, sf_def.max_hp, "no damage")
+
+
 func test_pass_through_on_the_wrong_window_does_not_patch() -> void:
 	var boss: BossController = _boss(Vector2i(L, A), SPAWN + Vector2(56, 0))
 	_dash_then_k(3)

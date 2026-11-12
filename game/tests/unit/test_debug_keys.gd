@@ -198,8 +198,9 @@ func test_ctrl_f6_queues_a_hit_only_in_fight() -> void:
 	Game.flow_state = GameScript.FlowState.TITLE
 	assert_false(keys.handle_key(_key(KEY_F6, true, false, false, true)), "Ctrl+F6 does nothing outside FIGHT")
 	assert_false(health.get(&"_pending"))
-	keys.handle_key(_key(KEY_F4)) # Story 5.1: boss 2 has no boss yet (0 and 1 do)
+	keys.handle_key(_key(KEY_F2, true, false, true)) # Story 6.3: every boss index has a boss; the Shift+F2 sandbox has none
 	assert_eq(Game.flow_state, GameScript.FlowState.FIGHT)
+	assert_null(main.arena.boss)
 	assert_false(keys.handle_key(_key(KEY_F6)), "plain F6 is the boss kill: no boss, not consumed")
 	assert_false(keys.handle_key(_key(KEY_F6, true, false, true)), "Shift+F6 is not the damage key")
 	assert_false(health.get(&"_pending"), "neither queued a player hit")
@@ -256,6 +257,7 @@ func test_shift_f3_requests_the_test_boss_and_other_jumps_clear_it() -> void:
 
 func test_main_places_the_test_boss_only_on_shift_f3_and_keeps_it_on_retry() -> void:
 	var main: Node2D = _main_with_debug()
+	Game.segfault_enabled = true # Story 6.3: boss 2 is live (independent of the shipped flag)
 	var keys: DebugKeys = main.get_node(^"DebugKeys")
 	var arena: Arena = main.arena
 	assert_eq(keys.arena, arena, "Main injects the arena")
@@ -264,12 +266,13 @@ func test_main_places_the_test_boss_only_on_shift_f3_and_keeps_it_on_retry() -> 
 	assert_eq(main.hud.top_bar_text(), "void nullPointer() // hp 700")
 	assert_eq(main.hud.sky_text(), Hud.SKY_NULL_POINTER, "D-S51-4: its sky comment")
 	keys.handle_key(_key(KEY_F4))
-	assert_null(arena.boss, "plain F4 (boss 2): no boss")
-	assert_eq(main.hud.top_bar_text(), Hud.TOP_BAR)
-	assert_eq(main.hud.sky_text(), Hud.SKY, "the sky comment is restored")
+	assert_eq(arena.boss.def.boss_id, &"segfault", "Story 6.3: plain F4 (boss 2) is the Segfault")
+	assert_eq(main.hud.top_bar_text(), "void segfault() // hp 1000")
+	assert_eq(main.hud.sky_text(), Hud.SKY_SEGFAULT, "Story 6.3 (AC 3): its sky comment")
 	keys.handle_key(_key(KEY_F2))
 	assert_true(arena.boss is InfiniteLoopBody, "Story 3.3: plain F2 (boss 0) is the Infinite Loop")
 	assert_eq(main.hud.top_bar_text(), "void infiniteLoop() // hp 400")
+	assert_eq(main.hud.sky_text(), Hud.SKY, "the sky comment is restored")
 	keys.handle_key(_key(KEY_F3, true, false, true))
 	assert_false(arena.boss is InfiniteLoopBody, "Shift+F3 wins over boss 0 (AC 9)")
 	var boss: BossController = arena.boss
@@ -282,7 +285,7 @@ func test_main_places_the_test_boss_only_on_shift_f3_and_keeps_it_on_retry() -> 
 	main.apply_flow_state(GameScript.FlowState.FIGHT, 0) # a retry re-enters FIGHT
 	assert_same(arena.boss, boss, "a retry keeps the controller (cached attacks)")
 	assert_eq(boss.hp, 20, "and resets it")
-	keys.handle_key(_key(KEY_F4))
+	keys.handle_key(_key(KEY_F2, true, false, true)) # the Shift+F2 sandbox: no boss
 	assert_null(arena.boss)
 	assert_null(main.boss_view.boss)
 	assert_eq(main.hud.top_bar_text(), Hud.TOP_BAR)
@@ -322,7 +325,7 @@ func test_f6_kills_the_boss_and_shift_f6_skips_a_phase() -> void:
 func test_boss_keys_do_nothing_without_a_boss_or_outside_fight() -> void:
 	var main: Node2D = _main_with_debug()
 	var keys: DebugKeys = main.get_node(^"DebugKeys")
-	keys.handle_key(_key(KEY_F4)) # boss 2: no boss yet (Story 5.1: boss 1 is the Null Pointer)
+	keys.handle_key(_key(KEY_F2, true, false, true)) # Story 6.3: the Shift+F2 sandbox is the only fight without a boss
 	assert_false(keys.handle_key(_key(KEY_F6)), "F6 without a boss")
 	assert_false(keys.handle_key(_key(KEY_F6, true, false, true)), "Shift+F6 without a boss")
 	keys.handle_key(_key(KEY_F3, true, false, true))
@@ -341,9 +344,15 @@ func test_release_gate_has_no_test_boss() -> void:
 	assert_false(main.wants_test_boss())
 	main.apply_flow_state(GameScript.FlowState.FIGHT, 1)
 	assert_true(main.arena.boss is NullPointerBody, "Story 5.1: boss 1 is the Null Pointer in release too")
+	Game.segfault_enabled = true # Story 6.3: the shipped value, set here so the case does not depend on it
 	main.apply_flow_state(GameScript.FlowState.FIGHT, 2)
-	assert_null(main.arena.boss, "boss 2: placeholder, no boss")
+	assert_eq(main.arena.boss.def.boss_id, &"segfault", "Story 6.3: boss 2 is the Segfault in release")
+	assert_eq(main.hud.top_bar_text(), "void segfault() // hp 1000")
+	Game.segfault_enabled = false # Story 6.3 (AC 2, AC 24): cut ladder #4
+	main.apply_flow_state(GameScript.FlowState.FIGHT, 2)
+	assert_null(main.arena.boss, "boss 2 cut: placeholder, no boss")
 	assert_eq(main.hud.top_bar_text(), Hud.TOP_BAR)
+	assert_eq(main.hud.sky_text(), Hud.SKY)
 	# Story 3.3 (AC 9, D-S33-11, G3): the Infinite Loop is boss 0 in release too.
 	main.apply_flow_state(GameScript.FlowState.FIGHT, 0)
 	assert_true(main.arena.boss is InfiniteLoopBody)
@@ -358,7 +367,8 @@ func test_release_gate_has_no_test_boss() -> void:
 func test_boss_def_path_for_precedence() -> void:
 	assert_eq(MainScript.boss_def_path_for(false, 0), Arena.INFINITE_LOOP_DEF_PATH, "boss 0: the Infinite Loop")
 	assert_eq(MainScript.boss_def_path_for(false, 1), Arena.NULL_POINTER_DEF_PATH, "boss 1: the Null Pointer (Story 5.1)")
-	assert_eq(MainScript.boss_def_path_for(false, 2), "", "boss 2: placeholder")
+	assert_eq(MainScript.boss_def_path_for(false, 2), Arena.SEGFAULT_DEF_PATH, "boss 2: the Segfault (Story 6.3)")
+	assert_eq(MainScript.boss_def_path_for(false, 2, false, false), "", "boss 2 cut (FeatureFlags.segfault off): placeholder")
 	assert_eq(MainScript.boss_def_path_for(true, 0), Arena.TEST_BOSS_DEF_PATH, "Shift+F3 wins over boss 0")
 	assert_eq(MainScript.boss_def_path_for(true, 0, true), Arena.TEST_BOSS_DEF_PATH, "test boss wins over practice")
 	assert_eq(MainScript.boss_def_path_for(false, 0, true), "", "Shift+F2 practice: no boss")

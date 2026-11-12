@@ -75,7 +75,8 @@ func test_arena_and_main_wiring() -> void:
 	assert_eq(main_script.boss_def_path_for(false, 1), Arena.NULL_POINTER_DEF_PATH)
 	assert_eq(main_script.boss_def_path_for(false, 1, true), "", "practice: no boss")
 	assert_eq(main_script.boss_def_path_for(true, 1), Arena.TEST_BOSS_DEF_PATH, "Shift+F3 wins")
-	assert_eq(main_script.boss_def_path_for(false, 2), "", "Segfault still a placeholder")
+	assert_eq(main_script.boss_def_path_for(false, 2), Arena.SEGFAULT_DEF_PATH, "Story 6.3: the Segfault")
+	assert_eq(main_script.boss_def_path_for(false, 2, false, false), "", "Segfault cut: placeholder")
 
 
 func test_arena_enter_fight_places_the_null_pointer() -> void:

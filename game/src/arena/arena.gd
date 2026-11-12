@@ -29,6 +29,10 @@ const TEST_BOSS_PX := SPAWN_PX + Vector2(0, -5 * TILE_PX)
 const INFINITE_LOOP_DEF_PATH := "res://data/bosses/infinite_loop/boss_def.tres"
 ## Story 5.1 (AC 3): Boss 2, the Null Pointer, the boss of FIGHT boss 1 (NullPointerBody).
 const NULL_POINTER_DEF_PATH := "res://data/bosses/null_pointer/boss_def.tres"
+## Story 6.3 (AC 1, AD-12, D-S63-4): Boss 3, the Segfault, the boss of FIGHT boss 2. A cut-ladder
+## leaf (FeatureFlags.segfault): its body class is loaded by path, never named here.
+const SEGFAULT_DEF_PATH := "res://data/bosses/segfault/boss_def.tres"
+const SEGFAULT_BODY_PATH := "res://src/bosses/segfault/segfault_body.gd"
 ## Story 4.3 (AD-12, D-S43-2): the Breakpoint leaf module, loaded by path only when its flag is on,
 ## so the arena never names its class (held as a FightSkill).
 const BREAKPOINT_SKILL_PATH := "res://src/skills/breakpoint/breakpoint_skill.gd"
@@ -215,7 +219,7 @@ func _set_boss(path: String) -> void:
 			return
 		boss = controller
 		boss_def_path = path
-		boss.body_center_px = TEST_BOSS_PX # the Infinite Loop and the Null Pointer place themselves in reset (D-S33-18)
+		boss.body_center_px = TEST_BOSS_PX # the Infinite Loop, the Null Pointer and the Segfault place themselves in reset (D-S33-18)
 		if is_inside_tree():
 			SimClock.register_system(boss)
 	boss.breakpoint_on = breakpoint_enabled # D-S43-11: the SIGSEGV fallback reads the flag
@@ -286,6 +290,12 @@ static func boss_class_for(path: String) -> GDScript:
 		return InfiniteLoopBody
 	if path == NULL_POINTER_DEF_PATH:
 		return NullPointerBody
+	if path == SEGFAULT_DEF_PATH: # Story 6.3 (AD-12): by path, the leaf's class is never named
+		var script := load(SEGFAULT_BODY_PATH) as GDScript
+		if script == null:
+			Log.warn("arena", "Segfault body script missing, falling back to a plain controller")
+			return BossController
+		return script
 	return BossController
 
 

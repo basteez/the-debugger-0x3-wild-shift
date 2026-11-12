@@ -127,6 +127,9 @@ func _draw() -> void:
 	if boss is NullPointerBody:
 		_draw_ghost(boss as NullPointerBody)
 		return
+	if is_glyph_body(boss): # Story 6.3: the Segfault dragon, read by method (AD-12 leaf rule)
+		_draw_glyph_body(boss)
+		return
 	var text: String = boss.def.name_signature
 	var size := Vector2(GlyphFont.text_width(text, GLYPH_SCALE), GlyphFont.CELL * GLYPH_SCALE)
 	if boss.state == BossController.BossState.DEFEATED:
@@ -225,6 +228,47 @@ func _draw_decoys(body: NullPointerBody) -> void:
 		GlyphFont.draw_at(self, top_left, TRAIL_GLYPH, Palette.BG, GHOST_SCALE)
 
 
+## Story 6.3 (AD-12): true for a boss body drawn as a glyph grid (the Segfault dragon). Read by
+## method, so this view never names the cut-ladder leaf's class. Pure.
+static func is_glyph_body(b: BossController) -> bool:
+	return b != null and b.has_method(&"cell_centres") and b.has_method(&"cell_glyphs")
+
+
+## Story 6.3 (AC 5, 14, 15, 20): the Segfault dragon's glyph cells (HP jitter, ROAR flash inverts
+## them), the running attack (the sweep rectangle at its exact size, the claw arc during TELL, the
+## `!` over the claw), the Patched stack over the top row and the damage number. After the defeat
+## the cells reassemble into the fixed line (the 3.8 / 5.6 path). INK/BG only. Reads only (AD-05).
+func _draw_glyph_body(body: BossController) -> void:
+	var cell := Vector2(GlyphFont.CELL * GLYPH_SCALE, GlyphFont.CELL * GLYPH_SCALE)
+	var sources: PackedVector2Array = body.call(&"cell_centres")
+	var glyphs: PackedStringArray = body.call(&"cell_glyphs")
+	if body.state == BossController.BossState.DEFEATED:
+		if body.def.fixed_line != "":
+			_draw_reassembly_cells(body, sources, glyphs, cell)
+		_draw_number(Vector2.ZERO)
+		return
+	var jitter := Vector2(jitter_offset(body.jitter_level(), SimClock.sim_frame), 0.0)
+	var flash: bool = roar_flash_on(body.state == BossController.BossState.ROAR, body.frames_left)
+	var top: float = INF
+	var bottom: float = -INF
+	for k: int in sources.size():
+		_draw_ring_cell(sources[k], glyphs[k], flash, cell, jitter)
+		top = minf(top, sources[k].y - cell.y / 2.0)
+		bottom = maxf(bottom, sources[k].y + cell.y / 2.0)
+	var attack: BossAttack = body.current_attack()
+	_draw_attack(attack, cell, body.state == BossController.BossState.ACTIVE)
+	if attack != null and attack.has_method(&"claw_arc"):
+		var arc: PackedVector2Array = attack.call(&"claw_arc")
+		if arc.size() >= 2:
+			draw_polyline(arc, Palette.INK, 1.0)
+	if body.weak_window.is_patched() and not sources.is_empty():
+		var width: float = GlyphFont.text_width(PATCHED_TAG, TAG_SCALE)
+		_draw_patched(Vector2(body.body_center_px.x - width / 2.0, top), Vector2(width, cell.y), body.weak_window.frames_left)
+	# review: the number sits below the whole 4-row body, not over its middle rows
+	var below: float = (bottom - body.body_center_px.y + _number_scale * GlyphFont.CELL / 2.0) if not sources.is_empty() else cell.y
+	_draw_number(Vector2(0, below))
+
+
 ## Story 5.3 (D-S53-9): true on the "on" blocks of the decoy flicker. Pure.
 static func decoy_flicker_on(frame: int) -> bool:
 	@warning_ignore("integer_division")
@@ -241,22 +285,32 @@ static func trail_glyph_inside(p: Vector2, size: Vector2, area: Rect2) -> bool:
 ## world ticks (sim progress, so the hit-stop and the pause freeze it). Segment k goes to cell k; the
 ## cells past the last segment pop in at REASSEMBLY_SWAP. The `;` stays a plain (closed) glyph.
 func _draw_reassembly(body: InfiniteLoopBody, cell: Vector2) -> void:
+	var sources := PackedVector2Array()
+	var glyphs := PackedStringArray()
+	for k: int in body.outer_segments():
+		sources.append(body.segment_px(k))
+		glyphs.append(ring_glyph(sources.size() - 1))
+	for k: int in body.inner_segment_count():
+		sources.append(body.inner_segment_px(k))
+		glyphs.append(ring_glyph(sources.size() - 1))
+	_draw_reassembly_cells(body, sources, glyphs, cell)
+
+
+## Story 6.3 (AC 20): the generic reassembly of the 3.8 path: cell k of `sources` (drawn as
+## `glyphs[k]`) moves to cell k of the boss's fixed line over DEFEAT_FRAMES; cells past the sources
+## pop in at REASSEMBLY_SWAP. Reads only.
+func _draw_reassembly_cells(body: BossController, sources: PackedVector2Array, glyphs: PackedStringArray, cell: Vector2) -> void:
 	var line: String = body.def.fixed_line
 	var progress: float = reassembly_progress(body.defeat_frames_elapsed)
 	var line_centre: Vector2 = fixed_line_centre(body.body_center_px, line.length())
-	var sources := PackedVector2Array()
-	for k: int in body.outer_segments():
-		sources.append(body.segment_px(k))
-	for k: int in body.inner_segment_count():
-		sources.append(body.inner_segment_px(k))
 	var swapped: bool = progress >= REASSEMBLY_SWAP
 	for k: int in sources.size():
 		if k >= line.length():
-			if not swapped: # a segment with no cell (never with 24 segments) leaves at the swap
-				_draw_ring_cell(sources[k], ring_glyph(k), false, cell, Vector2.ZERO)
+			if not swapped: # a source cell with no line cell leaves at the swap
+				_draw_ring_cell(sources[k], glyphs[k], false, cell, Vector2.ZERO)
 			continue
 		var target: Vector2 = fixed_cell_centre(line_centre, k, line.length())
-		var glyph: String = line[k] if swapped else ring_glyph(k)
+		var glyph: String = line[k] if swapped else glyphs[k]
 		if glyph != " ":
 			_draw_ring_cell(sources[k].lerp(target, progress), glyph, false, cell, Vector2.ZERO)
 	if swapped:
