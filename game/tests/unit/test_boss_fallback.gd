@@ -93,3 +93,16 @@ func test_shipped_attacks_do_not_set_the_fallback_yet() -> void:
 	for path: String in ["res://data/bosses/test_boss/attack_pulse.tres", "res://data/bosses/test_boss/attack_sweep.tres"]:
 		var a := load(path) as AttackDef
 		assert_eq(BossController.effective_recovery(a, false), a.recovery, path)
+
+
+## Story 6.4 (AC 17): FeatureFlags.segfault off: boss index 2 gets no def path, so no Segfault body,
+## no tile grid and no tile attack is ever built (the 5.6 cut path, Null Pointer -> ENDING, holds).
+func test_segfault_cut_builds_no_grid_or_tile_attack() -> void:
+	var main_script: GDScript = load("res://src/main/main.gd")
+	assert_eq(main_script.boss_def_path_for(false, 2, false, false), "", "no def path with the flag off")
+	assert_eq(GameScript.route_after_defeat(1, false), GameScript.FlowState.ENDING, "5.6 cut path")
+	assert_eq(Arena.boss_class_for(""), BossController, "an empty path builds no Segfault body")
+	# With the flag on, the grid exists only once a Segfault body has had its first reset.
+	var body_script: GDScript = load(Arena.SEGFAULT_BODY_PATH)
+	var b: BossController = body_script.new()
+	assert_null(b.get(&"tiles"), "no grid before the first reset_for_fight")

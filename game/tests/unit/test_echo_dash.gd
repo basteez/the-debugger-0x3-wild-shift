@@ -443,7 +443,7 @@ func test_echo_dash_through_the_segfault_claw_patches_in_phase_one() -> void:
 	assert_true(sf.setup(sf_def, null, arena))
 	sf.reset_for_fight()
 	var guard: int = 0
-	while sf.state != BossController.BossState.ACTIVE and guard < 600:
+	while not (sf.state == BossController.BossState.ACTIVE and sf.tiles.attack_cells == 0) and guard < 900:
 		sf.tick(_ctx)
 		guard += 1
 	assert_eq(sf.state, BossController.BossState.ACTIVE, "in the claw's ACTIVE frames")

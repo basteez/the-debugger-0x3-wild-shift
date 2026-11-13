@@ -125,6 +125,8 @@ NARROW = {
     "|": "..#..|..#..|..#..|..#..|..#..|..#..|..#..",
     "}": "##...|..#..|..#..|...#.|..#..|..#..|##...",
     "~": ".....|.....|.#...|#.#.#|...#.",
+    # Story 6.4 (AC 7, D-S64-6): Core Dump's safe-tile middle dot.
+    "·": ".....|.....|.....|..#..",
 }
 
 # Wide glyphs: full 8x8 cell (box drawing must touch the cell edges to connect).

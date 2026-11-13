@@ -67,8 +67,13 @@ report "Watch module named outside src/skills/watch/ (leaf rule, AD-12)" \
 
 # Story 6.3 (AC 2, AD-12, cut ladder #4): the Segfault module is a leaf; nothing outside its folder
 # names its classes, and only the Arena's by-path wiring names its script folder.
+# Story 6.4 (D-S64-9): the tile grid and the tile attacks' class names are covered too.
 report "Segfault module named outside src/bosses/segfault/ (leaf rule, AD-12)" \
-	< <(grep -rnE --include='*.gd' '\bSegfaultBody\b|src/bosses/segfault/' game/src | grep -v '^game/src/bosses/segfault/' | grep -vE '^game/src/arena/arena\.gd:[0-9]+:const SEGFAULT_BODY_PATH ' | grep -vE '^[^:]+:[0-9]+:[[:space:]]*#' || true)
+	< <(grep -rnE --include='*.gd' '\b(SegfaultBody|CorruptedTiles|CorruptMemory|CoreDump)\b|src/bosses/segfault/' game/src | grep -v '^game/src/bosses/segfault/' | grep -vE '^game/src/arena/arena\.gd:[0-9]+:const SEGFAULT_BODY_PATH ' | grep -vE '^[^:]+:[0-9]+:[[:space:]]*#' || true)
+
+# Story 6.4: the Segfault data folder is loaded only by the Arena's by-path wiring (and the module itself).
+report "data/bosses/segfault named outside the Arena wiring or the module (leaf rule, AD-12)" \
+	< <(grep -rnE --include='*.gd' 'data/bosses/segfault' game/src | grep -v '^game/src/bosses/segfault/' | grep -vE '^game/src/arena/arena\.gd:[0-9]+:const SEGFAULT_DEF_PATH ' | grep -vE '^[^:]+:[0-9]+:[[:space:]]*#' || true)
 
 report "direct output call outside Log (use Log.info/debug/warn/error)" \
 	< <(grep -rnE --include='*.gd' '(^|[^.[:alnum:]_])(print|prints|printt|printraw|printerr|print_rich|print_debug|print_verbose|push_error|push_warning)[[:space:]]*\(' game/src | grep -v '^game/src/autoloads/log\.gd:' | grep -vE '^[^:]+:[0-9]+:[[:space:]]*#' || true)

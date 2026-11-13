@@ -443,3 +443,14 @@ Story 1.3 AC9 / I-6 ("mumble-speech web check, moved to 3.7") is UNBLOCKED. Tizi
 - Hurtbox/contact circle (2 tiles) is narrower than the drawn 6x4 body (design).
 - First drift tick draws from the shared fight RNG (per spec); reflection remainder and exact bounce x are untested; `check_guards.sh` leaf rule does not cover `AccessViolation` / segfault data paths.
 - `test_arena_player.gd` has 2 pre-existing headless failures (shader `return` in fragment processor), present on the stacked parent too.
+
+## Deferred from: code review of story 6.4 (Corrupted tiles, Corrupt Memory and Core Dump)
+
+- [design call, coordinator] Core Dump checkerboard amended from 144/144 to 288/288 (one-tile checkerboard over the full 32x18 grid); story AC text updated.
+- Entry latch (D-S64-5) is a boolean "on any attack tile": a hazard-to-hazard hop (adjacent Corrupt Memory tiles, or a diagonal step between Core Dump parity tiles) never re-hits; standing on a marked tile during TELL is immune until leaving; an entry swallowed by invulnerability is latched and not retried. Consider a last-hazard-cell latch and a hit-landed feedback in the 7.8 playtest.
+- `touches_player` mutates the latch (query-named method); latch is stale if contact checks are skipped (paused boss, null arena). `mark_random_tiles` returns 0 silently when `_rng` is null; `_rng` is not cleared in `reset_for_fight`.
+- `hazard_hit` on the tile attacks is unused in production except via CombatResolver's Ghost Echo decoy strike (about half the grid is hazard in Core Dump, so Patched triggers easily); `_clear`/`_in_state`/`on_cancel` helpers duplicated across the two attacks and one shared grid can be wiped by a non-current attack's `reset()`.
+- `CorruptedTiles.arm()` loops 576 cells every ACTIVE tick; `_draw_tiles` draws up to 576 glyphs and allocates arrays per frame in the Core Dump TELL. Verify in the NFR1 Chrome F10 phase-3 check (manual TODO).
+- Corrupt Memory marks are uniform over all rows, including the dragon band (about a third of marks); `·` glyph vertical placement to be eyeballed; font atlas now exactly full (112 glyphs).
+- Test gaps: Corrupt Memory hazard set equals tell set tile for tile; flag-off test does not build an Arena; probabilistic pool/count assertions over many seeds; unused `const T`/`_tells`/`GameScript` declarations.
+- `check_guards.sh` now also covers `data/bosses/segfault` path leaks; `AccessViolation` class name still not covered.

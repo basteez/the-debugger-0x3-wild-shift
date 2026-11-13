@@ -266,7 +266,30 @@ func test_segfault_boss_def_matches_the_gdd() -> void:
 		var ids: Array[StringName] = []
 		for a_def: AttackDef in p.attack_pool:
 			ids.append(a_def.id)
-		assert_eq(ids, [&"access_violation"], "AC 12: phase %d pool" % (i + 1))
+		# Story 6.4 (AC 1, D-S64-1): Corrupt Memory in phases 1-3, Core Dump in phase 3 only.
+		var pool: Array = [&"access_violation", &"corrupt_memory"]
+		if i == 2:
+			pool.append(&"core_dump")
+		assert_eq(ids, pool, "6.4 AC 1: phase %d pool" % (i + 1))
+		assert_eq(ids.has(&"core_dump"), i == 2, "Core Dump is phase-3-only")
+
+
+## Story 6.4 (AC 2): the tile attacks' data, scripts under src/bosses/segfault/attacks/, shared .tres.
+func test_segfault_tile_attack_defs_match_the_gdd() -> void:
+	var def: BossDef = load("res://data/bosses/segfault/boss_def.tres")
+	var rows: Array = [
+		["corrupt_memory", &"corrupt_memory", 60, 240, 40, &"tell_corrupt_memory"],
+		["core_dump", &"core_dump", 60, 180, 60, &"tell_core_dump"],
+	]
+	for row: Array in rows:
+		var a_def: AttackDef = load("res://data/bosses/segfault/attack_%s.tres" % row[0])
+		assert_eq(a_def.validate(), PackedStringArray(), row[0])
+		assert_eq([a_def.id, a_def.tell, a_def.active, a_def.recovery, a_def.tell_sfx], row.slice(1))
+		assert_eq(a_def.attack_script.resource_path, "res://src/bosses/segfault/attacks/%s.gd" % row[0])
+		assert_true(a_def.attack_script.new() is BossAttack)
+		assert_false(a_def.exclusive)
+	assert_same(def.phases[0].attack_pool[1], load("res://data/bosses/segfault/attack_corrupt_memory.tres"))
+	assert_same(def.phases[2].attack_pool[2], load("res://data/bosses/segfault/attack_core_dump.tres"))
 
 
 func test_segfault_attack_def_matches_the_gdd() -> void:
