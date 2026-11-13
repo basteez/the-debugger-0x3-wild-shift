@@ -2,7 +2,8 @@ extends GutTest
 ## Story 6.4 AC 1, 7-14: Core Dump on the real Segfault def. Phase-3-only pool, 60 / 180 / 60
 ## timings, the 288 / 288 checkerboard on the (x + y) odd parity, the safe tiles visible in TELL,
 ## the one-hit-per-entry rule, cancel / defeat / retry clearing, declared positions. DumpBody narrows
-## the candidates to Core Dump (cache index 2) after the fight is taken to phase 3.
+## the candidates to Core Dump (cache index 3 since Story 6.5 put SIGSEGV at 2) after the fight is
+## taken to phase 3.
 
 const GameScript := preload("res://src/autoloads/game.gd")
 const PLAYER_DEF: PlayerDef = preload("res://data/player/player_def.tres")
@@ -21,7 +22,7 @@ var _saved_state: int
 class DumpBody:
 	extends SegfaultBody
 
-	var only := PackedInt32Array([2])
+	var only := PackedInt32Array([3])
 
 	func _pick_candidates(_phase: int) -> PackedInt32Array:
 		return only
@@ -43,6 +44,7 @@ func before_each() -> void:
 	_player_px = Vector2(-1000, -1000)
 	_arena.target_source = func() -> Vector2: return Vector2(256, 200)
 	_arena.contact_source = func() -> Vector2: return _player_px
+	_arena.player_effects.bind(Register.new(), LinkState.new()) # Story 6.5: SIGSEGV's rotation lands
 	SimClock.set(&"_pending_hitstop", 0)
 
 
@@ -58,7 +60,7 @@ func _body() -> DumpBody:
 	_health.set_active(true)
 	var b := DumpBody.new()
 	assert_true(b.setup(SF_DEF, _health, _arena))
-	assert_eq(b.attack_for(DUMP), b._attacks[2], "Core Dump is cache index 2")
+	assert_eq(b.attack_for(DUMP), b._attacks[3], "Core Dump is cache index 3")
 	b.reset_for_fight()
 	b.take_hit(680)
 	assert_eq(b.phase_index, 2)
@@ -98,11 +100,11 @@ func test_core_dump_is_only_in_the_phase_3_pool() -> void:
 	var b := SegfaultBody.new()
 	assert_true(b.setup(SF_DEF, null, null))
 	var dump: int = b._attacks.find(b.attack_for(DUMP))
-	assert_eq(dump, 2)
+	assert_eq(dump, 3, "Story 6.5: SIGSEGV (phase 2) is cache index 2")
 	assert_false(b._pick_candidates(0).has(dump), "phase 1")
 	assert_false(b._pick_candidates(1).has(dump), "phase 2")
 	assert_true(b._pick_candidates(2).has(dump), "phase 3")
-	assert_eq(b._pick_candidates(2).size(), 3)
+	assert_eq(b._pick_candidates(2).size(), 4, "Story 6.5: + SIGSEGV")
 
 
 func test_the_real_fsm_picks_core_dump_only_in_phase_3() -> void:

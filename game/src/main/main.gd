@@ -160,6 +160,7 @@ func _build_layers() -> void:
 	hp_readout.health = arena.health
 	hud.add_child(hp_readout)
 	_build_breakpoint_views()
+	_build_warning_border()
 	_build_watch_views()
 	pause_layer = CanvasLayer.new()
 	pause_layer.name = &"Pause"
@@ -197,6 +198,15 @@ func _build_layers() -> void:
 	add_child(camera_shake)
 	camera_shake.camera.position = -Vector2(Arena.ORIGIN_CELL * GlyphFont.CELL)
 	arena.add_child(camera_shake.camera)
+
+
+## Story 6.5 (AC 3, 4, D-S65-8): the SIGSEGV tell's red border, a WARN-drawing node of its own (the
+## HUD sources stay INK/BG only). It draws nothing unless a warning tell runs, so it is always built.
+func _build_warning_border() -> void:
+	var border := WarningBorder.new()
+	border.name = &"WarningBorder"
+	border.hud = hud
+	hud.add_child(border)
 
 
 ## Story 4.3 (AC 9, AC 10, AC 13): the overlay and the HUD readout exist only when the arena built

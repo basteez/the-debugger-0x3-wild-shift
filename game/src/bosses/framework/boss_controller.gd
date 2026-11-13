@@ -156,7 +156,13 @@ func _advance(rng: RandomNumberGenerator) -> void:
 			if _pick_candidates(phase_index).is_empty() or not _attacks_allowed():
 				_enter(BossState.GAP, def.phases[phase_index].gap_frames)
 				return
-			_current_index = pick_next(rng)
+			var pick: int = pick_next(rng)
+			# Story 6.5 (AC 10, D-S65-2): an exclusive attack (SIGSEGV) never starts beside another
+			# one. The serial FSM already guarantees it (no attack is current in GAP); defensive only.
+			if not can_start(pick):
+				_enter(BossState.GAP, def.phases[phase_index].gap_frames)
+				return
+			_current_index = pick
 			current = _defs[_current_index]
 			_enter(BossState.TELL, current.tell)
 			_on_attack_started()
@@ -178,6 +184,14 @@ func _advance(rng: RandomNumberGenerator) -> void:
 			_end_attack()
 		BossState.DEFEATED:
 			pass
+
+
+## Story 6.5 (AC 10, D-S65-2): false for an invalid pick, or an exclusive attack while another
+## attack is current. Non-exclusive picks keep the serial FSM's rule.
+func can_start(pick: int) -> bool:
+	if pick < 0 or pick >= _defs.size():
+		return false
+	return not (_defs[pick].exclusive and _current_index >= 0)
 
 
 ## The recovery an attack runs (Story 4.3, AC 13, GDD cut #3): recovery_if_no_breakpoint when

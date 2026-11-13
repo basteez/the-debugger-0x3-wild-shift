@@ -60,6 +60,8 @@ func _used_codepoints() -> Dictionary[int, String]:
 	texts.append(segfault_def.fixed_line)
 	# Story 6.4 (AC 7, 15): the corrupted-tile glyphs (`·` added to the font for Core Dump).
 	texts.append_array([BossView.TILE_MARKED, BossView.TILE_HAZARD, BossView.TILE_SAFE])
+	# Story 6.5 (AC 3, D-S65-8): the SIGSEGV warning tell line (lowercase kept: the font has it).
+	texts.append(Hud.WARNING_TELL_TEXT)
 	var used: Dictionary[int, String] = {}
 	for t: String in texts:
 		for i: int in t.length():

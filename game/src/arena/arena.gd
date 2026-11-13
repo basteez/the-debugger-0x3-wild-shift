@@ -325,6 +325,8 @@ func _make_arena_context() -> ArenaContext:
 	ctx.contact_source = func() -> Vector2: return player.position_px
 	ctx.shift_count = func() -> int: return register.shift_serial # read-only (D-S33-6, NP-3)
 	ctx.facing_source = func() -> Vector2i: return player.facing # Story 5.2 (D-S52-2), read-only
+	# Story 6.5 (NP-3, D-S65-3): boss effects (SIGSEGV's rotation) act on the fight's register and link.
+	ctx.player_effects.bind(register, actions.link)
 	return ctx
 
 

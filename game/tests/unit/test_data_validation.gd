@@ -270,8 +270,33 @@ func test_segfault_boss_def_matches_the_gdd() -> void:
 		var pool: Array = [&"access_violation", &"corrupt_memory"]
 		if i == 2:
 			pool.append(&"core_dump")
-		assert_eq(ids, pool, "6.4 AC 1: phase %d pool" % (i + 1))
+		# Story 6.5 (AC 1, D-S65-1): SIGSEGV in phases 2-3, last in the pool.
+		if i >= 1:
+			pool.append(&"sigsegv")
+		assert_eq(ids, pool, "6.4 / 6.5 AC 1: phase %d pool" % (i + 1))
 		assert_eq(ids.has(&"core_dump"), i == 2, "Core Dump is phase-3-only")
+		assert_eq(ids.has(&"sigsegv"), i >= 1, "SIGSEGV in phases 2-3 only")
+
+
+## Story 6.5 (AC 2, D-S65-9): SIGSEGV's data: 60 / 1 / 90 (150 without Breakpoint), exclusive, the
+## alarm cue id, the script under src/bosses/segfault/attacks/, one shared .tres in both pools.
+func test_segfault_sigsegv_def_matches_the_gdd() -> void:
+	var a_def: AttackDef = load("res://data/bosses/segfault/attack_sigsegv.tres")
+	assert_eq(a_def.validate(), PackedStringArray())
+	assert_eq([a_def.id, a_def.tell, a_def.active, a_def.recovery, a_def.recovery_if_no_breakpoint], [&"sigsegv", 60, 1, 90, 150])
+	assert_true(a_def.exclusive)
+	assert_eq(a_def.tell_sfx, &"tell_sigsegv")
+	assert_eq(a_def.attack_script.resource_path, "res://src/bosses/segfault/attacks/sigsegv.gd")
+	assert_true(a_def.attack_script.new() is BossAttack)
+	var def: BossDef = load("res://data/bosses/segfault/boss_def.tres")
+	assert_same(def.phases[1].attack_pool[2], a_def, "phase 2 shares the .tres")
+	assert_same(def.phases[2].attack_pool[3], a_def, "phase 3 shares the .tres")
+	var exclusive: Array[StringName] = []
+	for p: PhaseDef in def.phases:
+		for d: AttackDef in p.attack_pool:
+			if d.exclusive and not exclusive.has(d.id):
+				exclusive.append(d.id)
+	assert_eq(exclusive, [&"sigsegv"] as Array[StringName], "SIGSEGV is the only exclusive attack")
 
 
 ## Story 6.4 (AC 2): the tile attacks' data, scripts under src/bosses/segfault/attacks/, shared .tres.

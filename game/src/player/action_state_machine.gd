@@ -363,10 +363,12 @@ func _age_link(serial: int) -> void:
 
 ## After the frame executed (B2): a J action's first ACTIVE frame opens (or reopens) the link on the
 ## current window; its last ACTIVE frame starts the 18-tick count (k = 0).
+## Story 6.5 (D-S65-5): a SIGSEGV rotation leaves shift_serial alone, so the link opens only on the
+## window J started on (a rotation during J's startup never opens a link on another pair).
 func _update_link(window: Vector2i, serial: int) -> void:
 	if action == null or action_slot != 0:
 		return
-	if action_frame == action.startup_frames + 1 and serial == _start_serial:
+	if action_frame == action.startup_frames + 1 and serial == _start_serial and window == action_window:
 		link.open(window, serial)
 		Log.debug(&"action", "link open %s %s" % [Register.glyph_of(window.x), Register.glyph_of(window.y)])
 	if action_frame == action.startup_frames + action.active_frames:

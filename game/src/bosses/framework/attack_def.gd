@@ -2,7 +2,7 @@ class_name AttackDef
 extends Def
 ## One boss attack's data (Story 3.1, AD-06, FR30, FR31): timings in sim frames, the tell cue id
 ## and the BossAttack script that runs it. Balance numbers live in data/bosses/<boss>/*.tres.
-## `exclusive` is stored but has no behaviour until 6.5. `recovery_if_no_breakpoint` is read by
+## `exclusive` is read by BossController.can_start since Story 6.5. `recovery_if_no_breakpoint` is read by
 ## BossController.effective_recovery since Story 4.3 (used when FeatureFlags.breakpoint is off).
 
 ## Pillar 2 / FR31: every tell lasts at least this many frames.
@@ -16,7 +16,7 @@ const MIN_TELL_FRAMES := 20
 @export var active: int = 1
 ## Frames of recovery after the active window (>= 0).
 @export var recovery: int = 0
-## Story 6.5: the attack cannot overlap another exclusive one. No behaviour in 3.1.
+## Story 6.5 (D-S65-2): the attack starts only when no other attack is current (SIGSEGV).
 @export var exclusive: bool = false
 ## Story 4.3: recovery used in place of `recovery` when Breakpoint is cut (flag off) and this is
 ## > 0 (SIGSEGV 150, GDD cut #3); 0 = always `recovery`.
