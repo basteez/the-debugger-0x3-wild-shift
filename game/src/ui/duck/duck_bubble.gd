@@ -260,8 +260,9 @@ func _sync_draw() -> void:
 ## Story 3.8 (AC 9, D-S38-11): leaving FIGHT clears the bubble and cuts the voice, so a fight line
 ## never finishes into HARVEST; leaving HARVEST does the same for the harvest line (E5). The HARVEST
 ## screen requests its line after this (deferred), so the line survives its own entry.
+## Story 6.7 (AC 5, D-S67-6): leaving INTRO (skip or cap) clears the intro line the same way.
 func _on_flow_state_changed(from: int, to: int) -> void:
-	if to != Game.FlowState.FIGHT or from == Game.FlowState.HARVEST:
+	if to != Game.FlowState.FIGHT or from == Game.FlowState.HARVEST or from == Game.FlowState.INTRO:
 		clear()
 
 

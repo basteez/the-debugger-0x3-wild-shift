@@ -33,8 +33,11 @@ func test_full_sequence_and_boss_index_via_placeholder_advance() -> void:
 	watch_signals(EventBus)
 	game.start_run_from_title(10)
 	assert_eq(game.flow_state, S.INTRO)
+	_skip_intro(game)
+	assert_eq(game.flow_state, S.FIGHT)
+	assert_eq(game.run.boss_index, 0)
 	var expected: Array = [
-		[S.FIGHT, 0], [S.HARVEST, 0], [S.FIGHT, 1], [S.HARVEST, 1], [S.FIGHT, 2], [S.ENDING, 2], [S.TITLE, 0],
+		[S.HARVEST, 0], [S.FIGHT, 1], [S.HARVEST, 1], [S.FIGHT, 2], [S.ENDING, 2], [S.TITLE, 0],
 	]
 	for step: Array in expected:
 		game.advance()
@@ -49,11 +52,49 @@ func test_ending_to_title_gives_a_fresh_run_state() -> void:
 	var game: Node = _game()
 	var old: RunState = game.run
 	game.start_run_from_title(1)
-	for i: int in 7:
+	_skip_intro(game)
+	for i: int in 6:
 		game.advance()
 	assert_eq(game.flow_state, S.TITLE)
 	assert_ne(game.run, old)
 	assert_eq(game.run.boss_index, 0)
+
+
+## Story 6.7 (AC 7): the Intro is left through its skip gate (finish_intro), as the screen does.
+func _skip_intro(game: Node) -> void:
+	assert_eq(game.flow_state, S.INTRO)
+	assert_true(game.finish_intro(game.first_input_frame + 1, true), "skip one frame after the title input")
+
+
+## Story 6.7 (AC 7, C3): advance() in INTRO goes through the skip gate at SimClock.sim_frame: never on
+## the title input frame, at once one frame later.
+func test_advance_in_intro_respects_the_skip_gate() -> void:
+	var saved: int = SimClock.sim_frame
+	var game: Node = _game()
+	SimClock.sim_frame = 200
+	game.start_run_from_title(200)
+	game.advance()
+	assert_eq(game.flow_state, S.INTRO, "the title input frame never skips through advance()")
+	SimClock.sim_frame = 201
+	game.advance()
+	assert_eq(game.flow_state, S.FIGHT, "the gate is open one frame later")
+	assert_eq(game.run.boss_index, 0)
+	SimClock.sim_frame = saved
+
+
+func test_advance_in_a_paused_intro_neither_skips_nor_times_out() -> void:
+	var saved: int = SimClock.sim_frame
+	var game: Node = _game()
+	SimClock.sim_frame = 100
+	game.start_run_from_title(100)
+	SimClock.paused = true
+	SimClock.sim_frame = 100 + GameScript.INTRO_MAX_FRAMES + 10
+	game.advance()
+	assert_false(game.finish_intro(SimClock.sim_frame, true), "no skip while paused")
+	assert_false(game.finish_intro(SimClock.sim_frame), "no timeout while paused")
+	assert_eq(game.flow_state, S.INTRO)
+	SimClock.paused = false
+	SimClock.sim_frame = saved
 
 
 func test_advance_is_a_no_op_on_title_and_dead() -> void:
@@ -194,7 +235,7 @@ func test_intro_to_fight_seeds_the_fight() -> void:
 	var game: Node = _game()
 	game.start_run_from_title(0)
 	SimClock.buffer.push(&"action_1", SimClock.sim_frame)
-	game.advance()
+	_skip_intro(game)
 	assert_eq(game.flow_state, S.FIGHT)
 	assert_gt(game.run.fight_seed, 0)
 	assert_eq(SimClock.buffer.size(), 0, "begin_fight cleared the buffer")
@@ -204,7 +245,7 @@ func test_intro_to_fight_seeds_the_fight() -> void:
 func test_each_fight_entry_takes_a_new_seed() -> void:
 	var game: Node = _game()
 	game.start_run_from_title(0)
-	game.advance() # FIGHT 1
+	_skip_intro(game) # FIGHT 1
 	var first: int = game.run.fight_seed
 	game.advance() # HARVEST
 	game.advance() # FIGHT 2
@@ -240,7 +281,7 @@ func test_run_seed_is_taken_once_and_each_entry_counts_an_attempt() -> void:
 	game.start_run_from_title(0)
 	assert_eq(game.run.run_seed, 0)
 	assert_eq(game.run.fight_attempt, 0)
-	game.advance() # FIGHT 1
+	_skip_intro(game) # FIGHT 1
 	var run_seed: int = game.run.run_seed
 	assert_gt(run_seed, 0)
 	assert_eq(game.run.fight_attempt, 1)
@@ -260,7 +301,7 @@ func test_run_seed_is_taken_once_and_each_entry_counts_an_attempt() -> void:
 func test_a_new_run_takes_a_new_run_seed() -> void:
 	var game: Node = _game()
 	game.start_run_from_title(0)
-	game.advance()
+	_skip_intro(game)
 	game.advance() # HARVEST
 	game.advance() # FIGHT 2
 	game.advance() # HARVEST
@@ -362,7 +403,7 @@ func test_deaths_on_boss_kept_by_retry_and_reset_by_a_new_boss() -> void:
 func test_harvest_to_fight_resets_deaths() -> void:
 	var game: Node = _game()
 	game.start_run_from_title(1)
-	game.advance() # INTRO -> FIGHT 0
+	_skip_intro(game) # INTRO -> FIGHT 0
 	game.record_death(50)
 	assert_eq(game.run.deaths_on_boss, 1)
 	game.retry(70)

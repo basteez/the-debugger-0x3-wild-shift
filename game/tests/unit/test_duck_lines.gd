@@ -10,6 +10,8 @@ const GDD: Dictionary[StringName, String] = {
 	&"t3_dash_strike": "J then K: Dash Strike. Two bits, one commit.",
 	&"t4_phase_two": "It refactored itself. Have you tried shifting it off and on again?",
 }
+## Story 6.7 (AC 8, 10; FR45 line 1): the Intro hand-over line, first in the file (GDD order).
+const INTRO_TEXT := "Quack. Explain the bug to me. Use these."
 ## Story 3.8 (E4, FR45 line 8): the shared harvest line.
 const HARVEST_TEXT := "Bug squashed. It dropped a bit: new windows, new combos."
 ## GDD D-039: the duck speaks at most 10 lines in the whole game.
@@ -35,16 +37,26 @@ func _line(id: StringName, text: String) -> DuckLineDef:
 func test_the_four_tutorial_lines_equal_the_gdd_strings() -> void:
 	var lines: DuckLinesDef = _lines()
 	assert_not_null(lines)
-	assert_eq(lines.entries.size(), 12, "T1-T4 (D-S36-3), the 3.8 harvest line, the two 4.4 hint windows, the 5.1 D->L window, the 6.3 N->A and L->N windows, the 5.6 N1-N2")
+	assert_eq(lines.entries.size(), 13, "the 6.7 intro line, T1-T4 (D-S36-3), the 3.8 harvest line, the two 4.4 hint windows, the 5.1 D->L window, the 6.3 N->A and L->N windows, the 5.6 N1-N2")
 	for i: int in DuckDirector.DUCK_IDS.size():
 		var id: StringName = DuckDirector.DUCK_IDS[i]
-		assert_eq(lines.entries[i].id, id, "order follows the beats")
+		assert_eq(lines.entries[i + 1].id, id, "order follows the beats, after the intro line")
 		assert_eq(lines.find(id).text, GDD[id], String(id))
 
 
-func test_harvest_line_is_the_fifth_entry_and_the_budget_holds() -> void:
+## Story 6.7 (A3): GDD Duck row 1 is the first entry, with the exact text, and the screen's id resolves.
+func test_intro_line_is_the_first_entry_and_equals_the_gdd_string() -> void:
 	var lines: DuckLinesDef = _lines()
-	assert_eq(lines.entries[4].id, &"harvest_shared")
+	assert_eq(lines.entries[0].id, &"intro_handover")
+	assert_eq(lines.find(&"intro_handover").text, INTRO_TEXT)
+	assert_eq(lines.find(IntroScreen.LINE_ID).text, INTRO_TEXT, "the screen's id resolves")
+	assert_true(DuckLineDef.is_ascii(INTRO_TEXT))
+	assert_eq(lines.find(&"intro_handover").validate(), PackedStringArray(), "fits the bubble")
+
+
+func test_harvest_line_is_the_sixth_entry_and_the_budget_holds() -> void:
+	var lines: DuckLinesDef = _lines()
+	assert_eq(lines.entries[5].id, &"harvest_shared")
 	assert_eq(lines.find(&"harvest_shared").text, HARVEST_TEXT)
 	assert_eq(lines.find(StringName(HarvestScreen.LINE_ID)).text, HARVEST_TEXT, "the screen's id resolves")
 	assert_lte(budget_count(lines), LINE_BUDGET, "duck line budget (GDD D-039, the hint template counts once)")
@@ -63,7 +75,7 @@ static func budget_count(lines: DuckLinesDef) -> int:
 
 
 func test_budget_counts_the_hint_template_once() -> void:
-	assert_eq(budget_count(_lines()), 8, "T1-T4, harvest, the hint template, N1-N2 (Story 5.6)")
+	assert_eq(budget_count(_lines()), 9, "intro (Story 6.7), T1-T4, harvest, the hint template, N1-N2 (Story 5.6)")
 
 
 func test_null_pointer_lines_equal_the_gdd_strings() -> void:

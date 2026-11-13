@@ -299,7 +299,7 @@ func test_third_death_through_the_real_game_flow() -> void:
 	_director.requested = (1 << 4) - 1
 	var game: Node = autofree(GameScript.new())
 	game.start_run_from_title(0)
-	game.advance() # INTRO -> FIGHT
+	assert_true(game.finish_intro(1, true)) # INTRO -> FIGHT (Story 6.7: the skip gate, AC 7)
 	for n: int in 3:
 		assert_true(game.record_death(100 + n * 1000))
 		if n < 2:

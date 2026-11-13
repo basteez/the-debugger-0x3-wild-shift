@@ -218,7 +218,8 @@ func finish_intro(frame: int, skip_requested: bool = false) -> bool:
 	return true
 
 
-## Placeholder advance gesture (Story 1.6): the next state in the run sequence.
+## Placeholder advance gesture (Story 1.6): the next state in the run sequence. In INTRO it is a
+## gated skip (Story 6.7), never an unconditional start.
 func advance() -> void:
 	if SimClock.paused: # DC4: a key press during pause never skips the fight
 		return
@@ -226,8 +227,10 @@ func advance() -> void:
 		FlowState.TITLE:
 			pass # the title's own input starts the run (start_run_from_title)
 		FlowState.INTRO:
-			run.start_boss(0)
-			_set_flow_state(FlowState.FIGHT)
+			# Story 6.7 (AC 7): the same skip gate as the Intro screen, so no caller skips the
+			# Intro on the title input frame.
+			if can_skip_intro(SimClock.sim_frame):
+				finish_intro(SimClock.sim_frame, true)
 		FlowState.FIGHT:
 			_set_flow_state(route_after_defeat(run.boss_index, segfault_enabled)) # Story 5.6 (D-S56-3)
 		FlowState.HARVEST:

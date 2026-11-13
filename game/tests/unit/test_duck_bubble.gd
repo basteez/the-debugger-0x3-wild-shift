@@ -39,7 +39,8 @@ func test_wrap_fits_every_tutorial_line() -> void:
 	# Story 3.8: + harvest_shared. Story 4.4: T1 rewritten (11 lines, D-S44-2) + the two hint lines.
 	# Story 5.1: + the Null Pointer's D->L hint line. Story 5.6: + N1 (Breakpoint) and N2 (Hold R).
 	# Story 6.3: + the Segfault's N->A and L->N hint windows (the template, D-039 counts it once).
-	var expected_lines: Array[int] = [11, 7, 4, 7, 6, 2, 2, 2, 2, 2, 7, 4]
+	# Story 6.7: + the intro hand-over line, first in the file (4 rows).
+	var expected_lines: Array[int] = [4, 11, 7, 4, 7, 6, 2, 2, 2, 2, 2, 7, 4]
 	var texts: PackedStringArray = _texts()
 	for i: int in texts.size():
 		var lines: PackedStringArray = DuckBubble.wrap(texts[i], DuckBubble.WRAP_WIDTH)
@@ -52,13 +53,14 @@ func test_wrap_fits_every_tutorial_line() -> void:
 
 func test_wrap_matches_the_story_t1_lines() -> void:
 	# Story 4.4 (AC 11, D-S44-2): the rewritten T1 wraps to 11 of the 15 text rows (rows 23-33).
-	var lines: PackedStringArray = DuckBubble.wrap(_texts()[0])
+	var t1: String = LINES.find(&"t1_shift").text
+	var lines: PackedStringArray = DuckBubble.wrap(t1)
 	assert_eq(lines, PackedStringArray([
 		"Q or E", "shifts your", "bits. Go on,", "shift. It's", "waiting.", "Only the two", "on the left", "are live;",
 		"the rest are", "in code", "review.",
 	]))
 	assert_lte(DuckBubble.line_cell(lines.size() - 1).y, 37, "the last row stays inside the duck region")
-	for cell: Vector2i in DuckBubble.cells_for_text(_texts()[0]):
+	for cell: Vector2i in DuckBubble.cells_for_text(t1):
 		assert_true(cell.x >= 0 and cell.x <= 11 and cell.y >= 22 and cell.y <= 37, "cell %s inside cols 0-11, rows 22-37" % cell)
 
 
@@ -422,6 +424,15 @@ func test_leaving_harvest_stops_the_voice() -> void:
 	_start_voiced(fake)
 	EventBus.flow_state_changed.emit(GameScript.FlowState.HARVEST, GameScript.FlowState.FIGHT)
 	assert_false(_bubble.is_showing(), "no harvest line in the next fight")
+	assert_gte(fake.stops, 1)
+
+
+## Story 6.7 (AC 5, D-S67-6): leaving INTRO (a skip or the cap) clears the intro line and cuts the voice.
+func test_leaving_intro_stops_the_voice() -> void:
+	var fake: FakeVoice = _voiced()
+	_start_voiced(fake)
+	EventBus.flow_state_changed.emit(GameScript.FlowState.INTRO, GameScript.FlowState.FIGHT)
+	assert_false(_bubble.is_showing(), "no intro line in Fight 1")
 	assert_gte(fake.stops, 1)
 
 

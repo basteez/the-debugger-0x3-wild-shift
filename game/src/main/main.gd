@@ -10,6 +10,7 @@ const PlaceholderScreenScript := preload("res://src/ui/screens/placeholder/place
 const PauseScreenScript := preload("res://src/ui/screens/pause/pause_screen.gd")
 const DeadScreenScript := preload("res://src/ui/screens/dead/dead_screen.gd")
 const HarvestScreenScript := preload("res://src/ui/screens/harvest/harvest_screen.gd")
+const IntroScreenScript := preload("res://src/ui/screens/intro/intro_screen.gd")
 const DebugKeysScript := preload("res://src/debug/debug_keys.gd")
 const GameFlow := preload("res://src/autoloads/game.gd")
 const HudScene := preload("res://src/ui/hud/hud.tscn")
@@ -275,9 +276,10 @@ func apply_flow_state(state: int, boss_index: int) -> void:
 		hud.log_panel.clear()
 	arena.visible = in_fight
 	# Story 3.8 (D-S38-16): HARVEST shows the HUD's duck bubble only (the harvest line).
-	var harvest: bool = state == GameFlow.FlowState.HARVEST
-	hud.visible = in_fight or harvest
-	hud.set_duck_only(harvest)
+	# Story 6.7 (D-S67-2): so does INTRO (duck line 1 on panel 3).
+	var duck_only: bool = state == GameFlow.FlowState.HARVEST or state == GameFlow.FlowState.INTRO
+	hud.visible = in_fight or duck_only
+	hud.set_duck_only(duck_only)
 	if in_fight:
 		var practice: bool = wants_practice()
 		arena.enter_fight(fight_start_ring(Game.run, boss_index), practice, boss_def_path_for(wants_test_boss(), boss_index, practice, Game.segfault_enabled), breakpoint_unlocked_for(boss_index), watch_unlocked_for(boss_index))
@@ -399,7 +401,9 @@ func _make_screen(state: int, boss_index: int) -> Node:
 			return title
 		GameFlow.FlowState.HARVEST:
 			return make_harvest_screen(boss_index)
-		GameFlow.FlowState.INTRO, GameFlow.FlowState.FIGHT, GameFlow.FlowState.ENDING:
+		GameFlow.FlowState.INTRO:
+			return IntroScreenScript.new() # Story 6.7 (AC 11)
+		GameFlow.FlowState.FIGHT, GameFlow.FlowState.ENDING:
 			var screen: PlaceholderScreen = PlaceholderScreenScript.new()
 			screen.setup(state, boss_index)
 			return screen

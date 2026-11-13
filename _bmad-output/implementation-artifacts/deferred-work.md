@@ -102,7 +102,7 @@ Story 1.3 AC9 / I-6 ("mumble-speech web check, moved to 3.7") is UNBLOCKED. Tizi
 
 ## Deferred from: code review of story-1.6 (2026-11-07)
 
-- `Game.advance()` in INTRO ignores `can_skip_intro` (spec Task 2.2 mandates it); revisit with the real Intro (Epic 5).
+- ~~`Game.advance()` in INTRO ignores `can_skip_intro` (spec Task 2.2 mandates it); revisit with the real Intro (Epic 5).~~ Resolved in Story 6.7 (AC 7): `advance()` in INTRO goes through `can_skip_intro` + `finish_intro(frame, true)`.
 - Old and new screen can share a node name within a frame (`remove_child` breaks `TitleScreen`'s `get_viewport()` call); nothing looks screens up by path.
 - Duplicate flow log lines per transition (specific line plus `_set_flow_state` line).
 - Tests mutate shared autoloads and the global EventBus; each restores what it changes, but order dependence is possible.
@@ -471,3 +471,11 @@ Story 1.3 AC9 / I-6 ("mumble-speech web check, moved to 3.7") is UNBLOCKED. Tizi
 - `Register.insert_temporary` accepts any known bit; could require `Bit.GARBAGE`.
 - Panel hex shows 0x1F for the 5-slot ring while `Register.byte_value()` stays owned-only (0x0F): kept as the intentional "reserved write" visual (D-S66-7); confirm in Chrome.
 - JuiceDirector listens to `register_shifted` only (no reaction to `register_changed`); no DuckHint/Watch-mark test for the `?` bit; no real J/K FSM press test with `?` in the window; no Arena-level retry test with a live `?`; no `shift_serial` assertion at effect level; no test pinning first/last flash frame.
+
+## Deferred from: code review of Story 6.7 (Intro sequence)
+
+- Duck line 1 starts at frame 300 of the 480-frame cap, so on the TEXT backend the bubble (about 5 s) is cleared by the INTRO->FIGHT clear before its hold ends (3 s available). Design call (line timing vs cap); decide after the E1 human check.
+- Squeak/voice audio is not tied to pause and a squeak started on panel 2 is not stopped on skip (short one-shot).
+- No test drives `IntroScreen._unhandled_input` with a real InputEvent (rule helpers and try_skip are covered).
+- `intro_handover` line is not asserted not to overlap the caption region (visual check in E1).
+- duck_clips.tres sub-resource ids were renumbered by the editor (noisy diff only).

@@ -1,8 +1,9 @@
 class_name PlaceholderScreen
 extends Node2D
-## One placeholder for INTRO, FIGHT and ENDING (Story 1.6 DC8). Replaced by the real
-## screens in 6.7 (Intro), 2.x/3.x (Fight) and 6.8 (Ending); HARVEST has its own screen since 3.8. Presentation only:
-## it calls Game.finish_intro / Game.advance and never writes flow state.
+## One placeholder for FIGHT and ENDING (Story 1.6 DC8). Replaced by the real screens in 2.x/3.x
+## (Fight) and 6.8 (Ending); HARVEST has its own screen since 3.8, INTRO since 6.7. Presentation only:
+## it calls Game.advance and never writes flow state. Its is_advance rule is shared with the
+## HARVEST and INTRO screens (D-S67-4).
 
 const GameFlow := preload("res://src/autoloads/game.gd")
 const TEXT_SCALE := 2
@@ -13,7 +14,7 @@ const PROMPT_TEXT := "press any key"
 ## Keys that never advance a placeholder (DC4): modifiers and Esc, as on the title.
 const NON_ADVANCE_KEYS: Array[Key] = [KEY_SHIFT, KEY_CTRL, KEY_ALT, KEY_META, KEY_CAPSLOCK, KEY_ESCAPE]
 
-var state: int = GameFlow.FlowState.INTRO
+var state: int = GameFlow.FlowState.FIGHT
 var boss_index: int = 0
 var lines: PackedStringArray = []
 
@@ -31,12 +32,10 @@ func _ready() -> void:
 		Log.info(&"flow", "fight placeholder opened boss=%d" % boss_index)
 
 
-## ASCII text rows for a state (DC11). FIGHT shows the boss index. HARVEST has no placeholder
-## since Story 3.8 (HarvestScreen), so it returns no rows.
+## ASCII text rows for a state (DC11). FIGHT shows the boss index. HARVEST (Story 3.8) and INTRO
+## (Story 6.7) have their own screens, so they return no rows.
 static func lines_for(for_state: int, for_boss_index: int) -> PackedStringArray:
 	match for_state:
-		GameFlow.FlowState.INTRO:
-			return PackedStringArray(["INTRO", PROMPT_TEXT])
 		GameFlow.FlowState.FIGHT:
 			return PackedStringArray(["FIGHT %d" % (for_boss_index + 1), "boss index %d" % for_boss_index])
 		GameFlow.FlowState.ENDING:
@@ -64,17 +63,8 @@ func _unhandled_input(event: InputEvent) -> void:
 	if not is_advance(event):
 		return
 	get_viewport().set_input_as_handled()
-	if state == GameFlow.FlowState.INTRO:
-		if Game.can_skip_intro(SimClock.sim_frame):
-			Game.finish_intro(SimClock.sim_frame, true)
-	elif Game.flow_state == state:
+	if Game.flow_state == state:
 		Game.advance()
-
-
-func _physics_process(_delta: float) -> void:
-	# Intro cap (DC5): the timeout rule lives in Game; this only asks once per physics frame.
-	if state == GameFlow.FlowState.INTRO and Game.flow_state == GameFlow.FlowState.INTRO:
-		Game.finish_intro(SimClock.sim_frame)
 
 
 func _draw() -> void:
