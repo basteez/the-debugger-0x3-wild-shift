@@ -3,7 +3,7 @@ devlog: 3
 title: "Devlog #3: SIGSEGV incoming (Segfault, two new combos, an intro and an ending)"
 date: 2026-11-13
 covers: 0aff34a..90be5f5   # Epic 6 (Stories 6.1–6.9, PRs #44–#52) and the Devlog #2 record (#43)
-itch_url: TBD (form filled, not saved: Tiziano saves/publishes it, then fill in the URL here)
+itch_url: https://basteez.itch.io/wild-shift/devlog/1774453/devlog-3-sigsegv-incoming-segfault-two-new-combos-an-intro-and-an-ending
 blog_pr: https://github.com/basteez/basteez.github.io/pull/14
 blog_url: https://bstz.it/p/wild-shift-devlog-3/
 next_up: "Epic 7: music, final SFX, save and resume, browser/performance check, full-run playtest"
