@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="EndingText" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/ui/screens/ending/ending_text.gd" id="1_etext"]
+
+[resource]
+script = ExtResource("1_etext")
+caption = "the next morning"
+desk_rows = PackedStringArray("  @   >o  ", "==========")
+cell_on = "1"
+cell_off = "0"
+full_caption = "0xFF"
+commit_hash = "c0ffee1"
+commit_message = "fix: wild shift"
+cursor = "_"
+clear_label = "CLEAR"
+hits_label = "HITS"
+credit_lines = PackedStringArray("font: Wildshift8 by Tiziano Basile", "voice: mumble-speech by basteez (MIT / Apache-2.0)", "code: MIT License", "audio: TBD")
+prompt = "press any key"

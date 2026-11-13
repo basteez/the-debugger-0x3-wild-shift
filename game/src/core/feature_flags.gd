@@ -16,6 +16,9 @@ extends Def
 ## Cut #4: the Segfault boss (Epic 6). Off: the Ending plays right after the Null Pointer and NULL is
 ## never dropped (Story 5.6, Game.segfault_enabled).
 @export var segfault: bool = true
+## Stretch, first to drop (sprint-status.yaml): the Ending's clear-time and hits-taken card (Story 6.8,
+## D-S68-3). Off: no card, the credits start at frame 360; the ending is otherwise identical.
+@export var ending_summary: bool = true
 
 
 ## Plain bools have no invalid values; kept so test_data_validation covers the resource.

@@ -1,16 +1,14 @@
 class_name PlaceholderScreen
 extends Node2D
-## One placeholder for FIGHT and ENDING (Story 1.6 DC8). Replaced by the real screens in 2.x/3.x
-## (Fight) and 6.8 (Ending); HARVEST has its own screen since 3.8, INTRO since 6.7. Presentation only:
-## it calls Game.advance and never writes flow state. Its is_advance rule is shared with the
-## HARVEST and INTRO screens (D-S67-4).
+## The FIGHT label placeholder (Story 1.6 DC8). HARVEST has its own screen since 3.8, INTRO since
+## 6.7 and ENDING since 6.8, so it serves FIGHT only. Presentation only: it never writes flow state.
+## Its is_advance rule is shared with the HARVEST, INTRO and ENDING screens (D-S67-4).
 
 const GameFlow := preload("res://src/autoloads/game.gd")
 const TEXT_SCALE := 2
 ## Top of the first text row, on the 8-px grid; rows are 2 glyph rows apart.
 const TOP_Y := 152
 const ROW_STEP := 32
-const PROMPT_TEXT := "press any key"
 ## Keys that never advance a placeholder (DC4): modifiers and Esc, as on the title.
 const NON_ADVANCE_KEYS: Array[Key] = [KEY_SHIFT, KEY_CTRL, KEY_ALT, KEY_META, KEY_CAPSLOCK, KEY_ESCAPE]
 
@@ -32,14 +30,12 @@ func _ready() -> void:
 		Log.info(&"flow", "fight placeholder opened boss=%d" % boss_index)
 
 
-## ASCII text rows for a state (DC11). FIGHT shows the boss index. HARVEST (Story 3.8) and INTRO
-## (Story 6.7) have their own screens, so they return no rows.
+## ASCII text rows for a state (DC11). FIGHT shows the boss index. HARVEST (Story 3.8), INTRO
+## (Story 6.7) and ENDING (Story 6.8) have their own screens, so they return no rows.
 static func lines_for(for_state: int, for_boss_index: int) -> PackedStringArray:
 	match for_state:
 		GameFlow.FlowState.FIGHT:
 			return PackedStringArray(["FIGHT %d" % (for_boss_index + 1), "boss index %d" % for_boss_index])
-		GameFlow.FlowState.ENDING:
-			return PackedStringArray(["ENDING", PROMPT_TEXT])
 	return PackedStringArray()
 
 
@@ -55,16 +51,11 @@ static func is_advance(event: InputEvent) -> bool:
 	return mouse != null and mouse.pressed and mouse.button_index == MOUSE_BUTTON_LEFT
 
 
-func _unhandled_input(event: InputEvent) -> void:
-	# FIGHT is playable since Epic 2: its keys are gameplay, never an any-key advance. Leaving a
-	# fight goes through boss defeat (3.8) or the debug jump keys.
-	if state == GameFlow.FlowState.FIGHT:
-		return
-	if not is_advance(event):
-		return
-	get_viewport().set_input_as_handled()
-	if Game.flow_state == state:
-		Game.advance()
+## FIGHT is playable since Epic 2: its keys are gameplay, never an any-key advance. Leaving a fight
+## goes through boss defeat (3.8) or the debug jump keys. Story 6.8: the ENDING advance moved to
+## EndingScreen, so the placeholder consumes no input at all.
+func _unhandled_input(_event: InputEvent) -> void:
+	pass
 
 
 func _draw() -> void:

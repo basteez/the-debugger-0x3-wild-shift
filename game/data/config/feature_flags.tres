@@ -8,3 +8,4 @@ reserved_write = true
 watch = true
 breakpoint_enabled = true
 segfault = true
+ending_summary = true
