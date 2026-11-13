@@ -241,6 +241,45 @@ func test_null_pointer_attack_defs_match_the_gdd() -> void:
 	assert_same(def.phases[0].attack_pool[0], load("res://data/bosses/null_pointer/attack_pointer_grab.tres"), "the pool shares the .tres")
 
 
+# --- Story 6.3 AC 10-12: the Segfault's data ---
+
+func test_segfault_boss_def_matches_the_gdd() -> void:
+	var def: BossDef = load("res://data/bosses/segfault/boss_def.tres")
+	assert_eq(def.validate(), PackedStringArray())
+	assert_eq(def.boss_id, &"segfault")
+	assert_eq(def.boss_id, Game.BOSS_IDS[2])
+	assert_eq(def.name_signature, "segfault")
+	assert_eq(def.max_hp, 1000)
+	assert_eq(def.drop_bit, 0, "no drop")
+	assert_eq(def.fixed_line, "if (idx < len) buf[idx] = val;")
+	assert_almost_eq(def.body_radius_tiles, 2.0, 0.001, "D-S63-2")
+	assert_false(Game.drops_bit(2, true), "its route is ENDING, not HARVEST")
+	var a := Register.Bit.ATTACK
+	var d := Register.Bit.DASH
+	var l := Register.Bit.LOOP
+	var n := Register.Bit.NULL_BIT
+	var expected: Array = [[100, Vector2i(d, l), 90], [66, Vector2i(n, a), 75], [33, Vector2i(l, n), 60]]
+	assert_eq(def.phases.size(), 3)
+	for i: int in def.phases.size():
+		var p: PhaseDef = def.phases[i]
+		assert_eq([p.hp_threshold, p.weak_window, p.gap_frames], expected[i], "phase %d" % (i + 1))
+		var ids: Array[StringName] = []
+		for a_def: AttackDef in p.attack_pool:
+			ids.append(a_def.id)
+		assert_eq(ids, [&"access_violation"], "AC 12: phase %d pool" % (i + 1))
+
+
+func test_segfault_attack_def_matches_the_gdd() -> void:
+	var a_def: AttackDef = load("res://data/bosses/segfault/attack_access_violation.tres")
+	assert_eq(a_def.validate(), PackedStringArray())
+	assert_eq([a_def.id, a_def.tell, a_def.active, a_def.recovery, a_def.tell_sfx], [&"access_violation", 30, 12, 50, &"tell_access_violation"])
+	assert_false(a_def.exclusive)
+	assert_eq(a_def.recovery_if_no_breakpoint, 0)
+	assert_true(a_def.attack_script.new() is BossAttack)
+	var def: BossDef = load("res://data/bosses/segfault/boss_def.tres")
+	assert_same(def.phases[0].attack_pool[0], a_def, "the pool shares the .tres")
+
+
 func test_infinite_loop_ring_def_matches_the_gdd() -> void:
 	var ring: RingDef = load("res://data/bosses/infinite_loop/ring_def.tres")
 	assert_eq(ring.validate(), PackedStringArray())

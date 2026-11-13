@@ -266,7 +266,7 @@ func apply_flow_state(state: int, boss_index: int) -> void:
 	hud.set_duck_only(harvest)
 	if in_fight:
 		var practice: bool = wants_practice()
-		arena.enter_fight(fight_start_ring(Game.run, boss_index), practice, boss_def_path_for(wants_test_boss(), boss_index, practice), breakpoint_unlocked_for(boss_index), watch_unlocked_for(boss_index))
+		arena.enter_fight(fight_start_ring(Game.run, boss_index), practice, boss_def_path_for(wants_test_boss(), boss_index, practice, Game.segfault_enabled), breakpoint_unlocked_for(boss_index), watch_unlocked_for(boss_index))
 	else:
 		arena.leave_fight()
 	_attach_practice_target()
@@ -309,10 +309,11 @@ static func watch_unlocked_for(boss_index: int) -> bool:
 
 ## The boss def a FIGHT loads (Story 3.3, D-S33-11, D-S33-13): the framework test boss on
 ## Shift+F3 (takes precedence), no boss in the Shift+F2 practice sandbox (D-S33-22), the Infinite
-## Loop for boss 0 in every build, the Null Pointer for boss 1 (Story 5.1), none (placeholder
-## header) for boss 2 until its story.
+## Loop for boss 0 in every build, the Null Pointer for boss 1 (Story 5.1), the Segfault for boss 2
+## when `segfault_on` (Story 6.3, D-S63-4: FeatureFlags.segfault via Game.segfault_enabled), none
+## (placeholder header) for boss 2 when it is cut.
 ## Pure.
-static func boss_def_path_for(debug_test_boss: bool, boss_index: int, practice: bool = false) -> String:
+static func boss_def_path_for(debug_test_boss: bool, boss_index: int, practice: bool = false, segfault_on: bool = true) -> String:
 	if debug_test_boss:
 		return Arena.TEST_BOSS_DEF_PATH
 	if practice:
@@ -321,6 +322,8 @@ static func boss_def_path_for(debug_test_boss: bool, boss_index: int, practice: 
 		return Arena.INFINITE_LOOP_DEF_PATH
 	if boss_index == 1: # Story 5.1 (AC 3)
 		return Arena.NULL_POINTER_DEF_PATH
+	if boss_index == 2 and segfault_on: # Story 6.3 (AC 1, AC 2)
+		return Arena.SEGFAULT_DEF_PATH
 	return ""
 
 

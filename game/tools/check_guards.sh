@@ -65,6 +65,11 @@ report "Breakpoint module named outside src/skills/breakpoint/ (leaf rule, AD-12
 report "Watch module named outside src/skills/watch/ (leaf rule, AD-12)" \
 	< <(grep -rnE --include='*.gd' '\b(WatchSkill|WatchOverlay)\b' game/src | grep -v '^game/src/skills/watch/' | grep -vE '^[^:]+:[0-9]+:[[:space:]]*#' || true)
 
+# Story 6.3 (AC 2, AD-12, cut ladder #4): the Segfault module is a leaf; nothing outside its folder
+# names its classes, and only the Arena's by-path wiring names its script folder.
+report "Segfault module named outside src/bosses/segfault/ (leaf rule, AD-12)" \
+	< <(grep -rnE --include='*.gd' '\bSegfaultBody\b|src/bosses/segfault/' game/src | grep -v '^game/src/bosses/segfault/' | grep -vE '^game/src/arena/arena\.gd:[0-9]+:const SEGFAULT_BODY_PATH ' | grep -vE '^[^:]+:[0-9]+:[[:space:]]*#' || true)
+
 report "direct output call outside Log (use Log.info/debug/warn/error)" \
 	< <(grep -rnE --include='*.gd' '(^|[^.[:alnum:]_])(print|prints|printt|printraw|printerr|print_rich|print_debug|print_verbose|push_error|push_warning)[[:space:]]*\(' game/src | grep -v '^game/src/autoloads/log\.gd:' | grep -vE '^[^:]+:[0-9]+:[[:space:]]*#' || true)
 

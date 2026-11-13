@@ -433,3 +433,13 @@ Story 1.3 AC9 / I-6 ("mumble-speech web check, moved to 3.7") is UNBLOCKED. Tizi
 - A K buffered 1-8 frames before J still fires Dereference once the gate opens (design call, same as other combos); untested.
 - `wrap_name`: names over 11 chars (rejected by validate) or 21+ char words leave a dangling hyphen after the NAME_ROWS truncation; non-ASCII vowels fall to hard cut; missing tests for empty/double-space/10-11 char words.
 - Test strength: AC 5 (Clean Catch armed then ignored hit), AC 7 boss-hit hit-stop, AC 10 decoy with a target in range, AC 3 echo-memory assertion that does not prove Null Dodge writes it.
+
+## Deferred from: code review of story 6.3 (Segfault body and Access Violation)
+
+- The body keeps drifting during TELL (about 1 tile over 30 frames) while the claw origin/`!`/arc lock at TELL entry; follows AC 17 but `declared_positions` recomputes from the live body. Either freeze drift in TELL or document.
+- `sweep_rect` takes its rows from the aim row, so a player in rows 0-4 puts the 6x2 sweep over the body; clamped rects near edges lose the origin anchor (design note, untested).
+- No test for the Segfault DEFEATED reassembly draw (`_draw_reassembly_cells`, shared with the Infinite Loop), nor for the claw arc bow direction toward a left-side target; no dedicated flag-off case in `test_boss_fallback.gd`.
+- `boss_def_path_for` defaults `segfault_on` to true (matches the shipped flag; consider a required argument).
+- Hurtbox/contact circle (2 tiles) is narrower than the drawn 6x4 body (design).
+- First drift tick draws from the shared fight RNG (per spec); reflection remainder and exact bounce x are untested; `check_guards.sh` leaf rule does not cover `AccessViolation` / segfault data paths.
+- `test_arena_player.gd` has 2 pre-existing headless failures (shader `return` in fragment processor), present on the stacked parent too.

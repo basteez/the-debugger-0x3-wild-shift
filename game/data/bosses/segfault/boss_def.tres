@@ -1,0 +1,37 @@
+[gd_resource type="Resource" script_class="BossDef" format=3]
+
+[ext_resource type="Script" path="res://src/bosses/framework/boss_def.gd" id="1_bdef"]
+[ext_resource type="Script" path="res://src/bosses/framework/phase_def.gd" id="2_pdef"]
+[ext_resource type="Script" path="res://src/bosses/framework/attack_def.gd" id="3_adef"]
+[ext_resource type="Resource" path="res://data/bosses/segfault/attack_access_violation.tres" id="4_claw"]
+
+[sub_resource type="Resource" id="Resource_phase1"]
+script = ExtResource("2_pdef")
+hp_threshold = 100
+weak_window = Vector2i(2, 3)
+gap_frames = 90
+attack_pool = Array[ExtResource("3_adef")]([ExtResource("4_claw")])
+
+[sub_resource type="Resource" id="Resource_phase2"]
+script = ExtResource("2_pdef")
+hp_threshold = 66
+weak_window = Vector2i(4, 1)
+gap_frames = 75
+attack_pool = Array[ExtResource("3_adef")]([ExtResource("4_claw")])
+
+[sub_resource type="Resource" id="Resource_phase3"]
+script = ExtResource("2_pdef")
+hp_threshold = 33
+weak_window = Vector2i(3, 4)
+gap_frames = 60
+attack_pool = Array[ExtResource("3_adef")]([ExtResource("4_claw")])
+
+[resource]
+script = ExtResource("1_bdef")
+boss_id = &"segfault"
+name_signature = "segfault"
+max_hp = 1000
+phases = Array[ExtResource("2_pdef")]([SubResource("Resource_phase1"), SubResource("Resource_phase2"), SubResource("Resource_phase3")])
+drop_bit = 0
+fixed_line = "if (idx < len) buf[idx] = val;"
+body_radius_tiles = 2.0

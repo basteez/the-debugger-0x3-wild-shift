@@ -148,7 +148,7 @@ development_status:
   epic-6: in-progress
   6-1-ghost-echo-combo: done
   6-2-dereference-combo: done
-  6-3-segfault-body-and-access-violation: backlog # cut ladder #4 (FeatureFlags.segfault)
+  6-3-segfault-body-and-access-violation: done # cut ladder #4 (FeatureFlags.segfault)
   6-4-corrupted-tiles-corrupt-memory-and-core-dump: backlog # cut ladder #4
   6-5-sigsegv-register-corruption: backlog # cut ladder #4
   6-6-reserved-write-cut-ladder-1: backlog # cut ladder #1 (FeatureFlags.reserved_write) — first boss cut
