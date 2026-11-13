@@ -1,0 +1,36 @@
+[gd_resource type="Resource" script_class="ActionDef" format=3]
+
+; Story 6.2: Dereference, the N->A combo's action (GDD 2/8/14). Replaces ATTACK's solo slash on the
+; [N, A] window, only from Null Dodge's ACTIVE frames (ComboDef.requires_first_active, D-S62-2).
+; Intangible on frames 1-10 (D-S62-4), a 3-tile piercing capsule thrust anchored as Dash Strike's
+; (D-S62-3), 30 base damage, 8 frames of combo hit-stop (D-S62-8). No cancels out (D-S62-7).
+
+[ext_resource type="Script" path="res://src/player/action_def.gd" id="1_adef"]
+[ext_resource type="Script" path="res://src/combat/shapes/hit_capsule.gd" id="2_cap"]
+
+[sub_resource type="Resource" id="Resource_cap"]
+script = ExtResource("2_cap")
+length_tiles = 3.0
+radius_tiles = 0.5
+
+[resource]
+script = ExtResource("1_adef")
+id = &"dereference"
+startup_frames = 2
+active_frames = 8
+recovery_frames = 14
+invuln_from = 1
+invuln_to = 10
+hit_shape = SubResource("Resource_cap")
+base_damage = 30
+cooldown_frames = 0
+move_tiles = 3.0
+cancel_into = PackedInt32Array()
+hitstop_frames = 8
+echoable = false
+echo_action = false
+redirectable = false
+pass_through = false
+slows_move = false
+arms_clean_catch = false
+decoy_frames = 0

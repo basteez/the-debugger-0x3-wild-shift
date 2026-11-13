@@ -189,7 +189,8 @@ static func _append_name(out: Array[Cell], combo: ComboDef, row: int, style: Str
 
 
 ## Word-wraps a combo name into at most NAME_ROWS lines of WINDOW_COLS cells (D-S26-14): "Dash
-## Strike" (11) becomes "Dash" / "Strike". A single word longer than a row is cut to fit. Pure.
+## Strike" (11) becomes "Dash" / "Strike". Story 6.2 (D-S62-5): a single word longer than a row is
+## hyphenated across two rows ("Dereference" -> "Derefer-" / "ence", see hyphen_split). Pure.
 static func wrap_name(combo_name: String) -> PackedStringArray:
 	var lines := PackedStringArray()
 	var line: String = ""
@@ -199,13 +200,36 @@ static func wrap_name(combo_name: String) -> PackedStringArray:
 		elif line.length() + 1 + word.length() <= WINDOW_COLS:
 			line += " " + word
 		else:
-			lines.append(line.left(WINDOW_COLS))
+			lines.append(line)
 			line = word
+		while line.length() > WINDOW_COLS:
+			var parts: PackedStringArray = hyphen_split(line)
+			lines.append(parts[0])
+			line = parts[1]
 	if not line.is_empty():
-		lines.append(line.left(WINDOW_COLS))
+		lines.append(line)
 	if lines.size() > NAME_ROWS:
 		lines.resize(NAME_ROWS)
 	return lines
+
+
+## Story 6.2 (D-S62-5): splits an over-long word into [head + "-", tail] with the head at most
+## WINDOW_COLS - 1 characters. The break is the last consonant-to-vowel boundary that fits and
+## leaves a tail of at least 2 characters ("Derefer-" / "ence"); without one, a hard cut. Pure.
+static func hyphen_split(word: String) -> PackedStringArray:
+	var max_head: int = WINDOW_COLS - 1
+	var cut: int = -1
+	for i: int in range(mini(max_head, word.length() - 2), 1, -1):
+		if _is_vowel(word[i]) and not _is_vowel(word[i - 1]):
+			cut = i
+			break
+	if cut < 0:
+		cut = max_head
+	return PackedStringArray([word.left(cut) + "-", word.substr(cut)])
+
+
+static func _is_vowel(c: String) -> bool:
+	return "aeiouyAEIOUY".contains(c)
 
 
 ## "D A": the J glyph at J_COL, the K glyph at K_COL when the run starts J_COL - LEFT_COL earlier.

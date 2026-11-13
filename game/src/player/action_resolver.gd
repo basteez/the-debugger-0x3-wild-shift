@@ -72,6 +72,19 @@ static func _link(buffer: InputBuffer, frame: int, window: Vector2i, action: Act
 	# buffered and expires, a held one is dropped by the normal lifetime rule below.
 	if def == null:
 		return null
+	# Story 6.2 (D-S62-2, D-S62-6): a requires_first_active combo starts at once while the running
+	# action is in its ACTIVE frames; otherwise the press falls back to the link_second solo below.
+	if combo != null and combo.requires_first_active:
+		if first_active_ok(action, action_frame):
+			if not cooldowns.ready(target_bit):
+				return null # rule 6: stays buffered
+			if link.held or buffer.consume(KEYS[K_SLOT], frame):
+				return ActionRequest.new(combo.action, target_bit, K_SLOT, false, running, combo, false)
+			return null
+		combo = null
+		def = Defs.solo_action(target_bit)
+		if def == null:
+			return null
 	var echo_blocked: bool = not startable_def(def, echo_ready)
 	if echo_blocked and not link.held:
 		return null
@@ -125,6 +138,12 @@ static func _gap_free_link(buffer: InputBuffer, frame: int, window: Vector2i, ac
 ## invulnerable (D-S42-4). Pure.
 static func gap_free_ok(action: ActionDef, action_frame: int) -> bool:
 	return action != null and action_frame >= 1 and action_frame < action.total_frames() and action.is_invulnerable_frame(action_frame)
+
+
+## Story 6.2 (D-S62-2): true when an action runs and its last executed frame is one of its ACTIVE
+## frames (startup + 1 .. startup + active), the gate of a requires_first_active combo. Pure.
+static func first_active_ok(action: ActionDef, action_frame: int) -> bool:
+	return action != null and action_frame >= action.startup_frames + 1 and action_frame <= action.startup_frames + action.active_frames
 
 
 ## True when `action_frame` (the last executed frame) is a RECOVERY frame, the last one included.

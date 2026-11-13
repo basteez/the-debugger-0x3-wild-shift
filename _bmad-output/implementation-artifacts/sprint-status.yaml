@@ -147,7 +147,7 @@ development_status:
   # Epic 6: Segfault, Intro & Ending — window Nov 22–25
   epic-6: in-progress
   6-1-ghost-echo-combo: done
-  6-2-dereference-combo: backlog
+  6-2-dereference-combo: done
   6-3-segfault-body-and-access-violation: backlog # cut ladder #4 (FeatureFlags.segfault)
   6-4-corrupted-tiles-corrupt-memory-and-core-dump: backlog # cut ladder #4
   6-5-sigsegv-register-corruption: backlog # cut ladder #4

@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="ComboDef" format=3]
+
+; Story 6.2: N->A Dereference. Replaces ATTACK's solo slash on the [N, A] window, only while Null
+; Dodge is in its ACTIVE frames (requires_first_active, D-S62-2); otherwise K is the link_second
+; solo slash. ATTACK's cooldown (0) applies (D-S26-3). Shipped globally (D-S62-1).
+
+[ext_resource type="Script" path="res://src/register/combo_def.gd" id="1_cdef"]
+[ext_resource type="Resource" path="res://data/actions/dereference.tres" id="2_action"]
+
+[resource]
+script = ExtResource("1_cdef")
+first = 4
+second = 1
+action = ExtResource("2_action")
+display_name = "Dereference"
+gap_free = false
+requires_first_active = true
