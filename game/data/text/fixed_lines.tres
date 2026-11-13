@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="TextFixedLines" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/ui/text/text_fixed_lines.gd" id="1_tfixed"]
+
+[resource]
+script = ExtResource("1_tfixed")
+entries = Dictionary[StringName, String]({
+&"infinite_loop": "for (i = 0; i < n; i++) { }",
+&"null_pointer": "if (ptr != null) ptr.deref();",
+&"segfault": "if (idx < len) buf[idx] = val;"
+})
+fallback = "// bug fixed"

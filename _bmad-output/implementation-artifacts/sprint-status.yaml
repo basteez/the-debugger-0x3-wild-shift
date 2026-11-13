@@ -154,7 +154,7 @@ development_status:
   6-6-reserved-write-cut-ladder-1: done # cut ladder #1 (FeatureFlags.reserved_write) — first boss cut
   6-7-intro-sequence: done
   6-8-ending-sequence: done # stretch summary (clear time / hits) = first-to-drop
-  6-9-game-text-audit: backlog
+  6-9-game-text-audit: done # last story of Epic 6; design calls D-S69-1..7 in story file
   epic-6-retrospective: optional
 
   # Epic 7: Audio, Polish & Submission — window Nov 26–29; SUBMIT by Nov 29 12:00 PST

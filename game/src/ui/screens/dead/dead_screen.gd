@@ -6,7 +6,11 @@ extends Node2D
 ## presses are consumed and do nothing. Presentation only: it calls Game.retry and never writes
 ## flow state.
 
-const TEXT := "Process exited with code 1"
+## Story 6.9 (AC 10): the DEAD line is game text, read from data/text/screen_text.tres.
+const SCREEN_TEXT: TextScreenText = preload("res://data/text/screen_text.tres")
+static var TEXT: String:
+	get:
+		return SCREEN_TEXT.dead_line
 const TEXT_SCALE := 2
 ## Same text row as the placeholders' first line.
 const TOP_Y := PlaceholderScreen.TOP_Y

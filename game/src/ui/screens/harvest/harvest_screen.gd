@@ -22,8 +22,16 @@ const REGISTER_TOP_Y := 128
 const WINDOWS_TOP_Y := 176
 const WINDOW_ROW_STEP := 16
 const PROMPT_TOP_Y := 304
-const PROMPT_TEXT := "press any key"
-const FIXED_FALLBACK := "// bug fixed"
+## Story 6.9 (AC 9, 10, D-S69-7): the prompt and the fixed-line fallback are game text, read from
+## data/text/screen_text.tres and data/text/fixed_lines.tres.
+const SCREEN_TEXT: TextScreenText = preload("res://data/text/screen_text.tres")
+const FIXED_LINES: TextFixedLines = preload("res://data/text/fixed_lines.tres")
+static var PROMPT_TEXT: String:
+	get:
+		return SCREEN_TEXT.prompt
+static var FIXED_FALLBACK: String:
+	get:
+		return FIXED_LINES.fallback
 ## The dropped bit's flight from the fixed line to its register slot, in presentation (physics)
 ## frames of this screen (D-S38-9). Never sim state.
 const BIT_FLIGHT_FRAMES := 30

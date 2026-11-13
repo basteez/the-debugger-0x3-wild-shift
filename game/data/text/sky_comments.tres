@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="TextSkyComments" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/ui/text/text_sky_comments.gd" id="1_tsky"]
+
+[resource]
+script = ExtResource("1_tsky")
+default_comment = "// TODO: this should terminate"
+null_pointer = "// FIXME: who owns this pointer?"
+segfault = "// HACK: do not read past this line"

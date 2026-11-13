@@ -28,10 +28,9 @@ const TEXT_SCALE := 2
 ## region (rows 22-37), where the bubble shows line 1 on panel 3.
 const TOP_Y := 96
 const ROW_STEP := 32
-## Placeholder captions (D-S67-3): final art is 7.x, the wording is the 6.9 audit's.
-const CAPTION_1: PackedStringArray = ["2 a.m.", "stuck on a bug"]
-const CAPTION_2: PackedStringArray = ["squeeze", "QUACK"]
-const CAPTION_3: PackedStringArray = ["The Clearing"]
+## Placeholder captions (D-S67-3): final art is 7.x. Story 6.9 (AC 10): the wording is game text,
+## read from data/text/screen_text.tres (3 panels, 2 + 2 + 1 rows).
+const SCREEN_TEXT: TextScreenText = preload("res://data/text/screen_text.tres")
 ## Panel 3's glyph tear (presentation only): a row of glyphs drawn over the caption, its characters
 ## jittered by row offset on the presentation frame counter.
 const TEAR_ROW := "#/\\|=+*%#/\\|=+*%"
@@ -95,14 +94,9 @@ static func skip_allowed(event: InputEvent) -> bool:
 
 ## Pure: the caption rows of `panel` (0-2); none for any other index.
 static func caption_for(panel: int) -> PackedStringArray:
-	match panel:
-		0:
-			return CAPTION_1
-		1:
-			return CAPTION_2
-		2:
-			return CAPTION_3
-	return PackedStringArray()
+	if panel < 0 or panel >= PANEL_COUNT:
+		return PackedStringArray()
+	return SCREEN_TEXT.caption_for(panel)
 
 
 ## Every caption row and the tear row (font coverage, tests).
