@@ -9,6 +9,8 @@ const BIT_DASH: BitDef = preload("res://data/bits/bit_dash.tres")
 const BIT_LOOP: BitDef = preload("res://data/bits/bit_loop.tres")
 ## Story 5.5: the NULL bit (N); its solo action is Null Dodge. Owned from Story 5.6 (Harvest).
 const BIT_NULL: BitDef = preload("res://data/bits/bit_null.tres")
+## Story 6.6 (D-S66-5): Reserved Write's garbage bit `?`; its solo action is NOP, it has no combo.
+const BIT_GARBAGE: BitDef = preload("res://data/bits/bit_garbage.tres")
 ## Story 4.1 (NP-5): LOOP's solo action; the FSM runs the remembered def in its place.
 const ECHO: ActionDef = preload("res://data/actions/echo.tres")
 ## The Epic 6 garbage bit's action (NP-3); LOOP's placeholder in Story 3.8.
@@ -32,7 +34,8 @@ const COMBOS: ComboTable = preload("res://data/combos/combo_table.tres")
 const FEATURE_FLAGS: FeatureFlags = preload("res://data/config/feature_flags.tres")
 
 
-## The def of a bit id; null for an unknown id (LOOP since Story 3.8, NULL_BIT since Story 5.5).
+## The def of a bit id; null for an unknown id (LOOP since Story 3.8, NULL_BIT since Story 5.5,
+## GARBAGE since Story 6.6).
 static func bit(id: int) -> BitDef:
 	match id:
 		Register.Bit.ATTACK:
@@ -43,6 +46,8 @@ static func bit(id: int) -> BitDef:
 			return BIT_LOOP
 		Register.Bit.NULL_BIT:
 			return BIT_NULL
+		Register.Bit.GARBAGE:
+			return BIT_GARBAGE
 	return null
 
 

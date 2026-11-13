@@ -25,6 +25,8 @@ const SKY_SEGFAULT := "// HACK: do not read past this line"
 ## Story 6.5 (AC 3, D-S65-8): the warning tell line, inverted (BG on INK) in the sky row for the
 ## whole SIGSEGV tell. wildshift8 covers printable ASCII, so lowercase stays.
 const WARNING_TELL_TEXT := "SIGSEGV incoming"
+## Story 6.6 (D-S66-8): the `reserved` nibble inverts and restores every 8 frames during the tell.
+const RESERVED_FLASH_FRAMES := 8
 const REG_TITLE := "reg"
 const LOG_HEADER := "── console ─────────────────────────────────────────────────────────────────────"
 ## One per arena tile row (DC6): drawn at cols 13-14 on HUD row 2 + 2 * index.
@@ -100,6 +102,29 @@ static func warning_tell_on(b: BossController) -> bool:
 		return false
 	var attack: BossAttack = b.current_attack()
 	return attack != null and attack.has_method(&"warning_tell") and bool(attack.call(&"warning_tell"))
+
+
+## Story 6.6 (AC 4, D-S66-8): true while the boss's current attack reports a reserved tell (Reserved
+## Write), read by method so the HUD never names the leaf's class. Pure read (AD-05).
+static func reserved_tell_on(b: BossController) -> bool:
+	if b == null:
+		return false
+	var attack: BossAttack = b.current_attack()
+	return attack != null and attack.has_method(&"reserved_tell") and bool(attack.call(&"reserved_tell"))
+
+
+## Story 6.6 (D-S66-8): the `reserved` nibble's inverted half of the flash: on for the first
+## RESERVED_FLASH_FRAMES of the tell, off for the next, and so on. False outside a reserved tell.
+static func reserved_flash_on(b: BossController) -> bool:
+	if not reserved_tell_on(b) or b.current == null:
+		return false
+	return flash_phase_on(b.current.tell - b.frames_left)
+
+
+## The 8-frame toggle (D-S66-8) for `elapsed` frames into the tell. Pure.
+static func flash_phase_on(elapsed: int) -> bool:
+	@warning_ignore("integer_division")
+	return (maxi(elapsed, 0) / RESERVED_FLASH_FRAMES) % 2 == 0
 
 
 ## Story 6.5: the frame redraws when the warning tell starts or ends (the HUD otherwise redraws on

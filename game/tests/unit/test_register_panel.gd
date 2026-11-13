@@ -222,3 +222,67 @@ func test_wrap_name() -> void:
 	assert_eq(RegisterPanel.wrap_name("Dereference"), PackedStringArray(["Derefer-", "ence"]), "Story 6.2: hyphenated over two rows")
 	assert_eq(RegisterPanel.wrap_name("Xxxxxxxxxxxxx"), PackedStringArray(["Xxxxxxxxx-", "xxxx"]), "no vowel break: hard cut")
 	assert_eq(RegisterPanel.wrap_name("a b c d e f g h i j k l m n o p q r s t u v w"), PackedStringArray(["a b c d e", "f g h i j"]))
+
+
+# --- Story 6.6 (AC 4, 5, D-S66-7, D-S66-8): the garbage slot and the reserved flash ---
+
+const G := Register.Bit.GARBAGE
+
+
+func test_a_5_slot_ring_reaches_into_the_reserved_nibble() -> void:
+	var cells: Dictionary = _row(RegisterPanel.plan(_ring([A, D, L, N, G])), RegisterPanel.BYTE_ROW)
+	assert_eq(cells.size(), 8, "still 8 bit cells: no overflow")
+	var texts: Array = []
+	for i: int in 8:
+		texts.append((cells[1 + i] as RegisterPanel.Cell).text)
+	assert_eq(texts, ["0", "0", "0", "A", "D", "L", "N", "?"])
+	assert_eq((cells[4] as RegisterPanel.Cell).style, RegisterPanel.INK, "ring slot 0 in the reserved nibble's last cell")
+	assert_eq(RegisterPanel.first_slot_index(5), 3)
+	assert_eq(RegisterPanel.first_slot_index(4), 4)
+	assert_eq(RegisterPanel.first_slot_index(2), 4)
+	var hex: RegisterPanel.Cell = _only(RegisterPanel.plan(_ring([A, D, L, N, G])), RegisterPanel.HEX_ROW)
+	assert_eq(hex.text, "0x1F", "the written reserved bit shows in the byte value")
+
+
+func test_garbage_ring_after_shifts_draws_in_ring_order() -> void:
+	var cells: Dictionary = _row(RegisterPanel.plan(_ring([G, A, D, L, N])), RegisterPanel.BYTE_ROW)
+	assert_eq((cells[4] as RegisterPanel.Cell).text, "?")
+	var plan: Array[RegisterPanel.Cell] = RegisterPanel.plan(_ring([G, A, D, L, N]))
+	var window: RegisterPanel.Cell = _row(plan, RegisterPanel.WINDOW_ROW).values()[0]
+	assert_true(window.text.contains("?"), "the window shows `?`")
+	assert_eq(_row(plan, RegisterPanel.WINDOW_NAME_ROW).size(), 0, "no combo name with `?`")
+
+
+func test_every_cell_of_a_5_slot_ring_stays_inside_the_box() -> void:
+	for flash: bool in [false, true]:
+		for c: RegisterPanel.Cell in RegisterPanel.plan(_ring([A, D, L, N, G]), Register.MAX_BITS, null, flash):
+			assert_true(InteriorRect.has_point(c.cell))
+			assert_true(InteriorRect.has_point(c.cell + Vector2i(c.text.length() - 1, 0)), "'%s' ends inside" % c.text)
+
+
+func test_reserved_flash_inverts_the_label_and_the_reserved_nibble_only() -> void:
+	var plan: Array[RegisterPanel.Cell] = RegisterPanel.plan(_ring([A, D, L, N]), Register.MAX_BITS, null, true)
+	var label: RegisterPanel.Cell = _only(plan, RegisterPanel.LABEL_ROW)
+	assert_eq([label.text, label.style], ["reserved", RegisterPanel.INVERTED])
+	var cells: Dictionary = _row(plan, RegisterPanel.BYTE_ROW)
+	for i: int in 8:
+		var c: RegisterPanel.Cell = cells[1 + i]
+		assert_eq(c.style, RegisterPanel.INVERTED if i < 4 else RegisterPanel.INK, "col %d" % (1 + i))
+	var off: Array[RegisterPanel.Cell] = RegisterPanel.plan(_ring([A, D, L, N]))
+	assert_eq(_only(off, RegisterPanel.LABEL_ROW).style, RegisterPanel.GREYED, "no flash: greyed as before")
+
+
+func test_panel_flash_source_is_read_only_and_null_safe() -> void:
+	var panel := RegisterPanel.new()
+	assert_false(panel.reserved_flash(), "no source: never flashes")
+	panel.reserved_flash_source = func() -> bool: return true
+	assert_true(panel.reserved_flash())
+	panel.free()
+
+
+func test_flash_toggle_is_8_frames() -> void:
+	for elapsed: int in 45:
+		@warning_ignore("integer_division")
+		assert_eq(Hud.flash_phase_on(elapsed), (elapsed / 8) % 2 == 0, "frame %d" % elapsed)
+	assert_false(Hud.reserved_flash_on(null))
+	assert_false(Hud.reserved_tell_on(null))

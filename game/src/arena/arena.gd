@@ -33,6 +33,9 @@ const NULL_POINTER_DEF_PATH := "res://data/bosses/null_pointer/boss_def.tres"
 ## leaf (FeatureFlags.segfault): its body class is loaded by path, never named here.
 const SEGFAULT_DEF_PATH := "res://data/bosses/segfault/boss_def.tres"
 const SEGFAULT_BODY_PATH := "res://src/bosses/segfault/segfault_body.gd"
+## Story 6.6 (AC 3, cut #1): the AttackDef id of Reserved Write, dropped from the pools when its flag
+## is off (by id, never by class).
+const RESERVED_WRITE_ID := &"reserved_write"
 ## Story 4.3 (AD-12, D-S43-2): the Breakpoint leaf module, loaded by path only when its flag is on,
 ## so the arena never names its class (held as a FightSkill).
 const BREAKPOINT_SKILL_PATH := "res://src/skills/breakpoint/breakpoint_skill.gd"
@@ -103,6 +106,10 @@ var watch_enabled: bool = Defs.FEATURE_FLAGS.watch
 ## The Watch module (cut #2), null when the flag is off. TIMERS phase; registered with SimClock while
 ## the arena is in the tree.
 var watch_skill: FightSkill = make_watch_skill(watch_enabled)
+## Story 6.6 (AC 3, AD-12, cut #1): FeatureFlags.reserved_write, read once here at construction
+## (Main or a test may override it with set_reserved_write_enabled before the fight). Off: the boss
+## gets the attack id injected as excluded, so the Reserved Write script is never built.
+var reserved_write_enabled: bool = Defs.FEATURE_FLAGS.reserved_write
 
 
 func _enter_tree() -> void:
@@ -155,6 +162,7 @@ func _exit_tree() -> void:
 func enter_fight(fight_start: PackedInt32Array, with_practice: bool = false, p_boss_def_path: String = "", breakpoint_unlocked: bool = false, watch_unlocked: bool = false) -> void:
 	player.reset_for_fight(SPAWN_PX)
 	player.set_active(true)
+	arena_context.player_effects.clear() # before the ring is replaced, so a live `?` is removed cleanly
 	if not register.set_fight_start(fight_start):
 		register.set_fight_start(Register.fight_start_for_boss(0))
 	SimClock.buffer.clear() # stale Q/E presses never carry into a fight (D-S23-11 belt and braces)
@@ -188,6 +196,7 @@ func _set_practice(on: bool) -> void:
 
 
 func leave_fight() -> void:
+	arena_context.player_effects.clear() # a live `?` never outlives the fight
 	player.set_active(false)
 	register.set_active(false)
 	actions.set_active(false)
@@ -215,6 +224,7 @@ func _set_boss(path: String) -> void:
 		_remove_boss()
 		var def := load(path) as BossDef
 		var controller: BossController = boss_class_for(path).new()
+		controller.excluded_attack_ids = excluded_attack_ids(reserved_write_enabled)
 		if not controller.setup(def, health, arena_context):
 			return
 		boss = controller
@@ -251,6 +261,24 @@ func set_breakpoint_enabled(on: bool) -> void:
 		breakpoint_skill = null
 	if boss != null:
 		boss.breakpoint_on = on
+
+
+## Story 6.6 (AC 3, AD-12): the attack ids the cut ladder removes from boss pools. Pure.
+static func excluded_attack_ids(p_reserved_write: bool) -> Array[StringName]:
+	var out: Array[StringName] = []
+	if not p_reserved_write:
+		out.append(RESERVED_WRITE_ID)
+	return out
+
+
+## Turns Reserved Write on or off (Main's startup wiring, flag-off tests). The boss is rebuilt on
+## the next fight entry, so the attack script exists only when the flag is on.
+func set_reserved_write_enabled(on: bool) -> void:
+	if on == reserved_write_enabled:
+		return
+	reserved_write_enabled = on
+	if boss != null:
+		boss_def_path = "" # forces _set_boss to rebuild the controller and its attack cache
 
 
 ## Builds the Watch module when `enabled` (Story 5.4, AD-12): loaded by path, bound to the SimClock

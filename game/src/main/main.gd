@@ -104,6 +104,7 @@ func _build_layers() -> void:
 	arena.visible = false
 	arena.set_breakpoint_enabled(feature_flags.breakpoint_enabled) # D-S43-1: the one startup read
 	arena.set_watch_enabled(feature_flags.watch) # Story 5.4 (D-S54-3): the one startup read
+	arena.set_reserved_write_enabled(feature_flags.reserved_write) # Story 6.6 (AC 3): cut #1
 	Game.segfault_enabled = feature_flags.segfault # Story 5.6 review: one startup read for every cut flag
 	add_child(arena)
 	# Story 6.1 (D-S61-10): the Ghost Echo decoy placeholder, under the `@` (presentation/, so Main).
@@ -242,6 +243,9 @@ func _build_watch_views() -> void:
 	var a: Arena = arena
 	hud.register_panel.weak_window_source = func() -> Vector2i:
 		return a.boss.current_weak_window() if a.boss != null else Vector2i.ZERO
+	# Story 6.6 (AC 4, D-S66-8): the `reserved` nibble flash, read from the boss's attack by method.
+	hud.register_panel.reserved_flash_source = func() -> bool:
+		return Hud.reserved_flash_on(a.boss)
 
 
 func _on_flow_state_changed(_from: int, to: int) -> void:

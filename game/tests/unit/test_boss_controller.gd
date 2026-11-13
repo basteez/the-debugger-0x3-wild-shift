@@ -713,13 +713,13 @@ func test_contact_is_live_during_roar() -> void:
 func test_player_effects_drains_its_queue() -> void:
 	var fx := PlayerEffects.new()
 	assert_eq(fx.pending(), 0)
-	fx.push(RefCounted.new())
-	fx.push(RefCounted.new())
+	fx.push(PlayerCommand.new()) # Story 6.6 (D-S66-4): the queue is typed on PlayerCommand
+	fx.push(PlayerCommand.new())
 	assert_eq(fx.pending(), 2)
 	fx.tick(_ctx)
 	assert_eq(fx.pending(), 0)
 	assert_push_error("not bound") # Story 6.5: an unbound queue drops its commands with an error
-	fx.push(RefCounted.new())
+	fx.push(PlayerCommand.new())
 	fx.clear()
 	assert_eq(fx.pending(), 0)
 

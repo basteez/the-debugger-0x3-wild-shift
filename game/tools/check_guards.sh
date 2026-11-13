@@ -69,8 +69,9 @@ report "Watch module named outside src/skills/watch/ (leaf rule, AD-12)" \
 # names its classes, and only the Arena's by-path wiring names its script folder.
 # Story 6.4 (D-S64-9): the tile grid and the tile attacks' class names are covered too.
 # Story 6.5 (D-S65-10): SIGSEGV's class too (PlayerEffects.RotateRegister is framework, not listed).
+# Story 6.6 (D-S66-10): Reserved Write's class too (InsertTemporaryBit, GARBAGE_BIT are framework).
 report "Segfault module named outside src/bosses/segfault/ (leaf rule, AD-12)" \
-	< <(grep -rnE --include='*.gd' '\b(SegfaultBody|CorruptedTiles|CorruptMemory|CoreDump|Sigsegv)\b|src/bosses/segfault/' game/src | grep -v '^game/src/bosses/segfault/' | grep -vE '^game/src/arena/arena\.gd:[0-9]+:const SEGFAULT_BODY_PATH ' | grep -vE '^[^:]+:[0-9]+:[[:space:]]*#' || true)
+	< <(grep -rnE --include='*.gd' '\b(SegfaultBody|CorruptedTiles|CorruptMemory|CoreDump|Sigsegv|ReservedWrite)\b|src/bosses/segfault/' game/src | grep -v '^game/src/bosses/segfault/' | grep -vE '^game/src/arena/arena\.gd:[0-9]+:const SEGFAULT_BODY_PATH ' | grep -vE '^[^:]+:[0-9]+:[[:space:]]*#' || true)
 
 # Story 6.4: the Segfault data folder is loaded only by the Arena's by-path wiring (and the module itself).
 report "data/bosses/segfault named outside the Arena wiring or the module (leaf rule, AD-12)" \

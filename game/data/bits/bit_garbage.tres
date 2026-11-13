@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="BitDef" format=3]
+
+; Story 6.6 (FR44, D-S66-5): the garbage bit `?` that Reserved Write writes into the ring for 600
+; frames. Its solo action is NOP and no combo contains it. Never owned: harvest and the fight-start
+; set reject it.
+
+[ext_resource type="Script" path="res://src/register/bit_def.gd" id="1_bdef"]
+[ext_resource type="Resource" path="res://data/actions/nop.tres" id="2_solo"]
+
+[resource]
+script = ExtResource("1_bdef")
+id = 5
+glyph = "?"
+solo_action = ExtResource("2_solo")
