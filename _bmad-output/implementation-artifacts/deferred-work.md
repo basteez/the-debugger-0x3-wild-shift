@@ -552,3 +552,11 @@ Story 1.3 AC9 / I-6 ("mumble-speech web check, moved to 3.7") is UNBLOCKED. Tizi
 - The pause hint row (`PAD STICK X A LB RB RT Y START`) is a code constant like the other pause rows, not audited `.tres` text.
 - Debug hotkeys (`debug_keys.gd`, `debug_grid`) stay keyboard-only.
 - Review 7.5 deferrals: (1) a pad button still held from combat (A/X/LB/RB) can retry or advance on the first frame of DEAD, Intro or Ending; add a short input grace if H-S75-1 shows it (same risk exists for keys). (2) Left stick deadzone 0.2 and unfiltered diagonals: raise or resolve ties if drift shows in H-S75-1. (3) No auto-pause on pad disconnect (`Input.joy_connection_changed`). (4) Cursor stays visible during pad play.
+
+## Story 7.6 (Practice target from the title screen)
+
+- Human checks pending: H-S76-1 release web build (no `?debug`) in Chrome: `[P]` on the title (and click, and L3 on a pad) starts the dummy fight, hit log and `frames N` show, `L` / Select cycle loadouts, Esc / L3 return to the title with the save unchanged; H-S76-2 title row spacing (`[P] practice` at y 304) at phone width.
+- Open question: `PlaceholderScreen` ("FIGHT n" / "boss index n", Story 1.6) draws over the arena in every normal fight in release builds too. It is hidden in practice only; decide whether to remove it for all fights (needs the 7.8/7.7 visual pass).
+- In practice, music follows the chosen loadout's boss index (boss track for that index, not the title track); acceptable, revisit if playtests find it odd.
+- Test gaps (auditor): no explicit test of the per-hit log line in practice, of `saved_highest_boss` re-read after leaving practice, or of the pause rows in practice.
+- Pad L3 / Select are matched by raw button index (not remappable); fine while there is no remapping (out of scope).

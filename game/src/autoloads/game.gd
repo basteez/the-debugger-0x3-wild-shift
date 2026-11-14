@@ -43,6 +43,13 @@ const _FOCUS_CANVAS_JS := "var c=document.querySelector('canvas'); if (c) { c.fo
 ## but every key goes to the parent page. window.focus() first moves the focus back into the
 ## iframe. It runs on a left click only: Godot flushes input inside the DOM mousedown callback, so
 ## the click's user activation allows it, and a blur never steals the focus back.
+## Story 7.6 [design call] (D-S76-4 changed): the practice loadout key. R (the story's pick) is the
+## `watch` action, so the keyboard uses L ("loadout"); the pad uses Select (button 4, `mute` only on
+## the pause screen, where the cycle is off).
+const PRACTICE_CYCLE_KEY := KEY_L
+const PRACTICE_CYCLE_BUTTON := JOY_BUTTON_BACK
+## Story 7.6 [design call] D-S76-6: L3 leaves a practice fight on the pad (Esc on the keyboard).
+const PRACTICE_LEAVE_BUTTON := JOY_BUTTON_LEFT_STICK
 const REFOCUS_ON_CLICK_JS := "window.focus(); var c=document.querySelector('canvas'); if (c) { c.focus(); }"
 
 var flow_state: FlowState = FlowState.TITLE
@@ -77,6 +84,17 @@ var _web_eval: Callable = _eval_on_web
 ## straight to ENDING and NULL is never dropped. Read once (AD-12); tests may override it before
 ## the fight, the same pattern as Arena.watch_enabled.
 var segfault_enabled: bool = Defs.FEATURE_FLAGS.segfault
+## Story 7.6 (FR59, AC 1, 6): true from the title's practice start until the practice leaves to the
+## title. Not persisted. In practice the fight has the `/* test */` dummy and no boss, and the FIGHT
+## entry never writes the save (SaveService.note_fight_start is skipped).
+var practice_run: bool = false
+## Story 7.6 (AC 9-12): the offered loadouts (boss indices whose fight-start set the register starts
+## from, practice_loadout_bosses) and the current one. Never saved: every practice start recomputes them.
+var practice_loadouts_offered: Array[int] = []
+var practice_loadout_index: int = 0
+## Story 7.6 (AC 5, D-S76-2): sim frame of the current practice FIGHT entry (each loadout change and
+## retry restarts it); the practice frame counter reads it. -1 outside practice.
+var practice_start_frame: int = -1
 
 
 func _ready() -> void:
@@ -121,11 +139,56 @@ func set_paused(on: bool, reason: StringName) -> bool:
 ## Esc or P toggles the pause in a pausable state (DC2, DC3, D-FIX-FS-1). True when the event was a
 ## fresh `pause` press that toggled it; the caller then consumes it. Esc / P elsewhere is left to the
 ## screens (P is the title's Practice option, D-FIX-FS-1: never consumed in TITLE).
+## Story 7.6 (AC 11, 13, D-S76-4, D-S76-5): in a practice FIGHT that is not paused, Esc leaves to the
+## title in one press (P and Start still pause), and L / pad Select change the loadout.
 func handle_pause_input(event: InputEvent) -> bool:
+	if handle_practice_input(event):
+		return true
 	if not is_pause_press(event):
 		return false
 	_focus_lost = false # a key press proves the window has focus
 	return set_paused(not SimClock.paused, &"esc")
+
+
+## Story 7.6: the practice-only keys, live only in a practice FIGHT that is not paused. True when the
+## event was consumed (Esc left to the title, or the loadout changed).
+func handle_practice_input(event: InputEvent) -> bool:
+	if not practice_run or flow_state != FlowState.FIGHT or SimClock.paused:
+		return false
+	if is_practice_leave_press(event):
+		_focus_lost = false
+		return leave_practice_to_title(SimClock.sim_frame)
+	if is_practice_cycle_press(event):
+		return cycle_practice_loadout(SimClock.sim_frame)
+	return false
+
+
+## Pure (Story 7.6, D-S76-5): a fresh, non-echo Esc key press (P is the same `pause` action but
+## pauses), or [design call] D-S76-6 a pad PRACTICE_LEAVE_BUTTON (L3, the button that entered practice
+## from the title): a pad has no Esc and Start pauses.
+static func is_practice_leave_press(event: InputEvent) -> bool:
+	var pad := event as InputEventJoypadButton
+	if pad != null:
+		return pad.pressed and pad.button_index == PRACTICE_LEAVE_BUTTON
+	var key := event as InputEventKey
+	if key == null or not key.pressed or key.echo:
+		return false
+	var code: Key = key.physical_keycode if key.physical_keycode != KEY_NONE else key.keycode
+	return code == KEY_ESCAPE
+
+
+## Pure (Story 7.6, D-S76-4 changed): a fresh, non-echo PRACTICE_CYCLE_KEY press (no modifiers) or a
+## pad PRACTICE_CYCLE_BUTTON (Select) press. Matched by code, not through the InputMap, so it can
+## never reach the sim; R is the `watch` action, so the keyboard key is L ("loadout").
+static func is_practice_cycle_press(event: InputEvent) -> bool:
+	var key := event as InputEventKey
+	if key != null:
+		if not key.pressed or key.echo or key.shift_pressed or key.ctrl_pressed or key.alt_pressed or key.meta_pressed:
+			return false
+		var code: Key = key.physical_keycode if key.physical_keycode != KEY_NONE else key.keycode
+		return code == PRACTICE_CYCLE_KEY
+	var pad := event as InputEventJoypadButton
+	return pad != null and pad.pressed and pad.button_index == PRACTICE_CYCLE_BUTTON
 
 
 ## D-FIX-FS-2: every left click / tap, in any state, paused or not, moves the keyboard focus back to
@@ -237,6 +300,100 @@ func start_new_run_from_title(frame: int) -> void:
 ## Pure (Story 7.3, AC 7, D-S73-4): the boss index a save resumes at, capped by the Segfault cut.
 static func resume_index(highest_boss: int, segfault_on: bool) -> int:
 	return clampi(highest_boss - 1, 0, last_fight_index(segfault_on))
+
+
+## Story 7.6 (FR59, AC 1, 6, 9): the title's practice option. Valid only from TITLE. A fresh RunState
+## and RunStats; no Intro; FIGHT with the `/* test */` dummy and no boss; the register starts at the
+## highest loadout reached (`highest_boss`, -1 reads SaveService.highest_boss: tests pass a value).
+## The 30-s first-shift clock is not started and the save is never written.
+func start_practice_from_title(frame: int, highest_boss: int = -1) -> void:
+	if flow_state != FlowState.TITLE:
+		Log.warn(&"flow", "start_practice_from_title ignored outside TITLE")
+		return
+	var saved: int = SaveService.highest_boss if highest_boss < 0 else highest_boss
+	practice_run = true
+	practice_loadouts_offered = practice_loadout_bosses(saved)
+	practice_loadout_index = practice_start_index(saved)
+	first_input_frame = -1
+	intro_start_frame = -1
+	run = RunState.new()
+	stats = RunStats.new()
+	_apply_practice_loadout()
+	Log.info(&"flow", "title -> practice at f=%d" % frame)
+	_set_flow_state(FlowState.FIGHT)
+
+
+## Pure (Story 7.6, AC 9, 10, D-S76-3): the boss indices whose GDD fight-start set
+## (Register.fight_start_for_boss) the practice chooser offers, in order: every boss reached
+## (0 .. highest_boss - 1), then the full set (LAST_BOSS_INDEX: [A, D, L, N]) when not already there.
+static func practice_loadout_bosses(highest_boss: int) -> Array[int]:
+	var reached: int = clampi(highest_boss, 1, LAST_BOSS_INDEX + 1)
+	var out: Array[int] = []
+	for i: int in reached:
+		out.append(i)
+	if not out.has(LAST_BOSS_INDEX):
+		out.append(LAST_BOSS_INDEX)
+	return out
+
+
+## Pure (Story 7.6, AC 10): the offered loadouts as register rings, same order.
+static func practice_loadouts(highest_boss: int) -> Array[PackedInt32Array]:
+	var out: Array[PackedInt32Array] = []
+	for i: int in practice_loadout_bosses(highest_boss):
+		out.append(Register.fight_start_for_boss(i))
+	return out
+
+
+## Pure (Story 7.6, AC 9): the chooser index of the highest loadout reached (never the appended full set
+## on a save that has not reached it).
+static func practice_start_index(highest_boss: int) -> int:
+	return clampi(highest_boss, 1, LAST_BOSS_INDEX + 1) - 1
+
+
+## The current practice loadout as the run's boss index (Breakpoint / Watch unlocks follow it, AC 7)
+## and its fight-start ring (the retry snapshot).
+func _apply_practice_loadout() -> void:
+	var boss: int = practice_loadouts_offered[practice_loadout_index] if not practice_loadouts_offered.is_empty() else 0
+	run.start_boss(boss)
+	run.fight_start_ring = Register.fight_start_for_boss(boss)
+
+
+## Story 7.6 (AC 11, D-S76-4): the next offered loadout, as a retry of the dummy fight (dummy reset,
+## HP and cooldowns reset, new ring). Only in a practice FIGHT that is not paused. True if it moved.
+func cycle_practice_loadout(frame: int) -> bool:
+	if not practice_run or flow_state != FlowState.FIGHT or SimClock.paused or practice_loadouts_offered.is_empty():
+		return false
+	practice_loadout_index = (practice_loadout_index + 1) % practice_loadouts_offered.size()
+	_apply_practice_loadout()
+	Log.info(&"flow", "practice loadout %s at f=%d" % [Register.to_text(run.fight_start_ring), frame])
+	_retrying = true # the ring is set above; never re-captured
+	_set_flow_state(FlowState.FIGHT)
+	_retrying = false
+	if not SimClock.paused:
+		SimClock.swallow_presses_next_poll()
+	return true
+
+
+## Story 7.6 (AC 13-15): practice FIGHT -> TITLE. Resets the run, the stats and the practice state;
+## never writes SaveService and never goes through the Intro, Harvest or Ending. True if it moved.
+func leave_practice_to_title(frame: int) -> bool:
+	if not practice_run or flow_state != FlowState.FIGHT:
+		return false
+	Log.info(&"flow", "practice -> title at f=%d" % frame)
+	_clear_practice()
+	run = RunState.new()
+	stats = RunStats.new()
+	first_input_frame = -1
+	intro_start_frame = -1
+	_set_flow_state(FlowState.TITLE)
+	return true
+
+
+func _clear_practice() -> void:
+	practice_run = false
+	practice_loadouts_offered = []
+	practice_loadout_index = 0
+	practice_start_frame = -1
 
 
 ## The title input never counts as an Intro skip (D-040, D-048).
@@ -422,6 +579,7 @@ func debug_jump(target: FlowState, boss_index: int) -> void:
 	if not valid:
 		Log.warn(&"debug", "jump rejected: %s boss=%d" % [FlowState.keys()[target], boss_index])
 		return
+	_clear_practice() # Story 7.6: a debug jump leaves the title's practice (the save rules apply again)
 	if target == FlowState.TITLE:
 		run = RunState.new()
 		stats = RunStats.new() # Story 6.8: the next run starts clean
@@ -458,12 +616,16 @@ func _set_flow_state(to: FlowState) -> void:
 	if to == FlowState.FIGHT and stats.fight_start_frame < 0:
 		stats.fight_start_frame = SimClock.sim_frame # Story 6.8 (D-S68-4): Fight 1 starts the clear time
 	if to == FlowState.FIGHT:
-		if not _retrying: # D-S29-4: every FIGHT entry but a retry captures the snapshot
+		# D-S29-4: every FIGHT entry but a retry captures the snapshot. Story 7.6: practice sets its
+		# ring from the chosen loadout (_apply_practice_loadout), never from the boss index.
+		if not _retrying and not practice_run:
 			run.fight_start_ring = Register.fight_start_for_boss(run.boss_index)
+		if practice_run:
+			practice_start_frame = SimClock.sim_frame # Story 7.6 (D-S76-2): the frame counter origin
 		_begin_fight()
 		# Story 7.3 (AC 2, 12, D-S73-3): presentation-side write after the state change; never on a
-		# retry (nothing changed) or in a debug-jumped run.
-		if not _retrying and not stats.debug_jumped:
+		# retry (nothing changed), in a debug-jumped run or (Story 7.6, AC 6) in practice.
+		if not _retrying and not stats.debug_jumped and not practice_run:
 			SaveService.note_fight_start(run.boss_index)
 	EventBus.flow_state_changed.emit(from, to)
 	if _focus_lost and to in PAUSABLE_STATES:
