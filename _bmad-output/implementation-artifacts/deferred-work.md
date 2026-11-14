@@ -517,3 +517,17 @@ Story 1.3 AC9 / I-6 ("mumble-speech web check, moved to 3.7") is UNBLOCKED. Tizi
 - Review 7.2 (deferred): the SFX pool steals the oldest player with no same-id retrigger guard or priority, so a burst (hit + chime + player_hit) can cut the 0.7 s roar or defeat stinger; add a per-id guard if H-S72-3 shows it.
 - Review 7.2 (deferred): clips are peak-normalised (0.6 to 0.75), not loudness-matched; noise-heavy clips may sound louder and the SFX bus has no limiter. Consider RMS normalisation or a bus gain in H-S72-3.
 - Review 7.2 (deferred): the `cmp` determinism check may differ by 1 LSB on another platform (libm); run it on the same OS as the committed files. Also consider `edit/loop_mode=1` (Disabled) in the SFX `.import` files, and tracking pool end times instead of `playing` if web Sample mode lags.
+
+## Story 7.3 (Save and resume)
+
+- Save format (D-S73-1): `ConfigFile` at `user://save.cfg`, section `save`, keys `version` (int, 1), `highest_boss` (int, 1..3), `assist` (bool, written `false` until 7.4 calls `SaveService.set_assist`), `muted` (bool, written by the pause screen's `[M]` toggle through `SaveService.set_muted`). A different version or a bad value resets to defaults with one `save` warn and is overwritten on the next write; no migration code. 7.4 / 7.6 add keys, not a new version, unless a key changes meaning.
+- Test seam: under GUT the `SaveService` autoload runs with `path = ""` (in-memory only, no file I/O) and `track_fights = false` (fights played by other tests never raise `highest_boss`). Tests of the write rules set a scratch path / turn tracking on and restore both in `after_each` (`test_save_service.gd`).
+- Human checks pending: H-S73-1 Chrome and Firefox web build: play to Boss 2, reload, press a key: Boss 2, full HP, no Intro, `[N] new run` visible, `N` resets to the Intro; toggle `[M]` on the pause screen, reload: mute kept. H-S73-2 itch.io iframe or a private window: game runs, no visible error, at most one `save` warn in the console. H-S73-3 Safari: same as H-S73-1.
+
+## Deferred from: code review of story-7.3 (2026-11-14)
+- A cleared run keeps `highest_boss` at the final boss (AC 11 says finish_ending never lowers it), so the next title resumes into the last fight until the player presses [N]. Spec-mandated; revisit with a "completed" flag if playtests show confusion.
+- An unrecognised or future save version is overwritten by the next write (D-S73-8, intended); no backup is kept.
+- `parse` is all-or-nothing on a wrong-typed `assist`/`muted`; per-key fallback is a nicety.
+- `save()` writes in place (no temp+rename); a tab closed mid-write could truncate the file (falls back to a fresh save with one warn).
+- Web: no explicit IndexedDB flush and no mute indicator on the title when a persisted mute is restored.
+- [N] new run has no confirmation step.

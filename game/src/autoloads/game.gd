@@ -207,6 +207,38 @@ func start_run_from_title(frame: int) -> void:
 	_set_flow_state(FlowState.INTRO)
 
 
+## Story 7.3 (AC 6, 7, D-S73-2, D-S73-10): title press with a save past Boss 1. Valid only from TITLE.
+## Starts the 30-s clock, a fresh RunState and RunStats, skips the Intro and enters the resumed fight
+## (resume_index); the FIGHT entry writes the save (no change in value). `highest_boss` -1 reads
+## SaveService.highest_boss (tests pass a value).
+func resume_run_from_title(frame: int, highest_boss: int = -1) -> void:
+	if flow_state != FlowState.TITLE:
+		Log.warn(&"flow", "resume_run_from_title ignored outside TITLE")
+		return
+	first_input_frame = frame
+	intro_start_frame = -1
+	run = RunState.new()
+	var saved: int = SaveService.highest_boss if highest_boss < 0 else highest_boss
+	run.start_boss(resume_index(saved, segfault_enabled))
+	stats = RunStats.new()
+	Log.info(&"flow", "title -> resume fight %d at f=%d" % [run.boss_index + 1, frame])
+	_set_flow_state(FlowState.FIGHT)
+
+
+## Story 7.3 (AC 9): the title's [N] new run. Resets the saved progress, then a normal start (Intro kept).
+func start_new_run_from_title(frame: int) -> void:
+	if flow_state != FlowState.TITLE:
+		Log.warn(&"flow", "start_new_run_from_title ignored outside TITLE")
+		return
+	SaveService.reset_run_progress()
+	start_run_from_title(frame)
+
+
+## Pure (Story 7.3, AC 7, D-S73-4): the boss index a save resumes at, capped by the Segfault cut.
+static func resume_index(highest_boss: int, segfault_on: bool) -> int:
+	return clampi(highest_boss - 1, 0, last_fight_index(segfault_on))
+
+
 ## The title input never counts as an Intro skip (D-040, D-048).
 func can_skip_intro(frame: int) -> bool:
 	return first_input_frame >= 0 and frame > first_input_frame
@@ -429,6 +461,10 @@ func _set_flow_state(to: FlowState) -> void:
 		if not _retrying: # D-S29-4: every FIGHT entry but a retry captures the snapshot
 			run.fight_start_ring = Register.fight_start_for_boss(run.boss_index)
 		_begin_fight()
+		# Story 7.3 (AC 2, 12, D-S73-3): presentation-side write after the state change; never on a
+		# retry (nothing changed) or in a debug-jumped run.
+		if not _retrying and not stats.debug_jumped:
+			SaveService.note_fight_start(run.boss_index)
 	EventBus.flow_state_changed.emit(from, to)
 	if _focus_lost and to in PAUSABLE_STATES:
 		set_paused(true, &"focus")

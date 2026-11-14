@@ -3,7 +3,7 @@ extends Node2D
 ## Pause overlay (Story 1.7 AC2, AC3). Main instances it on EventBus.pause_toggled(true) and frees
 ## it on false (DC6). Opaque BG over the 640x360 base (DC7), glyph text only (AD-07).
 ## Presentation only: M or a click on the mute label toggles the Master mute (consumed here, so it
-## never resumes); Esc / P and any other click belong to Game, which resumes on them (DC2,
+## never resumes; Story 7.3: the new value is saved through SaveService.set_muted); Esc / P and any other click belong to Game, which resumes on them (DC2,
 ## D-FIX-FS-1). It never writes flow or pause state.
 
 const TEXT_SCALE := 2
@@ -85,6 +85,7 @@ func _input(event: InputEvent) -> void:
 	get_viewport().set_input_as_handled()
 	AudioManager.set_master_muted(not AudioManager.is_master_muted())
 	_muted = AudioManager.is_master_muted()
+	SaveService.set_muted(_muted) # Story 7.3 (D-S73-7 overturned): the mute is kept across sessions
 	queue_redraw()
 
 
