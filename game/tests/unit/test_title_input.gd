@@ -71,11 +71,13 @@ func test_option_actions_exist_in_input_map() -> void:
 		assert_true(InputMap.has_action(action), "missing InputMap action %s" % action)
 
 
-func test_all_options_hidden_in_1_4() -> void:
+func test_hidden_and_shown_options() -> void:
 	var screen: Node = autofree(TitleScreenScript.new())
-	for option: StringName in [&"new_run", &"practice", &"fullscreen"]:
+	for option: StringName in [&"new_run", &"fullscreen"]:
 		assert_false(screen.is_option_available(option), "%s should be hidden" % option)
 	assert_true(screen.is_option_available(&"debug_build"), "Story 7.4: always shown")
+	assert_true(screen.is_option_available(&"practice"), "Story 7.6: always shown")
+	assert_true(screen.label_rects.has(&"practice"), "Story 7.6: clickable")
 
 
 func test_hidden_option_resolves_to_start() -> void:
@@ -93,9 +95,9 @@ func test_available_option_does_not_start() -> void:
 func test_available_option_input_keeps_title_and_unlocks_audio() -> void:
 	var was_unlocked: bool = AudioManager.is_unlocked()
 	var screen: Node = autofree(TitleScreenScript.new())
-	screen.available[&"practice"] = true
-	screen.handle_input(_key(KEY_P))
-	assert_eq(Game.flow_state, Game.FlowState.TITLE, "an available option must not leave TITLE")
+	screen.available[&"fullscreen"] = true # Story 7.6: practice now starts a run; F still has no action
+	screen.handle_input(_key(KEY_F))
+	assert_eq(Game.flow_state, Game.FlowState.TITLE, "an available option without an action must not leave TITLE")
 	assert_true(AudioManager.is_unlocked())
 	if not was_unlocked:
 		AudioManager.set("_unlocked", false)

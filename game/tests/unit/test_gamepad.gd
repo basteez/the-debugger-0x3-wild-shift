@@ -128,7 +128,7 @@ func test_title_option_buttons() -> void:
 	var title := _title()
 	assert_eq(title.resolve(_pad(JOY_BUTTON_B)), TitleScreenScript.Action.OPTION, "B never starts")
 	assert_eq(title.resolve(_pad(JOY_BUTTON_RIGHT_STICK)), TitleScreenScript.Action.START, "R3 hidden (7.7)")
-	assert_eq(title.resolve(_pad(JOY_BUTTON_LEFT_STICK)), TitleScreenScript.Action.START, "L3 hidden (7.6)")
+	assert_eq(title.resolve(_pad(JOY_BUTTON_LEFT_STICK)), TitleScreenScript.Action.OPTION, "L3 is practice (7.6)")
 
 
 func test_title_select_follows_the_new_run_rule() -> void:

@@ -40,8 +40,11 @@ var juice_director: JuiceDirector
 var frame_overlay: FrameOverlay
 ## F1-F5 / F9 / F11 / Shift+F2 keys: exists only when Debug.enabled; null otherwise.
 var debug_keys: DebugKeys
-## Practice target view (Story 2.7): exists only when Debug.enabled; draws only while a target exists.
+## Practice target view (Story 2.7): draws only while a target exists. Story 7.6 (AC 5): built in every
+## build, since the title's practice fight shows the dummy in release too.
 var practice_view: PracticeTargetView
+## Story 7.6 (AC 5, D-S76-2): the practice `frames N` readout, every build; draws only in practice.
+var practice_counter: PracticeFrameCounter
 ## Hit glyph particles (Story 2.8), in the Particles layer at the arena origin.
 var particle_pool: ParticlePool
 ## Combo-hit shake (Story 2.8): owns the arena Camera2D (a child of the Arena).
@@ -130,11 +133,14 @@ func _build_layers() -> void:
 		frame_overlay.actions = arena.actions
 		frame_overlay.register = arena.register
 		arena.add_child(frame_overlay)
-	# Debug-only practice target view (Story 2.7, D-S27-9); lives in presentation/, so Main attaches it.
-	if Debug.enabled:
-		practice_view = PracticeTargetView.new()
-		practice_view.name = &"PracticeTargetView"
-		arena.add_child(practice_view)
+	# Practice target view (Story 2.7, D-S27-9); lives in presentation/, so Main attaches it. Story 7.6
+	# (AC 5): every build (the title's practice); it draws nothing without a target.
+	practice_view = PracticeTargetView.new()
+	practice_view.name = &"PracticeTargetView"
+	arena.add_child(practice_view)
+	practice_counter = PracticeFrameCounter.new()
+	practice_counter.name = &"PracticeFrameCounter"
+	arena.add_child(practice_counter)
 	for layer_name: StringName in [&"Entities", &"Particles"]:
 		var node := Node2D.new()
 		node.name = layer_name
@@ -288,6 +294,7 @@ func apply_flow_state(state: int, boss_index: int) -> void:
 	else:
 		arena.leave_fight()
 	_attach_practice_target()
+	practice_counter.set_active(in_fight and Game.practice_run) # Story 7.6 (AC 5)
 	_attach_boss(in_fight)
 
 
@@ -345,9 +352,12 @@ static func boss_def_path_for(debug_test_boss: bool, boss_index: int, practice: 
 	return ""
 
 
-## True when the fight should have the practice target: Shift+F2 was the last jump (Story 2.7,
-## D-S27-3). Always false without the debug gate (no DebugKeys node).
+## True when the fight should have the practice target: the title's practice run (Story 7.6, AC 1, 5:
+## every build, Game.practice_run), or Shift+F2 was the last jump (Story 2.7, D-S27-3; debug only,
+## false without the debug gate since there is no DebugKeys node).
 func wants_practice() -> bool:
+	if Game.practice_run:
+		return true
 	return Debug.enabled and is_instance_valid(debug_keys) and debug_keys.practice_requested
 
 
@@ -371,7 +381,7 @@ func _attach_boss(in_fight: bool = true) -> void:
 		hud.set_boss(b)
 
 
-## Hands the arena's practice target (or null) to the debug views.
+## Hands the arena's practice target (or null) to its view and, in debug builds, the F9 overlay.
 func _attach_practice_target() -> void:
 	if is_instance_valid(practice_view):
 		practice_view.target = arena.practice_target
@@ -410,6 +420,8 @@ func _make_screen(state: int, boss_index: int) -> Node:
 		GameFlow.FlowState.FIGHT:
 			var screen: PlaceholderScreen = PlaceholderScreenScript.new()
 			screen.setup(state, boss_index)
+			if Game.practice_run: # Story 7.6 review: the "FIGHT n" label must not cover the practice arena
+				screen.lines = PackedStringArray()
 			return screen
 		GameFlow.FlowState.DEAD:
 			var dead: DeadScreen = DeadScreenScript.new()

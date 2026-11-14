@@ -1,13 +1,15 @@
 class_name TitleScreen
 extends Node2D
 ## Title screen (Story 1.4, FR47, D-048). Presentation only: press any key or click to start.
-## Option hotkeys P/F are hidden until their stories (7.6, 7.7) and start the run.
+## The F hotkey is hidden until its story (7.7) and starts the run.
 ## Story 7.3 (AC 6-10): with a save past Boss 1, `[N] new run` shows; N (or a click on it) resets the
 ## save and starts from the Intro, any other key or click resumes at the saved boss without the Intro.
 ## Story 7.4 (AC 1, 3, 4, D-S74-2): `[B] debug build on/off` always shows; B (or a click on it) flips
 ## the assist through SaveService.set_assist and never starts the run.
 ## Story 7.5 (FR61, D-048): any pad button starts the run like a key; Select / B / R3 / L3 are the
 ## pad buttons of the option actions (project.godot [input]). Stick and trigger motion are ignored.
+## Story 7.6 (FR59, D-048, D-S76-1): `[P] practice` always shows; P, L3 or a click on it starts the
+## practice fight (Game.start_practice_from_title): no Intro, the `/* test */` dummy, no save write.
 
 enum Action { IGNORE, START, OPTION }
 
@@ -30,6 +32,10 @@ static var DEBUG_BUILD_ON_TEXT: String:
 static var DEBUG_BUILD_OFF_TEXT: String:
 	get:
 		return SCREEN_TEXT.debug_build_off_label
+## Story 7.6 (D-S76-1): the practice option label, audited game text.
+static var PRACTICE_TEXT: String:
+	get:
+		return SCREEN_TEXT.practice_label
 ## Pixel font at 2x (16-px glyph cells, Story 1.5 DC2). Y values are the top of each glyph row,
 ## on the 8-px grid; x is centred on the 640-px base and snapped to the 8-px grid.
 const TEXT_SCALE := 2
@@ -39,6 +45,8 @@ const PROMPT_TOP_Y := 208
 const NEW_RUN_TOP_Y := 240
 ## Story 7.4 (D-S74-2): the [B] debug build label row, below the new-run row.
 const DEBUG_BUILD_TOP_Y := 272
+## Story 7.6 (D-S76-1): the [P] practice label row, below the debug build row.
+const PRACTICE_TOP_Y := 304
 ## Option id -> InputMap action (DC7). The keys live only in project.godot [input].
 const OPTION_ACTIONS: Dictionary[StringName, StringName] = {
 	&"new_run": &"title_option_new_run",
@@ -50,12 +58,12 @@ const OPTION_ACTIONS: Dictionary[StringName, StringName] = {
 ## Which options exist yet (DC2). Hidden options behave as plain keys.
 var available: Dictionary[StringName, bool] = {
 	&"new_run": false,
-	&"practice": false,
+	&"practice": true, # Story 7.6 (AC 2): always shown, in every build
 	&"debug_build": true, # Story 7.4 (D-S74-2): always shown
 	&"fullscreen": false,
 }
-## Clickable label rects of visible options, in canvas space. Empty while all are hidden.
-var label_rects: Dictionary[StringName, Rect2] = {}
+## Clickable label rects of visible options, in canvas space. Story 7.6: practice is always there.
+var label_rects: Dictionary[StringName, Rect2] = {&"practice": practice_label_rect()}
 var _started := false
 ## Story 7.3: the saved highest boss read once per title show (_ready); resume when > 1.
 var saved_highest_boss: int = 1
@@ -143,6 +151,11 @@ static func debug_build_label_rect(on: bool) -> Rect2:
 	return label_rect_for(debug_build_text(on), DEBUG_BUILD_TOP_Y)
 
 
+## Pure (Story 7.6, D-S76-1): the clickable rect of the [P] practice label.
+static func practice_label_rect() -> Rect2:
+	return label_rect_for(PRACTICE_TEXT, PRACTICE_TOP_Y)
+
+
 ## Story 7.3 (AC 8): the [N] new run option exists only with a save past Boss 1; its label is
 ## clickable only while it shows. Read once per title show.
 func set_saved_progress(highest_boss: int) -> void:
@@ -185,7 +198,9 @@ func handle_input(event: InputEvent) -> Action:
 		elif option == &"debug_build": # Story 7.4 (AC 1, 3): toggle in place, saved at once
 			SaveService.set_assist(not assist_shown)
 			set_assist_shown(SaveService.assist)
-		# Other options act in their owning stories (7.6, 7.7).
+		elif option == &"practice": # Story 7.6 (AC 1): the practice fight, no Intro, no save write
+			_begin_practice()
+		# Other options act in their owning stories (7.7).
 	return action
 
 
@@ -203,6 +218,15 @@ func _begin(new_run: bool) -> void:
 	queue_free()
 
 
+## Story 7.6 (AC 1, 6): leaves the title once into the practice fight. The register starts at the
+## highest loadout the shown save reached (saved_highest_boss); the save itself is never written.
+func _begin_practice() -> void:
+	_started = true
+	Game.start_practice_from_title(SimClock.sim_frame, saved_highest_boss)
+	AudioManager.play_test_sfx()
+	queue_free()
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	if handle_input(event) != Action.IGNORE:
 		get_viewport().set_input_as_handled()
@@ -216,6 +240,8 @@ func _draw() -> void:
 	if is_option_available(&"debug_build"):
 		var assist_text: String = debug_build_text(assist_shown)
 		GlyphFont.draw_at(self, Vector2(centred_x(assist_text), DEBUG_BUILD_TOP_Y), assist_text, Palette.INK, TEXT_SCALE)
+	if is_option_available(&"practice"):
+		GlyphFont.draw_at(self, Vector2(centred_x(PRACTICE_TEXT), PRACTICE_TOP_Y), PRACTICE_TEXT, Palette.INK, TEXT_SCALE)
 
 
 ## Left x that centres `text` at TEXT_SCALE on the base width, snapped down to the 8-px grid.

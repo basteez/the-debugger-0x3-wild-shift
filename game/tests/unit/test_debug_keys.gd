@@ -157,7 +157,7 @@ func test_release_gate_has_no_practice_target_or_key() -> void:
 	var main: Node2D = (load("res://src/main/main.tscn") as PackedScene).instantiate()
 	add_child_autofree(main)
 	assert_null(main.get_node_or_null(^"DebugKeys"))
-	assert_null(main.practice_view)
+	assert_null(main.practice_view.target, "Story 7.6: the view exists in release but draws no target")
 	assert_false(main.wants_practice())
 	main.apply_flow_state(GameScript.FlowState.FIGHT, 0)
 	assert_null(main.arena.practice_target)
