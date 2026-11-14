@@ -10,4 +10,4 @@ tell = 40
 active = 10
 recovery = 60
 attack_script = ExtResource("2_attack")
-tell_sfx = &"tell_pointer_grab"
+tell_sfx = &"tell_null_pointer"

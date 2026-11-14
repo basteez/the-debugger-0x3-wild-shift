@@ -25,6 +25,9 @@ var player_view: PlayerView
 ## Injected by Main (Story 2.8). Null = invert and dither requests are kept but not shown.
 var screen_fx: ScreenFX
 var juice: ShiftJuice = ShiftJuice.new()
+## Story 7.2 (AC 8, FR28): plays the click stream on the input frame, in the same call as the
+## shift (no call_deferred, no timer). A seam for tests; the default is AudioManager's ShiftSfx.
+var play_click: Callable = func(stream: AudioStream) -> void: AudioManager.play_sfx(stream)
 
 ## True while a slide or inversion still has frames to show; _process does nothing otherwise.
 var _live: bool = false
@@ -105,7 +108,7 @@ func is_screen_inverted(t: int) -> bool:
 func _on_register_shifted(direction: int, _window: Vector2i, _ring: PackedInt32Array, _source: StringName) -> void:
 	juice.on_shift(direction, now())
 	_live = true
-	AudioManager.play_sfx(click_stream(direction))
+	play_click.call(click_stream(direction))
 	Log.debug(&"juice", "shift %d" % direction)
 	_apply()
 

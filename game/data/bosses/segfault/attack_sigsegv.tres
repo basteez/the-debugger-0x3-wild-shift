@@ -12,4 +12,4 @@ recovery = 90
 exclusive = true
 recovery_if_no_breakpoint = 150
 attack_script = ExtResource("2_attack")
-tell_sfx = &"tell_sigsegv"
+tell_sfx = &"tell_segfault"

@@ -2,6 +2,7 @@ extends GutTest
 ## Story 2.2 AC1: every .tres under res://data/ validates clean, and PlayerDef reports bad values.
 
 const DATA_ROOT := "res://data/"
+const AudioManagerScript := preload("res://src/autoloads/audio_manager.gd")
 const PLAYER_DEF_PATH := "res://data/player/player_def.tres"
 ## Story 6.9 (B4): the shared text resources.
 const TEXT_DEF_PATHS: PackedStringArray = [
@@ -234,10 +235,10 @@ func test_null_pointer_boss_def_matches_the_gdd() -> void:
 
 func test_null_pointer_attack_defs_match_the_gdd() -> void:
 	var expected: Dictionary = {
-		"res://data/bosses/null_pointer/attack_pointer_grab.tres": [&"pointer_grab", 40, 10, 60, &"tell_pointer_grab"],
-		"res://data/bosses/null_pointer/attack_null_rain.tres": [&"null_rain", 45, 20, 40, &"tell_null_rain"],
+		"res://data/bosses/null_pointer/attack_pointer_grab.tres": [&"pointer_grab", 40, 10, 60, &"tell_null_pointer"],
+		"res://data/bosses/null_pointer/attack_null_rain.tres": [&"null_rain", 45, 20, 40, &"tell_null_pointer"],
 		# Story 5.3 (AC 4, D-S53-1)
-		"res://data/bosses/null_pointer/attack_dangling_pointers.tres": [&"dangling_pointers", 30, 60, 30, &"tell_dangling_pointers"],
+		"res://data/bosses/null_pointer/attack_dangling_pointers.tres": [&"dangling_pointers", 30, 60, 30, &"tell_null_pointer"],
 	}
 	for path: String in expected:
 		var a_def: AttackDef = load(path)
@@ -302,7 +303,7 @@ func test_segfault_reserved_write_def_matches_the_gdd() -> void:
 	assert_eq(a_def.validate(), PackedStringArray())
 	assert_eq([a_def.id, a_def.tell, a_def.active, a_def.recovery, a_def.recovery_if_no_breakpoint], [&"reserved_write", 45, 600, 30, 0])
 	assert_true(a_def.exclusive)
-	assert_eq(a_def.tell_sfx, &"tell_reserved_write")
+	assert_eq(a_def.tell_sfx, &"tell_segfault")
 	assert_eq(a_def.attack_script.resource_path, "res://src/bosses/segfault/attacks/reserved_write.gd")
 	assert_true(a_def.attack_script.new() is BossAttack)
 	var def: BossDef = load("res://data/bosses/segfault/boss_def.tres")
@@ -331,7 +332,7 @@ func test_segfault_sigsegv_def_matches_the_gdd() -> void:
 	assert_eq(a_def.validate(), PackedStringArray())
 	assert_eq([a_def.id, a_def.tell, a_def.active, a_def.recovery, a_def.recovery_if_no_breakpoint], [&"sigsegv", 60, 1, 90, 150])
 	assert_true(a_def.exclusive)
-	assert_eq(a_def.tell_sfx, &"tell_sigsegv")
+	assert_eq(a_def.tell_sfx, &"tell_segfault")
 	assert_eq(a_def.attack_script.resource_path, "res://src/bosses/segfault/attacks/sigsegv.gd")
 	assert_true(a_def.attack_script.new() is BossAttack)
 	var def: BossDef = load("res://data/bosses/segfault/boss_def.tres")
@@ -349,8 +350,8 @@ func test_segfault_sigsegv_def_matches_the_gdd() -> void:
 func test_segfault_tile_attack_defs_match_the_gdd() -> void:
 	var def: BossDef = load("res://data/bosses/segfault/boss_def.tres")
 	var rows: Array = [
-		["corrupt_memory", &"corrupt_memory", 60, 240, 40, &"tell_corrupt_memory"],
-		["core_dump", &"core_dump", 60, 180, 60, &"tell_core_dump"],
+		["corrupt_memory", &"corrupt_memory", 60, 240, 40, &"tell_segfault"],
+		["core_dump", &"core_dump", 60, 180, 60, &"tell_segfault"],
 	]
 	for row: Array in rows:
 		var a_def: AttackDef = load("res://data/bosses/segfault/attack_%s.tres" % row[0])
@@ -366,7 +367,7 @@ func test_segfault_tile_attack_defs_match_the_gdd() -> void:
 func test_segfault_attack_def_matches_the_gdd() -> void:
 	var a_def: AttackDef = load("res://data/bosses/segfault/attack_access_violation.tres")
 	assert_eq(a_def.validate(), PackedStringArray())
-	assert_eq([a_def.id, a_def.tell, a_def.active, a_def.recovery, a_def.tell_sfx], [&"access_violation", 30, 12, 50, &"tell_access_violation"])
+	assert_eq([a_def.id, a_def.tell, a_def.active, a_def.recovery, a_def.tell_sfx], [&"access_violation", 30, 12, 50, &"tell_segfault"])
 	assert_false(a_def.exclusive)
 	assert_eq(a_def.recovery_if_no_breakpoint, 0)
 	assert_true(a_def.attack_script.new() is BossAttack)
@@ -505,3 +506,21 @@ func test_null_pointer_duck_lines_validate() -> void:
 		assert_not_null(line, String(id))
 		if line != null:
 			assert_eq(line.validate(), PackedStringArray(), String(id))
+
+
+## Story 7.2 (AC 3, D-049, D-S72-3): every real-boss attack's tell_sfx is its boss's one tell cue,
+## and every cue id names a preloaded stream. The test boss fixture keeps its own ids.
+func test_real_boss_tell_sfx_is_the_boss_tell_cue() -> void:
+	var count: int = 0
+	for boss_index: int in Game.BOSS_IDS.size():
+		var boss: StringName = Game.BOSS_IDS[boss_index]
+		var cue: StringName = AudioManagerScript.BOSS_TELL_CUES[boss_index]
+		assert_true(AudioManagerScript.CUES.has(cue), "%s has a stream" % cue)
+		for path: String in _tres_under("res://data/bosses/%s/" % boss):
+			var a_def := load(path) as AttackDef
+			if a_def == null:
+				continue
+			count += 1
+			assert_eq(a_def.tell_sfx, cue, path)
+			assert_true(a_def.tell_sfx in AudioManagerScript.BOSS_TELL_CUES, "%s: known cue" % path)
+	assert_eq(count, 11, "the 11 real-boss attacks")

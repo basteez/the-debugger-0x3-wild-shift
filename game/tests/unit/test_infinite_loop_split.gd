@@ -129,7 +129,7 @@ static func two_phase_def() -> BossDef:
 # --- AC 1: data ---
 
 func test_nested_loop_data_and_the_phase_3_pool() -> void:
-	assert_eq([NESTED.id, NESTED.tell, NESTED.active, NESTED.recovery, NESTED.tell_sfx], [&"nested_loop", 40, 1, 0, &"tell_nested_loop"])
+	assert_eq([NESTED.id, NESTED.tell, NESTED.active, NESTED.recovery, NESTED.tell_sfx], [&"nested_loop", 40, 1, 0, &"tell_infinite_loop"])
 	assert_eq(NESTED.validate(), PackedStringArray())
 	assert_eq(NESTED.attack_script, preload("res://src/bosses/infinite_loop/attacks/nested_loop.gd"))
 	assert_eq(IL_DEF.validate(), PackedStringArray())

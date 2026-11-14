@@ -10,4 +10,4 @@ tell = 40
 active = 60
 recovery = 120
 attack_script = ExtResource("2_constrict")
-tell_sfx = &"tell_constrict"
+tell_sfx = &"tell_infinite_loop"

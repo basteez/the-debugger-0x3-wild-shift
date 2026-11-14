@@ -112,8 +112,8 @@ func test_fight_2_runs_both_attacks_in_both_phases() -> void:
 		var params: Array = get_signal_parameters(EventBus, "boss_tell_started", i)
 		if not tells.has(params):
 			tells.append(params)
-	assert_true(tells.has([&"pointer_grab", &"tell_pointer_grab"]), "the grab's tell SFX id")
-	assert_true(tells.has([&"null_rain", &"tell_null_rain"]), "the rain's tell SFX id")
+	assert_true(tells.has([&"pointer_grab", &"tell_null_pointer"]), "the grab's tell SFX id")
+	assert_true(tells.has([&"null_rain", &"tell_null_pointer"]), "the rain's tell SFX id")
 	assert_push_error_count(0, "no Log.error during the fight")
 
 

@@ -15,4 +15,4 @@ active = 600
 recovery = 30
 exclusive = true
 attack_script = ExtResource("2_attack")
-tell_sfx = &"tell_reserved_write"
+tell_sfx = &"tell_segfault"

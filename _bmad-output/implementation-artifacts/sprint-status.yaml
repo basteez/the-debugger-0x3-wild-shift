@@ -160,7 +160,7 @@ development_status:
   # Epic 7: Audio, Polish & Submission — window Nov 26–29; SUBMIT by Nov 29 12:00 PST
   epic-7: in-progress
   7-1-music-and-crossfades: done # HUMAN: Tiziano composes BeepBox tracks (can start E5–E6); placeholders until then
-  7-2-final-sfx-pass: backlog
+  7-2-final-sfx-pass: done
   7-3-save-and-resume: backlog
   7-4-debug-build-assist-toggle-should: backlog # Should — first to drop
   7-5-gamepad-support-should: backlog # Should — first to drop

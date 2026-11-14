@@ -34,6 +34,18 @@ func _emit(direction: int) -> void:
 	EventBus.register_shifted.emit(direction, Vector2i(1, 0), PackedInt32Array([1, 0]), &"player")
 
 
+# Story 7.2 (AC 8, FR28): the click is requested in the same call as the shift, with the stream of
+# the direction (no call_deferred, no timer).
+func test_shift_requests_the_direction_click_in_the_same_call() -> void:
+	var played: Array[AudioStream] = []
+	_director.play_click = func(stream: AudioStream) -> void: played.append(stream)
+	_emit(-1)
+	assert_eq(played, [JuiceDirector.CLICK_LEFT] as Array[AudioStream], "<< on the input frame")
+	_emit(1)
+	assert_eq(played, [JuiceDirector.CLICK_LEFT, JuiceDirector.CLICK_RIGHT] as Array[AudioStream], ">> too")
+	assert_ne(JuiceDirector.CLICK_LEFT, JuiceDirector.CLICK_RIGHT)
+
+
 func test_connects_once() -> void:
 	assert_true(EventBus.register_shifted.is_connected(_director._on_register_shifted))
 
