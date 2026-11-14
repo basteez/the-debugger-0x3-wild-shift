@@ -17,8 +17,8 @@ func test_lines_list_every_control_and_resume() -> void:
 
 
 func test_mute_line_follows_the_argument() -> void:
-	assert_eq(PauseScreen.lines_for(true)[-2], "[M] MUTE ON") # Story 7.4: the assist row is last
-	assert_eq(PauseScreen.lines_for(false)[-2], "[M] MUTE OFF")
+	assert_eq(PauseScreen.lines_for(true)[-3], "[M] MUTE ON") # Story 7.4 / 7.7: assist, then fullscreen
+	assert_eq(PauseScreen.lines_for(false)[-3], "[M] MUTE OFF")
 
 
 func test_layout_fits_the_base_with_a_gutter() -> void:

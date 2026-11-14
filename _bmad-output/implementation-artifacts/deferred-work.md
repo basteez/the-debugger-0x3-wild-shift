@@ -560,3 +560,19 @@ Story 1.3 AC9 / I-6 ("mumble-speech web check, moved to 3.7") is UNBLOCKED. Tizi
 - In practice, music follows the chosen loadout's boss index (boss track for that index, not the title track); acceptable, revisit if playtests find it odd.
 - Test gaps (auditor): no explicit test of the per-hit log line in practice, of `saved_highest_boss` re-read after leaving practice, or of the pause rows in practice.
 - Pad L3 / Select are matched by raw button index (not remappable); fine while there is no remapping (out of scope).
+
+## Story 7.7 (Fullscreen, browser matrix and performance)
+
+- Resolves the 7.6 open question above: the `PlaceholderScreen` text (`FIGHT n` / `boss index n`) now shows only with `Debug.enabled` (debug builds and `?debug`) and never in practice (`Main.shows_fight_placeholder`).
+- Build size: `game/tools/check_build_size.sh [dir]` (default `build/web`) is the single size check; CI's "Web build size" step now calls it on the shipped export (stripped template). Budget = `WEB_SIZE_BUDGET_BYTES` (CI env 32000000, decimal 32 MB, Story 1.3 DC4), not 32 MiB. A local export with the stock template measures ~51 MB (44 MB `index.side.wasm`, 2.9 MB js, 1.95 MB pck on 2026-11-14) and fails the check: expected, see "1.3 H3"; the CI artifact is the reference.
+- No new telemetry (D-S77-2): the human perf run reads the F10 overlay (FPS, frame ms, particles n/300, draw calls), which needs `?debug`.
+- Human checks pending (story 7.7 stays reviewable; these ACs 20-21 are open):
+  - [ ] H-S77-1 Chrome and Firefox, release web build (no `?debug`): title `F`, click on `[F] fullscreen` and pad R3 toggle fullscreen and the label switches to `[F] windowed`; a second press returns; pause `F` / R3 / click on `[F] FULLSCREEN OFF` toggles without resuming; a full run with no crash; a refused request (e.g. browser setting blocks it) leaves the game windowed with no player-visible error (one `[WARN][display]` in the console).
+  - [ ] H-S77-2 Safari (latest): same as H-S77-1; cosmetic issues only are acceptable; record them here.
+  - [ ] H-S77-3 Cold cache, 50 Mbps profile (Chrome DevTools throttling): the title is interactive in 10 s or less; record the CI `check_build_size.sh` output of the build under test. Estimate: 32 MB at 50 Mbps is about 5.1 s of transfer, leaving about 5 s for engine boot and first frame (1.4 H3 measured about 2 s transfer for the itch-compressed build).
+  - [ ] H-S77-4 2020-era integrated-graphics laptop at 1280x720, Segfault phase 3, Chrome and Firefox: 60 FPS sustained (F10 overlay with `?debug`), particles never above 300.
+  - [ ] H-S77-5 Phone width: the title `[F] fullscreen` row (y 336) and the pause `[F] FULLSCREEN` row (y 312) fit without overlap.
+  - [ ] H-S77-6 Practice in the release build: a death keeps the dummy retry with no duck death hint; Esc and L3 leave from DEAD to the title.
+- Deferred: the refusal check reads the window mode 0.75 s after the request (the web request is asynchronous); a browser that takes longer to enter fullscreen logs one spurious `[WARN][display]` (no player-visible effect). If the player leaves fullscreen within that window, same. Pause fullscreen row text is a code constant (7.4/7.5 precedent), not audited `.tres` text.
+- Deferred: a held R3 at boot or from combat reaching the title toggles fullscreen (7.5 stale-press note); add a one-frame grace only if H-S77-1 shows it.
+- Deferred (7.7 review): pad R3 is not a browser user gesture, so on web it may be refused or fire late (observe in H-S77-1; keyboard F and click are the reliable paths). The title `[F] fullscreen` row (y 336) ends near the 360 edge and ignores the 16 px gutter (H-S77-5). `Fullscreen.is_on()` is polled per frame on the title and pause screens (H-S77-4 to confirm no cost). Also check in H-S77-1 that toggling fullscreen from pause neither resumes nor double-pauses (focus-out).

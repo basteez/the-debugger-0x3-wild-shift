@@ -21,6 +21,10 @@ const PANEL_COUNT := 3
 @export var practice_label: String = ""
 ## Story 7.6 (AC 11, 13): the practice fight's key hint under the frame counter.
 @export var practice_hint: String = ""
+## Story 7.7 (AC 3, D-S77-1): the title's fullscreen row, one per window mode (it names the mode a
+## press switches to: `[F] fullscreen` while windowed, `[F] windowed` while fullscreen).
+@export var fullscreen_label: String = ""
+@export var windowed_label: String = ""
 
 
 func validate() -> PackedStringArray:
@@ -41,6 +45,10 @@ func validate() -> PackedStringArray:
 		out.append("practice_label must not be empty")
 	if practice_hint.is_empty():
 		out.append("practice_hint must not be empty")
+	if fullscreen_label.is_empty():
+		out.append("fullscreen_label must not be empty")
+	if windowed_label.is_empty():
+		out.append("windowed_label must not be empty")
 	if intro_captions.size() != PANEL_COUNT:
 		out.append("intro_captions must hold exactly %d panels, has %d" % [PANEL_COUNT, intro_captions.size()])
 	for i: int in intro_captions.size():
@@ -64,7 +72,7 @@ func caption_for(panel: int) -> PackedStringArray:
 
 ## Every string this resource holds (font coverage, the audit).
 func all_text() -> PackedStringArray:
-	var out := PackedStringArray([title, prompt, dead_line, new_run_label, debug_build_on_label, debug_build_off_label, practice_label, practice_hint])
+	var out := PackedStringArray([title, prompt, dead_line, new_run_label, debug_build_on_label, debug_build_off_label, practice_label, practice_hint, fullscreen_label, windowed_label])
 	for panel: PackedStringArray in intro_captions:
 		out.append_array(panel)
 	return out

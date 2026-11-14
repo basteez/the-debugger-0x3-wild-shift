@@ -165,7 +165,7 @@ development_status:
   7-4-debug-build-assist-toggle-should: done # Should — first to drop
   7-5-gamepad-support-should: done # Should — first to drop
   7-6-practice-target-from-the-title-screen-should: done # Should — first to drop
-  7-7-fullscreen-browser-matrix-and-performance: backlog
+  7-7-fullscreen-browser-matrix-and-performance: done # human checks H-S77-1..6 pending (deferred-work.md)
   7-8-full-run-playtest-and-final-tuning: backlog # HUMAN CHECKPOINT: playtesters by Nov 27
   7-9-itch-io-page-readme-and-submission: backlog
   epic-7-retrospective: optional

@@ -5,6 +5,8 @@ extends Node2D
 ## Game.RETRY_DELAY_FRAMES sim frames after the death retries at once (D-049 c, D-S29-3); earlier
 ## presses are consumed and do nothing. Presentation only: it calls Game.retry and never writes
 ## flow state.
+## Story 7.7 (AC 16-17): in practice, Esc or L3 (Game.is_practice_leave_press) leaves to the title at
+## once (Game.leave_practice_to_title, no retry gate); on a normal DEAD, Esc does nothing and L3 retries.
 
 ## Story 6.9 (AC 10): the DEAD line is game text, read from data/text/screen_text.tres.
 const SCREEN_TEXT: TextScreenText = preload("res://data/text/screen_text.tres")
@@ -33,11 +35,21 @@ static func is_retry_press(event: InputEvent) -> bool:
 	return mouse != null and mouse.pressed and mouse.button_index == MOUSE_BUTTON_LEFT
 
 
+## Pure (Story 7.7, AC 16-17): true when `event` leaves a practice DEAD to the title. Only in practice:
+## a normal DEAD keeps Esc inert and L3 as a retry.
+static func is_practice_leave(event: InputEvent, practice: bool) -> bool:
+	return practice and Game.is_practice_leave_press(event)
+
+
 func _ready() -> void:
 	queue_redraw()
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if is_practice_leave(event, Game.practice_run):
+		get_viewport().set_input_as_handled()
+		Game.leave_practice_to_title(SimClock.sim_frame)
+		return
 	if not is_retry_press(event):
 		return
 	get_viewport().set_input_as_handled()

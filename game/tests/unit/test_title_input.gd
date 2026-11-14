@@ -73,8 +73,9 @@ func test_option_actions_exist_in_input_map() -> void:
 
 func test_hidden_and_shown_options() -> void:
 	var screen: Node = autofree(TitleScreenScript.new())
-	for option: StringName in [&"new_run", &"fullscreen"]:
-		assert_false(screen.is_option_available(option), "%s should be hidden" % option)
+	assert_false(screen.is_option_available(&"new_run"), "new_run is hidden on a fresh save")
+	assert_true(screen.is_option_available(&"fullscreen"), "Story 7.7: always shown")
+	assert_true(screen.label_rects.has(&"fullscreen"), "Story 7.7: clickable")
 	assert_true(screen.is_option_available(&"debug_build"), "Story 7.4: always shown")
 	assert_true(screen.is_option_available(&"practice"), "Story 7.6: always shown")
 	assert_true(screen.label_rects.has(&"practice"), "Story 7.6: clickable")
@@ -95,9 +96,17 @@ func test_available_option_does_not_start() -> void:
 func test_available_option_input_keeps_title_and_unlocks_audio() -> void:
 	var was_unlocked: bool = AudioManager.is_unlocked()
 	var screen: Node = autofree(TitleScreenScript.new())
-	screen.available[&"fullscreen"] = true # Story 7.6: practice now starts a run; F still has no action
+	# Story 7.7: F is the last title option that keeps TITLE (B too; practice and N leave). A fake
+	# display keeps the headless DisplayServer out of it.
+	var saved_get: Callable = Fullscreen.get_mode_fn
+	var saved_set: Callable = Fullscreen.set_mode_fn
+	var mode: Array[DisplayServer.WindowMode] = [DisplayServer.WINDOW_MODE_WINDOWED]
+	Fullscreen.get_mode_fn = func() -> DisplayServer.WindowMode: return mode[0]
+	Fullscreen.set_mode_fn = func(m: DisplayServer.WindowMode) -> void: mode[0] = m
 	screen.handle_input(_key(KEY_F))
-	assert_eq(Game.flow_state, Game.FlowState.TITLE, "an available option without an action must not leave TITLE")
+	Fullscreen.get_mode_fn = saved_get
+	Fullscreen.set_mode_fn = saved_set
+	assert_eq(Game.flow_state, Game.FlowState.TITLE, "an option that acts in place must not leave TITLE")
 	assert_true(AudioManager.is_unlocked())
 	if not was_unlocked:
 		AudioManager.set("_unlocked", false)

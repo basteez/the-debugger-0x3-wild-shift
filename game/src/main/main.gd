@@ -405,6 +405,12 @@ func apply_pause(paused: bool) -> void:
 	pause_screen = null
 
 
+## Pure (Story 7.7, AC 12): the Story 1.6 `FIGHT n` / `boss index n` text is drawn only in debug
+## (debug builds and `?debug`) and never in practice (Story 7.6 review). The node always exists.
+static func shows_fight_placeholder(debug_enabled: bool, practice: bool) -> bool:
+	return debug_enabled and not practice
+
+
 func _make_screen(state: int, boss_index: int) -> Node:
 	match state:
 		GameFlow.FlowState.TITLE:
@@ -420,7 +426,7 @@ func _make_screen(state: int, boss_index: int) -> Node:
 		GameFlow.FlowState.FIGHT:
 			var screen: PlaceholderScreen = PlaceholderScreenScript.new()
 			screen.setup(state, boss_index)
-			if Game.practice_run: # Story 7.6 review: the "FIGHT n" label must not cover the practice arena
+			if not shows_fight_placeholder(Debug.enabled, Game.practice_run): # Story 7.7 (AC 12-13)
 				screen.lines = PackedStringArray()
 			return screen
 		GameFlow.FlowState.DEAD:

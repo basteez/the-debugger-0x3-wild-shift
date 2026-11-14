@@ -347,9 +347,10 @@ func test_title_toggle_is_saved_at_once() -> void:
 # --- Pause (AC 2, 3, 4) -----------------------------------------------------------------------
 
 func test_pause_rows_and_rect() -> void:
-	assert_eq(PauseScreen.lines_for(false, true)[-1], "[B] DEBUG BUILD ON")
-	assert_eq(PauseScreen.lines_for(false, false)[-1], "[B] DEBUG BUILD OFF")
-	assert_eq(PauseScreen.row_tops()[-1], PauseScreen.ASSIST_TOP_Y)
+	# Story 7.7: the fullscreen row follows the assist row.
+	assert_eq(PauseScreen.lines_for(false, true)[-2], "[B] DEBUG BUILD ON")
+	assert_eq(PauseScreen.lines_for(false, false)[-2], "[B] DEBUG BUILD OFF")
+	assert_eq(PauseScreen.row_tops()[-2], PauseScreen.ASSIST_TOP_Y)
 	var rect: Rect2 = PauseScreen.assist_label_rect(false)
 	assert_false(rect.intersects(PauseScreen.mute_label_rect(false)), "does not overlap the mute row")
 	assert_true(rect.end.y <= Const.BASE_RES.y)

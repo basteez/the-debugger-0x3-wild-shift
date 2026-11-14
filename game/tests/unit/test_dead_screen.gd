@@ -63,3 +63,17 @@ func test_text_fits_the_screen() -> void:
 	var x: int = TitleScreen.centred_x(DeadScreen.TEXT)
 	assert_gt(x, 0)
 	assert_lt(x + GlyphFont.text_width(DeadScreen.TEXT, DeadScreen.TEXT_SCALE), Const.BASE_RES.x)
+
+
+## Story 7.7 (AC 16-17): Esc and L3 leave only a practice DEAD; a normal DEAD keeps Esc inert, L3 a retry.
+func test_practice_leave_classification() -> void:
+	var l3 := InputEventJoypadButton.new()
+	l3.button_index = JOY_BUTTON_LEFT_STICK
+	l3.pressed = true
+	for ev: InputEvent in [_key(KEY_ESCAPE), l3]:
+		assert_true(DeadScreen.is_practice_leave(ev, true), "%s leaves a practice DEAD" % ev)
+		assert_false(DeadScreen.is_practice_leave(ev, false), "%s never leaves a normal DEAD" % ev)
+	assert_true(DeadScreen.is_retry_press(l3), "L3 is still a retry press on a normal DEAD")
+	assert_false(DeadScreen.is_retry_press(_key(KEY_ESCAPE)), "Esc is never a retry")
+	for ev: InputEvent in [_key(KEY_J), _key(KEY_ESCAPE, true, true), _key(KEY_ESCAPE, false)]:
+		assert_false(DeadScreen.is_practice_leave(ev, true), "%s is not a leave" % ev)

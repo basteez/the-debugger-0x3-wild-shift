@@ -1,7 +1,6 @@
 class_name TitleScreen
 extends Node2D
 ## Title screen (Story 1.4, FR47, D-048). Presentation only: press any key or click to start.
-## The F hotkey is hidden until its story (7.7) and starts the run.
 ## Story 7.3 (AC 6-10): with a save past Boss 1, `[N] new run` shows; N (or a click on it) resets the
 ## save and starts from the Intro, any other key or click resumes at the saved boss without the Intro.
 ## Story 7.4 (AC 1, 3, 4, D-S74-2): `[B] debug build on/off` always shows; B (or a click on it) flips
@@ -10,6 +9,8 @@ extends Node2D
 ## pad buttons of the option actions (project.godot [input]). Stick and trigger motion are ignored.
 ## Story 7.6 (FR59, D-048, D-S76-1): `[P] practice` always shows; P, L3 or a click on it starts the
 ## practice fight (Game.start_practice_from_title): no Intro, the `/* test */` dummy, no save write.
+## Story 7.7 (FR55, AC 1-3, D-S77-1): `[F] fullscreen` / `[F] windowed` always shows; F, R3 or a click
+## on it toggles fullscreen in the input handler (Fullscreen.toggle) and never starts the run.
 
 enum Action { IGNORE, START, OPTION }
 
@@ -36,6 +37,13 @@ static var DEBUG_BUILD_OFF_TEXT: String:
 static var PRACTICE_TEXT: String:
 	get:
 		return SCREEN_TEXT.practice_label
+## Story 7.7 (D-S77-1): the fullscreen row labels, audited game text.
+static var FULLSCREEN_TEXT: String:
+	get:
+		return SCREEN_TEXT.fullscreen_label
+static var WINDOWED_TEXT: String:
+	get:
+		return SCREEN_TEXT.windowed_label
 ## Pixel font at 2x (16-px glyph cells, Story 1.5 DC2). Y values are the top of each glyph row,
 ## on the 8-px grid; x is centred on the 640-px base and snapped to the 8-px grid.
 const TEXT_SCALE := 2
@@ -47,6 +55,8 @@ const NEW_RUN_TOP_Y := 240
 const DEBUG_BUILD_TOP_Y := 272
 ## Story 7.6 (D-S76-1): the [P] practice label row, below the debug build row.
 const PRACTICE_TOP_Y := 304
+## Story 7.7 (D-S77-1): the [F] fullscreen label row, below the practice row (336 + 16 = 352 < 360).
+const FULLSCREEN_TOP_Y := 336
 ## Option id -> InputMap action (DC7). The keys live only in project.godot [input].
 const OPTION_ACTIONS: Dictionary[StringName, StringName] = {
 	&"new_run": &"title_option_new_run",
@@ -60,15 +70,20 @@ var available: Dictionary[StringName, bool] = {
 	&"new_run": false,
 	&"practice": true, # Story 7.6 (AC 2): always shown, in every build
 	&"debug_build": true, # Story 7.4 (D-S74-2): always shown
-	&"fullscreen": false,
+	&"fullscreen": true, # Story 7.7 (AC 3): always shown, in every build
 }
 ## Clickable label rects of visible options, in canvas space. Story 7.6: practice is always there.
-var label_rects: Dictionary[StringName, Rect2] = {&"practice": practice_label_rect()}
+var label_rects: Dictionary[StringName, Rect2] = {
+	&"practice": practice_label_rect(),
+	&"fullscreen": fullscreen_label_rect(false),
+}
 var _started := false
 ## Story 7.3: the saved highest boss read once per title show (_ready); resume when > 1.
 var saved_highest_boss: int = 1
 ## Story 7.4: the assist state the label shows (SaveService.assist, read in _ready, flipped by B).
 var assist_shown: bool = false
+## Story 7.7: the window mode the fullscreen label shows (polled, so a browser Esc exit shows too).
+var fullscreen_shown: bool = false
 
 ## Keys that are not a user gesture for the browser (no AudioContext activation): never start the run.
 const NON_START_KEYS: Array[Key] = [KEY_SHIFT, KEY_CTRL, KEY_ALT, KEY_META, KEY_CAPSLOCK, KEY_ESCAPE]
@@ -133,6 +148,31 @@ func resolve(event: InputEvent) -> Action:
 func _ready() -> void:
 	set_saved_progress(SaveService.highest_boss)
 	set_assist_shown(SaveService.assist)
+	set_fullscreen_shown(Fullscreen.is_on())
+
+
+## Story 7.7 (AC 3): the label follows the window mode; the browser can leave fullscreen on its own.
+func _process(_delta: float) -> void:
+	var on: bool = Fullscreen.is_on()
+	if on != fullscreen_shown:
+		set_fullscreen_shown(on)
+
+
+## Story 7.7 (AC 3): the label's state and its clickable rect (always present).
+func set_fullscreen_shown(on: bool) -> void:
+	fullscreen_shown = on
+	label_rects[&"fullscreen"] = fullscreen_label_rect(on)
+	queue_redraw()
+
+
+## Pure (Story 7.7): `[F] windowed` while fullscreen (what a press switches to), else `[F] fullscreen`.
+static func fullscreen_text(on: bool) -> String:
+	return WINDOWED_TEXT if on else FULLSCREEN_TEXT
+
+
+## Pure (Story 7.7, D-S77-1): the clickable rect of the [F] fullscreen label.
+static func fullscreen_label_rect(on: bool) -> Rect2:
+	return label_rect_for(fullscreen_text(on), FULLSCREEN_TOP_Y)
 
 
 ## Story 7.4 (AC 10): the label's state and its clickable rect (always present).
@@ -200,7 +240,8 @@ func handle_input(event: InputEvent) -> Action:
 			set_assist_shown(SaveService.assist)
 		elif option == &"practice": # Story 7.6 (AC 1): the practice fight, no Intro, no save write
 			_begin_practice()
-		# Other options act in their owning stories (7.7).
+		elif option == &"fullscreen": # Story 7.7 (AC 1, 2): inside the input handler (user gesture)
+			Fullscreen.toggle() # the label follows the real mode in _process (the web request is async)
 	return action
 
 
@@ -242,6 +283,9 @@ func _draw() -> void:
 		GlyphFont.draw_at(self, Vector2(centred_x(assist_text), DEBUG_BUILD_TOP_Y), assist_text, Palette.INK, TEXT_SCALE)
 	if is_option_available(&"practice"):
 		GlyphFont.draw_at(self, Vector2(centred_x(PRACTICE_TEXT), PRACTICE_TOP_Y), PRACTICE_TEXT, Palette.INK, TEXT_SCALE)
+	if is_option_available(&"fullscreen"):
+		var fs_text: String = fullscreen_text(fullscreen_shown)
+		GlyphFont.draw_at(self, Vector2(centred_x(fs_text), FULLSCREEN_TOP_Y), fs_text, Palette.INK, TEXT_SCALE)
 
 
 ## Left x that centres `text` at TEXT_SCALE on the base width, snapped down to the 8-px grid.

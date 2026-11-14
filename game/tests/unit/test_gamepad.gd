@@ -127,7 +127,7 @@ func test_title_option_buttons() -> void:
 	assert_eq(TitleScreenScript.option_of(_pad(JOY_BUTTON_A)), &"")
 	var title := _title()
 	assert_eq(title.resolve(_pad(JOY_BUTTON_B)), TitleScreenScript.Action.OPTION, "B never starts")
-	assert_eq(title.resolve(_pad(JOY_BUTTON_RIGHT_STICK)), TitleScreenScript.Action.START, "R3 hidden (7.7)")
+	assert_eq(title.resolve(_pad(JOY_BUTTON_RIGHT_STICK)), TitleScreenScript.Action.OPTION, "Story 7.7: R3 is the fullscreen option")
 	assert_eq(title.resolve(_pad(JOY_BUTTON_LEFT_STICK)), TitleScreenScript.Action.OPTION, "L3 is practice (7.6)")
 
 
