@@ -267,7 +267,9 @@ func test_squeak_uses_its_own_player_after_unlock() -> void:
 	assert_not_null(squeak.stream)
 	assert_null(am.get_node_or_null(^"ShiftSfx"), "never the ShiftSfx player")
 	am.play_squeak()
-	assert_eq(am.get_child_count(), 1, "one squeak player, reused")
+	# Story 7.1: unlock() adds MusicA / MusicB (the title track); count the SFX players only.
+	var sfx: int = am.get_children().filter(func(n: Node) -> bool: return n is AudioStreamPlayer and (n as AudioStreamPlayer).bus != &"Music").size()
+	assert_eq(sfx, 1, "one squeak player, reused")
 
 
 func test_line_start_advances_to_next_queued_line() -> void:

@@ -81,7 +81,7 @@
 #     basteez/mumble-speech#32 resolved in v0.3.0 (2026-11-07); fallback = pre-render backend.
 
 generated: 2026-11-06
-last_updated: 2026-11-12
+last_updated: 2026-11-14
 project: github-gameoff-2026
 project_key: NOKEY
 tracking_system: file-system
@@ -158,8 +158,8 @@ development_status:
   epic-6-retrospective: optional
 
   # Epic 7: Audio, Polish & Submission — window Nov 26–29; SUBMIT by Nov 29 12:00 PST
-  epic-7: backlog
-  7-1-music-and-crossfades: backlog # HUMAN: Tiziano composes BeepBox tracks (can start E5–E6)
+  epic-7: in-progress
+  7-1-music-and-crossfades: done # HUMAN: Tiziano composes BeepBox tracks (can start E5–E6); placeholders until then
   7-2-final-sfx-pass: backlog
   7-3-save-and-resume: backlog
   7-4-debug-build-assist-toggle-should: backlog # Should — first to drop
