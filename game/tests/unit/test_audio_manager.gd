@@ -2,6 +2,7 @@ extends GutTest
 ## Story 1.4 AC4: bus layout and the AudioManager unlock gate.
 
 const AudioManagerScript := preload("res://src/autoloads/audio_manager.gd")
+const GameFlow := preload("res://src/autoloads/game.gd")
 
 
 ## SFX players only: Story 7.1 adds MusicA / MusicB on unlock (the title track).
@@ -9,7 +10,7 @@ func _sfx_players(node: Node) -> Array[AudioStreamPlayer]:
 	var players: Array[AudioStreamPlayer] = []
 	for child: Node in node.get_children():
 		var player := child as AudioStreamPlayer
-		if player != null and player.bus != &"Music":
+		if player != null and player.bus != &"Music" and not String(player.name).begins_with(AudioManagerScript.SFX_POOL_PREFIX):
 			players.append(player)
 	return players
 
@@ -130,22 +131,110 @@ func test_master_mute_toggles_the_master_bus() -> void:
 		assert_false(AudioServer.is_bus_mute(AudioServer.get_bus_index(bus)), "%s untouched" % bus)
 
 
-# Story 3.2 (AC 3, AC 5, D-S32-17): placeholder thud and chime, built once in _ready.
-func test_unpatched_boss_hit_plays_the_thud_and_patched_plays_the_chime() -> void:
+# Story 7.2 (AC 5, D-S72-6): boss hits by state, the Patched chime, the player hit; all pooled.
+func _pool_streams(am: Node) -> Array[AudioStream]:
+	var out: Array[AudioStream] = []
+	for player: AudioStreamPlayer in am.pool_players():
+		if player.playing:
+			out.append(player.stream)
+	return out
+
+
+func test_hit_cues_by_damage_state() -> void:
+	assert_eq(AudioManagerScript.hit_cue(&"boss", DamageState.Kind.BASE), &"hit")
+	assert_eq(AudioManagerScript.hit_cue(&"boss", DamageState.Kind.UNPATCHED), &"hit_resisted")
+	assert_eq(AudioManagerScript.hit_cue(&"boss", DamageState.Kind.PATCHED), &"", "Patched: the chime only")
+	assert_eq(AudioManagerScript.hit_cue(&"practice_target", DamageState.Kind.BASE), &"")
+
+
+func test_boss_hits_patched_chime_and_player_hit_play_on_the_pool() -> void:
 	var am: Node = add_child_autofree(AudioManagerScript.new())
 	am.unlock()
-	var thud: AudioStreamWAV = am.get("_thud")
-	var chime: AudioStreamWAV = am.get("_chime")
-	assert_not_null(thud)
-	assert_not_null(chime)
-	assert_gt(thud.data.size(), 0)
-	assert_gt(chime.data.size(), 0)
 	EventBus.hit_landed.emit(&"practice_target", 10, DamageState.Kind.BASE, false, Vector2.ZERO)
 	EventBus.hit_landed.emit(&"boss", 15, DamageState.Kind.PATCHED, false, Vector2.ZERO)
-	assert_null(am.get_node_or_null(^"ShiftSfx"), "no thud for practice or Patched hits")
+	assert_eq(_pool_streams(am).size(), 0, "no sound for practice or Patched hits")
+	EventBus.hit_landed.emit(&"boss", 5, DamageState.Kind.BASE, false, Vector2.ZERO)
+	assert_eq(am.last_cue, &"hit")
 	EventBus.hit_landed.emit(&"boss", 5, DamageState.Kind.UNPATCHED, false, Vector2.ZERO)
-	var player := am.get_node(^"ShiftSfx") as AudioStreamPlayer
-	assert_eq(player.stream, thud)
+	assert_eq(am.last_cue, &"hit_resisted")
 	EventBus.patched_applied.emit(&"test_boss", 180)
-	assert_eq(player.stream, chime)
-	assert_same(am.get("_thud"), thud, "cached, not rebuilt per hit")
+	assert_eq(am.last_cue, &"patched_chime")
+	EventBus.player_damaged.emit(2)
+	assert_eq(am.last_cue, &"player_hit")
+	var playing: Array[AudioStream] = _pool_streams(am)
+	for id: StringName in [&"hit", &"hit_resisted", &"patched_chime", &"player_hit"]:
+		assert_true(playing.has(AudioManagerScript.CUES[id]), "%s plays, nothing cut" % id)
+	assert_null(am.get_node_or_null(^"ShiftSfx"), "the pool never uses ShiftSfx")
+	for player: AudioStreamPlayer in am.pool_players():
+		assert_eq(player.bus, &"SFX")
+
+
+# Story 7.2 (AC 3, D-S72-10): tells play their boss cue; an unknown id is silent and warns once.
+func test_tell_cue_by_id_and_unknown_id_warns_once() -> void:
+	var am: Node = add_child_autofree(AudioManagerScript.new())
+	am.unlock()
+	for id: StringName in AudioManagerScript.BOSS_TELL_CUES:
+		EventBus.boss_tell_started.emit(&"some_attack", id)
+		assert_eq(am.last_cue, id)
+	am.last_cue = &""
+	EventBus.boss_tell_started.emit(&"pulse", &"tell_test")
+	EventBus.boss_tell_started.emit(&"pulse", &"tell_test")
+	assert_eq(am.last_cue, &"", "no fallback blip")
+	assert_eq(am.unknown_cue_warn_count, 1, "one warn per unknown id")
+	EventBus.boss_tell_started.emit(&"other", &"tell_other")
+	assert_eq(am.unknown_cue_warn_count, 2)
+
+
+# Story 7.2 (AC 4, D-S72-5): glitch on phase entries 1 and 2 of the current boss, roar, defeat.
+func test_phase_glitch_roar_and_defeat() -> void:
+	var am: Node = add_child_autofree(AudioManagerScript.new())
+	am.unlock()
+	am.on_music_flow_changed(GameFlow.FlowState.TITLE, GameFlow.FlowState.FIGHT, 1)
+	am.on_boss_phase_changed(0)
+	assert_eq(am.last_cue, &"", "phase 0 is the fight start: no glitch")
+	am.on_boss_phase_changed(1)
+	assert_eq(am.last_cue, &"glitch_null_pointer")
+	am.last_cue = &""
+	am.on_boss_phase_changed(2)
+	assert_eq(am.last_cue, &"glitch_null_pointer")
+	EventBus.boss_roar_started.emit(2)
+	assert_eq(am.last_cue, &"phase_roar")
+	var squeaks: int = am.defeat_squeak_count
+	EventBus.boss_defeated.emit(&"null_pointer")
+	assert_eq(am.last_cue, &"defeat")
+	assert_eq(am.defeat_squeak_count, squeaks + 1, "the once-per-fight squeak is unchanged")
+	assert_eq(AudioManagerScript.glitch_cue(0), &"glitch_infinite_loop")
+	assert_eq(AudioManagerScript.glitch_cue(2), &"glitch_segfault")
+	assert_eq(AudioManagerScript.glitch_cue(3), &"")
+
+
+# Story 7.2 (AC 6, D-S72-4): the pool never grows past SFX_POOL_SIZE and never touches ShiftSfx.
+func test_pool_is_capped_and_steals_the_oldest() -> void:
+	var am: Node = add_child_autofree(AudioManagerScript.new())
+	am.unlock()
+	var click: AudioStream = AudioManagerScript.make_blip()
+	am.play_sfx(click)
+	var shift := am.get_node(^"ShiftSfx") as AudioStreamPlayer
+	am.play_squeak()
+	for i: int in AudioManagerScript.SFX_POOL_SIZE + 5:
+		am.play_cue(&"phase_roar" if i == 0 else &"defeat") # long cues: none ends mid-test
+	assert_eq(am.pool_players().size(), AudioManagerScript.SFX_POOL_SIZE)
+	assert_eq(_sfx_players(am).size(), 2, "ShiftSfx + DuckSqueak next to the pool")
+	assert_false(_pool_streams(am).has(AudioManagerScript.CUES[&"phase_roar"]), "the oldest one was stolen")
+	assert_eq(shift.stream, click, "ShiftSfx untouched")
+	assert_true(shift.playing)
+	assert_eq((am.get_node(^"DuckSqueak") as AudioStreamPlayer).stream, AudioManagerScript.CUES[&"duck_squeak"])
+
+
+# Story 7.2 (AC 7, 5.3): every new play path is ignored before unlock and warns once in total.
+func test_cues_before_unlock_are_ignored_and_warn_once() -> void:
+	var am: Node = add_child_autofree(AudioManagerScript.new())
+	am.play_cue(&"hit")
+	EventBus.boss_tell_started.emit(&"head_rush", &"tell_infinite_loop")
+	EventBus.hit_landed.emit(&"boss", 5, DamageState.Kind.BASE, false, Vector2.ZERO)
+	EventBus.player_damaged.emit(2)
+	EventBus.boss_roar_started.emit(1)
+	am.on_boss_phase_changed(1)
+	assert_eq(am.get_child_count(), 0, "no player before unlock")
+	assert_eq(am.locked_warn_count, 1)
+	assert_eq(am.unknown_cue_warn_count, 0)

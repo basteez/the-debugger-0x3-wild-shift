@@ -120,7 +120,7 @@ func test_tell_60_active_240_recovery_40() -> void:
 	var b: TileBody = _body()
 	assert_true(_run_until(b, S.TELL))
 	assert_eq(b.current, CORRUPT)
-	assert_eq(_tells, [[&"corrupt_memory", &"tell_corrupt_memory"]], "the tell SFX id (D-S64-8)")
+	assert_eq(_tells, [[&"corrupt_memory", &"tell_segfault"]], "the tell SFX id (D-S64-8)")
 	assert_eq(_length_of_state(b), 60)
 	assert_eq(b.state, S.ACTIVE)
 	assert_eq(_length_of_state(b), 240)

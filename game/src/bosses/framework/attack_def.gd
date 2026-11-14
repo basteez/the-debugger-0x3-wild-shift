@@ -24,7 +24,10 @@ const MIN_TELL_FRAMES := 20
 ## The BossAttack subclass that runs the hooks ([design call] D-S31-20: named `attack_script`,
 ## because `script` is the built-in Object property and cannot be redeclared).
 @export var attack_script: Script = null
-## Audible tell cue id (D-049, D-S31-7); non-empty. 7.2 maps it to a stream.
+## Audible tell cue id (D-049, D-S31-7); non-empty. Story 7.2 (D-S72-3): a real boss's attacks all
+## name that boss's one tell cue (tell_infinite_loop / tell_null_pointer / tell_segfault), which
+## AudioManager maps to a stream; an unknown id plays nothing and warns once. test_data_validation
+## checks the real-boss ids (the sim never references AudioManager, so validate() checks non-empty only).
 @export var tell_sfx: StringName = &""
 
 

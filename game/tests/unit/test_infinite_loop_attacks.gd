@@ -124,7 +124,7 @@ func test_phase_1_draws_head_rush_every_time_without_a_redraw() -> void:
 		assert_true(_run_until(b, S.GAP))
 	assert_eq(ids, [&"head_rush", &"head_rush", &"head_rush", &"head_rush"] as Array[StringName], "one-attack pool repeats (D-S34-3)")
 	assert_signal_emit_count(EventBus, "boss_tell_started", 4)
-	assert_signal_emitted_with_parameters(EventBus, "boss_tell_started", [&"head_rush", &"tell_head_rush"])
+	assert_signal_emitted_with_parameters(EventBus, "boss_tell_started", [&"head_rush", &"tell_infinite_loop"])
 
 
 func test_phase_2_never_draws_the_same_attack_three_times_in_a_row() -> void:

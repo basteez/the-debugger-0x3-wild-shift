@@ -104,7 +104,7 @@ func test_tell_30_active_12_recovery_50() -> void:
 	var b: SegfaultBody = _body()
 	assert_true(_run_until(b, S.TELL))
 	assert_eq(b.current, CLAW)
-	assert_eq(_tells, [[&"access_violation", &"tell_access_violation"]], "D-S31-16 tell path")
+	assert_eq(_tells, [[&"access_violation", &"tell_segfault"]], "D-S31-16 tell path")
 	assert_eq(_length_of_state(b), 30)
 	assert_eq(b.state, S.ACTIVE)
 	assert_eq(_length_of_state(b), 12)

@@ -10,4 +10,4 @@ tell = 60
 active = 240
 recovery = 40
 attack_script = ExtResource("2_attack")
-tell_sfx = &"tell_corrupt_memory"
+tell_sfx = &"tell_segfault"
