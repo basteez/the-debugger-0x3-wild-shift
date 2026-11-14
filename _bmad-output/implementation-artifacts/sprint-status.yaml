@@ -167,5 +167,5 @@ development_status:
   7-6-practice-target-from-the-title-screen-should: done # Should — first to drop
   7-7-fullscreen-browser-matrix-and-performance: done # human checks H-S77-1..6 pending (deferred-work.md)
   7-8-full-run-playtest-and-final-tuning: review # HUMAN CHECKPOINT: playtesters by Nov 27 (harness only; sessions pending: H-S78-1..4)
-  7-9-itch-io-page-readme-and-submission: backlog
+  7-9-itch-io-page-readme-and-submission: review # human ACs H-S79-1..5 pending (cover GIF, screenshots, itch edit, AI wording, submit)
   epic-7-retrospective: optional

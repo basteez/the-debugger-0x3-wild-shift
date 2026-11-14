@@ -14,5 +14,5 @@ commit_message = "fix: wild shift"
 cursor = "_"
 clear_label = "CLEAR"
 hits_label = "HITS"
-credit_lines = PackedStringArray("font: Wildshift8 by Tiziano Basile", "voice: mumble-speech by basteez (MIT / Apache-2.0)", "code: MIT License", "audio: TBD")
+credit_lines = PackedStringArray("font: Wildshift8 by Tiziano Basile", "voice: mumble-speech by Tiziano Basile (MIT/Apache-2.0)", "code: MIT License", "audio: SFX, placeholder music, made in-repo (CC0)")
 prompt = "press any key"

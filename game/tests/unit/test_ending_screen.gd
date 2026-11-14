@@ -232,12 +232,14 @@ func test_ending_text_data() -> void:
 	assert_eq(text.commit_message, "fix: wild shift", "GDD Ending row")
 	assert_eq(text.full_caption, "0xFF")
 	assert_eq(text.prompt, "press any key")
-	assert_eq(text.credit_lines.size(), 4, "font, voice, code licence, audio placeholder")
+	assert_eq(text.credit_lines.size(), 4, "font, voice, code licence, audio")
 	var credits: String = "\n".join(text.credit_lines)
 	assert_string_contains(credits, "Wildshift8 by Tiziano Basile")
-	assert_string_contains(credits, "mumble-speech by basteez (MIT / Apache-2.0)")
+	# Story 7.9 (AC 4, 7): mumble-speech is Tiziano's own library; the audio line names the build.
+	assert_string_contains(credits, "voice: mumble-speech by Tiziano Basile (MIT/Apache-2.0)")
 	assert_string_contains(credits, "MIT")
-	assert_string_contains(credits, "audio:")
+	assert_string_contains(credits, "audio: SFX, placeholder music, made in-repo (CC0)")
+	assert_false(credits.contains("TBD"), "Story 7.9 AC 8: no TBD left in the credits")
 	for line: String in text.credit_lines:
 		var x: int = EndingScreen.centred_x(line, EndingScreen.SMALL_SCALE)
 		assert_gte(x, 96, "right of the HUD duck region: %s" % line)

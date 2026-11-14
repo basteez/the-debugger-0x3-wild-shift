@@ -587,3 +587,19 @@ Story 1.3 AC9 / I-6 ("mumble-speech web check, moved to 3.7") is UNBLOCKED. Tizi
   - [ ] H-S78-4 Tuning pass applied only in `.tres`, in GDD order, every change logged in the tuning log; build re-verified (`check_build_size.sh`, guards, GUT).
 - Deferred: in a debug-jumped run `first_input_frame` is set at the jump, so `full_run_s` can be shorter than the sum of boss clears; such runs are flagged `debug_jumped=true` and excluded from the aggregate (D-S78-6). A debug-only key to dump the record mid-run (D-S78-2) was not built.
 - Deferred (7.8 review): the ENDING `assist=` reflects the last attempt only (assist toggled mid-run is not latched; the per-boss lines show each boss's value, check them when aggregating). Per-event lines carry no `debug_jumped` flag (only the ENDING line does). Debug-granted / `advance()` bosses print no `cleared_s` line and are omitted from `bosses=[...]`. Repeated debug jump to the same boss keeps the first clock (debug only). Hit-stop frames are excluded from durations (stopwatch times run slightly longer). The `register_shifted` connection is not covered by a test (tests call the handler directly). The ENDING summary has no re-entry guard (ENDING is entered once per run).
+
+## Story 7.9 (itch.io page, README and submission)
+
+- Scope delivered: README (controls from the input map, run and build, AI use, credits with licences), the itch copy draft `itch-page-copy.md`, the in-game credit lines (`audio:` no longer TBD, `voice:` credits mumble-speech as Tiziano's own library).
+- Human checks pending (story 7.9 stays reviewable):
+  - [ ] H-S79-1 Cover GIF of a shift into a Dash Strike crit (<= 15 s, <= 8 MB); replace the `[COVER GIF: to capture]` marker.
+  - [ ] H-S79-2 3 to 5 screenshots from the release web build (`?debug` off).
+  - [ ] H-S79-3 Edit the itch page (game id 5332990) with the approved copy; add the html.itch.zone pad line if H-S75-4 shows the iframe blocks the pad.
+  - [ ] H-S79-4 Confirm the AI-use wording and the "no generative image, music or voice model" claim (the font bitmaps, SFX recipes and copy were written in AI-assisted sessions; the wording does not claim otherwise).
+  - [ ] H-S79-5 Submit to GitHub Game Off 2026 by 2026-11-29 12:00 PST.
+- Deferred: the licence of the final BeepBox tracks is not chosen; when they land, fill the music README licence line and update the README / itch Music row and the in-game `audio:` line (56-column limit).
+
+## Code review of Story 7.9 (2026-11-14)
+- Deferred (low): confirm the font bitmaps' "made by Tiziano Basile" attribution and that mumble-speech contains no ML model (covered by H-S79-4).
+- Deferred (info): README could mention `--import` before the first headless run and the macOS Godot path; itch copy still holds `[COVER GIF]` marker and HTML comments (H-S79-1/3, replace before pasting).
+- Deferred (info): the final music tracks have no licence chosen yet (settle before submission).
