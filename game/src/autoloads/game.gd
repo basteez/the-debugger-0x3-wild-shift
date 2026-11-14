@@ -312,8 +312,8 @@ func start_practice_from_title(frame: int, highest_boss: int = -1) -> void:
 		return
 	var saved: int = SaveService.highest_boss if highest_boss < 0 else highest_boss
 	practice_run = true
-	practice_loadouts_offered = practice_loadout_bosses(saved)
-	practice_loadout_index = practice_start_index(saved)
+	practice_loadouts_offered = practice_loadout_bosses(saved, segfault_enabled)
+	practice_loadout_index = practice_start_index(saved, segfault_enabled)
 	first_input_frame = -1
 	intro_start_frame = -1
 	run = RunState.new()
@@ -326,28 +326,32 @@ func start_practice_from_title(frame: int, highest_boss: int = -1) -> void:
 ## Pure (Story 7.6, AC 9, 10, D-S76-3): the boss indices whose GDD fight-start set
 ## (Register.fight_start_for_boss) the practice chooser offers, in order: every boss reached
 ## (0 .. highest_boss - 1), then the full set (LAST_BOSS_INDEX: [A, D, L, N]) when not already there.
-static func practice_loadout_bosses(highest_boss: int) -> Array[int]:
-	var reached: int = clampi(highest_boss, 1, LAST_BOSS_INDEX + 1)
+## Story 7.7 (AC 18, D-S77-4): capped at the last fight that exists (last_fight_index(segfault_on)):
+## with the Segfault cut the full set is the Null Pointer's [A, D, L], never the unreachable N set.
+static func practice_loadout_bosses(highest_boss: int, segfault_on: bool = true) -> Array[int]:
+	var last: int = last_fight_index(segfault_on)
+	var reached: int = clampi(highest_boss, 1, last + 1)
 	var out: Array[int] = []
 	for i: int in reached:
 		out.append(i)
-	if not out.has(LAST_BOSS_INDEX):
-		out.append(LAST_BOSS_INDEX)
+	if not out.has(last):
+		out.append(last)
 	return out
 
 
 ## Pure (Story 7.6, AC 10): the offered loadouts as register rings, same order.
-static func practice_loadouts(highest_boss: int) -> Array[PackedInt32Array]:
+static func practice_loadouts(highest_boss: int, segfault_on: bool = true) -> Array[PackedInt32Array]:
 	var out: Array[PackedInt32Array] = []
-	for i: int in practice_loadout_bosses(highest_boss):
+	for i: int in practice_loadout_bosses(highest_boss, segfault_on):
 		out.append(Register.fight_start_for_boss(i))
 	return out
 
 
 ## Pure (Story 7.6, AC 9): the chooser index of the highest loadout reached (never the appended full set
 ## on a save that has not reached it).
-static func practice_start_index(highest_boss: int) -> int:
-	return clampi(highest_boss, 1, LAST_BOSS_INDEX + 1) - 1
+## Story 7.7 (AC 19): capped by the Segfault cut like practice_loadout_bosses.
+static func practice_start_index(highest_boss: int, segfault_on: bool = true) -> int:
+	return clampi(highest_boss, 1, last_fight_index(segfault_on) + 1) - 1
 
 
 ## The current practice loadout as the run's boss index (Breakpoint / Watch unlocks follow it, AC 7)
@@ -376,8 +380,9 @@ func cycle_practice_loadout(frame: int) -> bool:
 
 ## Story 7.6 (AC 13-15): practice FIGHT -> TITLE. Resets the run, the stats and the practice state;
 ## never writes SaveService and never goes through the Intro, Harvest or Ending. True if it moved.
+## Story 7.7 (AC 16): also valid from the practice DEAD screen (immediate, no retry gate).
 func leave_practice_to_title(frame: int) -> bool:
-	if not practice_run or flow_state != FlowState.FIGHT:
+	if not practice_run or (flow_state != FlowState.FIGHT and flow_state != FlowState.DEAD):
 		return false
 	Log.info(&"flow", "practice -> title at f=%d" % frame)
 	_clear_practice()
@@ -634,8 +639,9 @@ func _set_flow_state(to: FlowState) -> void:
 
 ## Story 2.9 (D-S29-2): PlayerHealth reports every landed hit; the lethal one (hp 0) is a death.
 ## Story 6.8 (AC 14, D-S68-4): every landed hit in FIGHT counts for the run, the lethal one included.
+## Story 7.7 (AC 15, D-S77-3): practice never touches the run stats.
 func on_player_damaged(hp: int) -> void:
-	if flow_state == FlowState.FIGHT:
+	if flow_state == FlowState.FIGHT and not practice_run:
 		stats.hits += 1
 	if hp <= 0:
 		record_death(SimClock.sim_frame)
@@ -643,14 +649,18 @@ func on_player_damaged(hp: int) -> void:
 
 ## The player died in FIGHT (AC 3): count it on this boss, enter DEAD, tell the listeners.
 ## Ignored outside FIGHT. True when the death was recorded.
+## Story 7.7 (AC 14, D-S77-3): a practice death still enters DEAD (the dummy retry works) but counts
+## nothing: no `deaths_on_boss`, no `player_died` (the duck's death hint is for real fights), no save.
 func record_death(frame: int) -> bool:
 	if flow_state != FlowState.FIGHT:
 		return false
-	run.deaths_on_boss += 1
-	Log.info(&"flow", "player died at f=%d (deaths on boss %d)" % [frame, run.deaths_on_boss])
+	if not practice_run:
+		run.deaths_on_boss += 1
+	Log.info(&"flow", "player died at f=%d (deaths on boss %d%s)" % [frame, run.deaths_on_boss, ", practice" if practice_run else ""])
 	death_frame = frame # before the state change: listeners of flow_state_changed read it
 	_set_flow_state(FlowState.DEAD)
-	EventBus.player_died.emit(boss_id(run.boss_index), run.deaths_on_boss)
+	if not practice_run:
+		EventBus.player_died.emit(boss_id(run.boss_index), run.deaths_on_boss)
 	return true
 
 

@@ -22,6 +22,7 @@ var _saved_run: RunState
 var _saved_stats: RunStats
 var _saved_first_input: int
 var _saved_unlocked: bool
+var _saved_death_frame: int
 
 
 func before_each() -> void:
@@ -37,6 +38,7 @@ func before_each() -> void:
 	_saved_stats = Game.stats
 	_saved_first_input = Game.first_input_frame
 	_saved_unlocked = AudioManager.is_unlocked()
+	_saved_death_frame = Game.death_frame
 	SaveService.path = "" # in-memory only
 	SimClock.paused = false
 
@@ -55,6 +57,7 @@ func after_each() -> void:
 	Game.run = _saved_run
 	Game.stats = _saved_stats
 	Game.first_input_frame = _saved_first_input
+	Game.death_frame = _saved_death_frame
 	if not _saved_unlocked:
 		AudioManager.set("_unlocked", false)
 
@@ -391,3 +394,134 @@ func test_frame_counter_counts_from_the_practice_start() -> void:
 	assert_eq(PracticeFrameCounter.frames_since(-1, 90), 0)
 	assert_eq(PracticeFrameCounter.lines_for(42)[0], "frames 42")
 	assert_false(PracticeFrameCounter.lines_for(0)[1].is_empty(), "the key hint")
+
+
+# --- Story 7.7: practice follow-ups (AC 14-19, D-S77-3, D-S77-4) ----------------------------------
+
+func test_practice_death_enters_dead_but_counts_nothing() -> void:
+	SaveService.track_fights = true
+	SaveService.highest_boss = 2
+	var game: Node = _practice(2)
+	watch_signals(EventBus)
+	assert_true(game.record_death(110))
+	assert_eq(game.flow_state, S.DEAD, "the DEAD screen and its retry stay")
+	assert_eq(game.death_frame, 110)
+	assert_eq(game.run.deaths_on_boss, 0, "no deaths_on_boss in practice")
+	assert_signal_not_emitted(EventBus, "player_died", "no duck death hint for the dummy")
+	assert_eq(SaveService.highest_boss, 2, "no save write")
+	assert_true(game.retry(110 + GameScript.RETRY_DELAY_FRAMES), "the retry still works")
+	assert_true(game.practice_run)
+
+
+func test_normal_death_still_counts_and_emits() -> void:
+	var game: Node = _game(S.FIGHT)
+	watch_signals(EventBus)
+	assert_true(game.record_death(110))
+	assert_eq(game.run.deaths_on_boss, 1)
+	assert_signal_emitted(EventBus, "player_died")
+
+
+func test_practice_hits_are_not_counted() -> void:
+	var game: Node = _practice(1)
+	game.on_player_damaged(3)
+	game.on_player_damaged(2)
+	assert_eq(game.stats.hits, 0, "run stats are never touched by practice")
+	var normal: Node = _game(S.FIGHT)
+	normal.on_player_damaged(3)
+	assert_eq(normal.stats.hits, 1, "a normal fight still counts")
+
+
+func test_lethal_practice_hit_enters_dead_without_counting() -> void:
+	var game: Node = _practice(1)
+	watch_signals(EventBus)
+	game.on_player_damaged(0)
+	assert_eq(game.flow_state, S.DEAD)
+	assert_eq(game.stats.hits, 0)
+	assert_eq(game.run.deaths_on_boss, 0)
+	assert_signal_not_emitted(EventBus, "player_died")
+
+
+func test_leave_from_practice_dead_is_immediate() -> void:
+	SaveService.track_fights = true
+	SaveService.highest_boss = 3
+	var game: Node = _practice(3)
+	game.record_death(110)
+	assert_true(game.leave_practice_to_title(111), "no retry gate")
+	assert_eq(game.flow_state, S.TITLE)
+	assert_false(game.practice_run)
+	assert_eq(SaveService.highest_boss, 3, "no save write")
+
+
+func test_leave_refused_from_a_normal_dead_and_other_states() -> void:
+	for state: S in [S.DEAD, S.TITLE, S.INTRO, S.HARVEST, S.ENDING]:
+		var game: Node = _game(state)
+		assert_false(game.leave_practice_to_title(1), "not practice, state %d" % state)
+		assert_eq(game.flow_state, state)
+	for state: S in [S.TITLE, S.INTRO, S.HARVEST, S.ENDING]:
+		var game: Node = _game(state)
+		game.practice_run = true # a stale flag never leaves from a non-practice state
+		assert_false(game.leave_practice_to_title(1), "practice flag, state %d" % state)
+
+
+func _practice_dead_screen() -> DeadScreen:
+	Game.flow_state = S.TITLE
+	Game.start_practice_from_title(SimClock.sim_frame, 1)
+	Game.record_death(SimClock.sim_frame)
+	var dead: DeadScreen = DeadScreen.new()
+	add_child_autofree(dead)
+	return dead
+
+
+func test_esc_and_l3_leave_a_practice_dead_screen() -> void:
+	for ev: InputEvent in [_key(KEY_ESCAPE), _pad(JOY_BUTTON_LEFT_STICK)]:
+		var dead: DeadScreen = _practice_dead_screen()
+		assert_eq(Game.flow_state, S.DEAD)
+		dead._unhandled_input(ev)
+		assert_eq(Game.flow_state, S.TITLE, "%s leaves at once" % ev)
+		assert_false(Game.practice_run)
+
+
+func test_other_presses_on_a_practice_dead_screen_follow_the_retry_rule() -> void:
+	var dead: DeadScreen = _practice_dead_screen()
+	dead._unhandled_input(_key(KEY_J))
+	assert_eq(Game.flow_state, S.DEAD, "before the retry gate a press does nothing")
+	SimClock.sim_frame = Game.death_frame + GameScript.RETRY_DELAY_FRAMES
+	dead._unhandled_input(_key(KEY_J))
+	assert_eq(Game.flow_state, S.FIGHT, "a retry of the dummy")
+	assert_true(Game.practice_run)
+
+
+func test_normal_dead_esc_does_nothing_and_l3_retries() -> void:
+	Game.flow_state = S.FIGHT
+	Game.run = RunState.new()
+	Game.record_death(SimClock.sim_frame)
+	var dead: DeadScreen = DeadScreen.new()
+	add_child_autofree(dead)
+	SimClock.sim_frame = Game.death_frame + GameScript.RETRY_DELAY_FRAMES
+	dead._unhandled_input(_key(KEY_ESCAPE))
+	assert_eq(Game.flow_state, S.DEAD, "Esc does nothing on a normal DEAD")
+	dead._unhandled_input(_pad(JOY_BUTTON_LEFT_STICK))
+	assert_eq(Game.flow_state, S.FIGHT, "L3 retries (7.5 AC 9)")
+
+
+func test_loadout_list_with_the_segfault_cut() -> void:
+	assert_eq(GameScript.practice_loadout_bosses(1, false), [0, 1] as Array[int])
+	assert_eq(GameScript.practice_loadout_bosses(2, false), [0, 1] as Array[int])
+	assert_eq(GameScript.practice_loadout_bosses(3, false), [0, 1] as Array[int], "never the unreachable N set")
+	assert_eq(GameScript.practice_loadouts(1, false), [_ring([D, A]), _ring([A, D, L])] as Array[PackedInt32Array])
+	assert_eq(GameScript.practice_loadouts(2, false), [_ring([D, A]), _ring([A, D, L])] as Array[PackedInt32Array])
+	assert_eq(GameScript.practice_loadouts(3, false), [_ring([D, A]), _ring([A, D, L])] as Array[PackedInt32Array])
+	assert_eq(GameScript.practice_start_index(1, false), 0)
+	assert_eq(GameScript.practice_start_index(2, false), 1)
+	assert_eq(GameScript.practice_start_index(3, false), 1, "capped at the last fight")
+	assert_eq(GameScript.practice_loadout_bosses(2, true), GameScript.practice_loadout_bosses(2), "flag on: unchanged")
+
+
+func test_practice_start_reads_the_segfault_flag() -> void:
+	var game: Node = _game()
+	game.segfault_enabled = false
+	game.start_practice_from_title(100, 3)
+	assert_eq(game.practice_loadouts_offered, [0, 1] as Array[int])
+	assert_eq(game.run.fight_start_ring, _ring([A, D, L]), "starts at the last existing fight's set")
+	assert_true(game.cycle_practice_loadout(101))
+	assert_eq(game.run.fight_start_ring, _ring([D, A]), "wraps without an N set")

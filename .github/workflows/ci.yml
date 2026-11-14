@@ -164,20 +164,8 @@ jobs:
           ls -la build/web
 
       - name: Web build size (NFR4, fails over budget)
-        run: |
-          set -euo pipefail
-          find build/web -type f -exec wc -c {} + | sort -n
-          total="$(find build/web -type f -exec wc -c {} + | awk '$2 != "total" {s += $1} END {print s + 0}')"
-          echo "Web build total: ${total} bytes (budget ${WEB_SIZE_BUDGET_BYTES})"
-          echo "### Web build size: ${total} bytes (budget ${WEB_SIZE_BUDGET_BYTES})" >> "$GITHUB_STEP_SUMMARY"
-          if [ "$total" -le 0 ]; then
-            echo "::error::Web build is empty"
-            exit 1
-          fi
-          if [ "$total" -gt "$WEB_SIZE_BUDGET_BYTES" ]; then
-            echo "::error title=Web build over NFR4 budget::${total} bytes > ${WEB_SIZE_BUDGET_BYTES} bytes"
-            exit 1
-          fi
+        # Story 7.7 (AC 8): the same script developers run locally; it reads WEB_SIZE_BUDGET_BYTES.
+        run: bash game/tools/check_build_size.sh build/web
 
       - name: Upload Web build
         uses: actions/upload-artifact@v7

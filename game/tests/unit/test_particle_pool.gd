@@ -106,3 +106,22 @@ func test_unpatched_hit_bursts_half() -> void:
 	assert_eq(ParticlePool.burst_for(false), 12)
 	EventBus.hit_landed.emit(&"boss", 5, DamageState.Kind.UNPATCHED, false, Vector2(10, 10))
 	assert_eq(_pool.live_count(), 6)
+
+
+## Story 7.7 (AC 9, NFR2): the cap is structural. A worst-case burst (more spawns than slots in one
+## frame, repeated over several frames, combo bursts from many hit points) never exceeds CAPACITY.
+## Seeded through the pool's own RNG (before_each), no global RNG.
+func test_worst_case_burst_never_exceeds_the_cap() -> void:
+	var picker := RandomNumberGenerator.new()
+	picker.seed = 7707
+	_pool.advance_to(0)
+	assert_eq(_pool.spawn(Vector2(320, 180), ParticlePool.CAPACITY * 2), ParticlePool.CAPACITY, "one oversized burst fills, the rest drops")
+	assert_eq(_pool.live_count(), ParticlePool.CAPACITY)
+	for frame: int in range(1, ParticlePool.LIFETIME * 3):
+		_pool.advance_to(frame)
+		for _hit: int in 40:
+			var at := Vector2(picker.randf_range(0, 512), picker.randf_range(0, 288))
+			_pool.spawn(at, ParticlePool.burst_for(picker.randf() < 0.5))
+			assert_true(_pool.live_count() <= ParticlePool.CAPACITY, "live %d at frame %d" % [_pool.live_count(), frame])
+		assert_eq(_pool.slot_count(), ParticlePool.CAPACITY, "never grows")
+	assert_eq(_pool.live_count(), ParticlePool.CAPACITY, "saturated, still capped")
