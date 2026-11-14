@@ -47,4 +47,5 @@ replace, so a track of a different length drifts off the bar. The unit test
 ## Licence line for the real tracks (for README / credits, Story 7.9)
 
 `Music: <title>, by <author>, made with BeepBox (beepbox.co), <licence>.`
-Until the real tracks land, the in-game credit stays `audio: TBD` (`data/ending/ending_text.tres`).
+Until the real tracks land, the in-game credit reads `audio: SFX, placeholder music, made in-repo (CC0)`
+(`data/ending/ending_text.tres`, Story 7.9).
