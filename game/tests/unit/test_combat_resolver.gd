@@ -396,6 +396,24 @@ func test_dash_strike_on_a_d_against_a_d_to_a_boss_is_resisted() -> void:
 	assert_eq(SimClock._pending_hitstop, 6, "unpatched combo keeps its own value")
 
 
+## Story 7.4 (AC 8): the assist never touches the damage multipliers (x0.5 unpatched, x1.5 Patched).
+func test_assisted_boss_keeps_the_unpatched_and_patched_multipliers() -> void:
+	_ring([A, D])
+	var boss: BossController = _boss(Vector2i(D, A), SPAWN + Vector2(64, 0))
+	boss.assist = true
+	_dash_strike()
+	assert_eq(boss.hp, 90, "assisted: 20 x 0.5 = 10, unchanged")
+	assert_signal_emitted_with_parameters(EventBus, "hit_landed", [&"boss", 10, DamageState.Kind.UNPATCHED, true, boss.body_center_px])
+
+
+func test_assisted_boss_keeps_the_patched_multiplier() -> void:
+	_ring([A, D])
+	var boss: BossController = _boss(Vector2i(A, D), SPAWN + Vector2(64, 0))
+	boss.assist = true
+	_dash_strike()
+	assert_eq(boss.hp, 70, "assisted: 20 x 1.5 = 30, unchanged")
+
+
 func test_link_second_slash_on_d_a_patches_and_deals_15() -> void:
 	_ring([D, A])
 	_buf.push(J, 0) # solo dash, opens the link

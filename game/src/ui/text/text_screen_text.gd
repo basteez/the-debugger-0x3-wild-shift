@@ -14,6 +14,9 @@ const PANEL_COUNT := 3
 @export var dead_line: String = ""
 ## Story 7.3 (D-S73-5): the title's new-run option label, shown only with a save past Boss 1.
 @export var new_run_label: String = ""
+## Story 7.4 (AC 4, D-S74-8): the title's "debug build" assist label, one per state. Neutral wording.
+@export var debug_build_on_label: String = ""
+@export var debug_build_off_label: String = ""
 
 
 func validate() -> PackedStringArray:
@@ -26,6 +29,10 @@ func validate() -> PackedStringArray:
 		out.append("dead_line must not be empty")
 	if new_run_label.is_empty():
 		out.append("new_run_label must not be empty")
+	if debug_build_on_label.is_empty():
+		out.append("debug_build_on_label must not be empty")
+	if debug_build_off_label.is_empty():
+		out.append("debug_build_off_label must not be empty")
 	if intro_captions.size() != PANEL_COUNT:
 		out.append("intro_captions must hold exactly %d panels, has %d" % [PANEL_COUNT, intro_captions.size()])
 	for i: int in intro_captions.size():
@@ -49,7 +56,7 @@ func caption_for(panel: int) -> PackedStringArray:
 
 ## Every string this resource holds (font coverage, the audit).
 func all_text() -> PackedStringArray:
-	var out := PackedStringArray([title, prompt, dead_line, new_run_label])
+	var out := PackedStringArray([title, prompt, dead_line, new_run_label, debug_build_on_label, debug_build_off_label])
 	for panel: PackedStringArray in intro_captions:
 		out.append_array(panel)
 	return out

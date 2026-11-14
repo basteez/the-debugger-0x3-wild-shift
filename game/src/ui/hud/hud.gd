@@ -127,7 +127,7 @@ static func reserved_tell_on(b: BossController) -> bool:
 static func reserved_flash_on(b: BossController) -> bool:
 	if not reserved_tell_on(b) or b.current == null:
 		return false
-	return flash_phase_on(b.current.tell - b.frames_left)
+	return flash_phase_on(b.tell_frames - b.frames_left) # Story 7.4 (AC 7): the scaled tell
 
 
 ## The 8-frame toggle (D-S66-8) for `elapsed` frames into the tell. Pure.

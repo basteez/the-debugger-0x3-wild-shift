@@ -19,6 +19,10 @@ var deaths_on_boss: int = 0
 ## Fight-start snapshot (Story 2.9, D-S29-4): the register ring captured on FIGHT enter, restored by
 ## every retry. Boss state (Epic 3) and Echo memory (Epic 4) join it with their stories.
 var fight_start_ring: PackedInt32Array = PackedInt32Array()
+## Story 7.4 (AC 9, 12, D-S74-1): the "debug build" assist of the current fight attempt, copied from
+## SaveService.assist by Game on every FIGHT entry (retries included). A toggle mid-fight applies
+## from the next attempt. Main passes it to Arena.enter_fight.
+var assist: bool = false
 
 
 ## Modulus of the seed mix: the Mersenne prime 2^31 - 1 (products stay far below 2^63).

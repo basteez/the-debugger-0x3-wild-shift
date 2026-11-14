@@ -24,7 +24,7 @@ func _process(_delta: float) -> void:
 func current_text() -> String:
 	if health == null or health.def == null:
 		return ""
-	return PlayerHealth.hp_text(health.hp, health.def.max_hp)
+	return PlayerHealth.hp_text(health.hp, health.max_hp) # Story 7.4 (AC 5): the live max
 
 
 ## HUD cell of the readout's first glyph: right-aligned on ROW, ending at the last column. Pure.

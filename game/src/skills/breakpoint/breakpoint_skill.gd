@@ -13,6 +13,8 @@ extends FightSkill
 const MAX_FROZEN_POLLS := 120
 ## Cooldown in world ticks from the ending tick (GDD 12 s, D-S43-7). 7.4's assist halves it.
 const COOLDOWN_FRAMES := 720
+## Story 7.4 (FR60, D-S74-6): the cooldown under the "debug build" assist (GDD 6 s).
+const ASSIST_COOLDOWN_FRAMES := 360
 const START_ACTION := &"breakpoint"
 ## The presses that end a running Breakpoint (D-S43-8): the two action slots, never Q, E or Space.
 const END_ACTIONS: Array[StringName] = [&"action_1", &"action_2"]
@@ -42,6 +44,17 @@ func _init(p_gate: Object = null, p_cooldown_frames: int = COOLDOWN_FRAMES) -> v
 	phase = SimPhase.TIMERS
 	_gate = p_gate
 	cooldown_frames = maxi(p_cooldown_frames, 0)
+
+
+## Story 7.4 (D-S74-6): the cooldown length for a fight attempt. Pure.
+static func cooldown_for(assist: bool) -> int:
+	return ASSIST_COOLDOWN_FRAMES if assist else COOLDOWN_FRAMES
+
+
+## Story 7.4 (AC 6): the cooldown length of this attempt (360 under assist, else 720). Called by the
+## arena before reset_for_fight; a Breakpoint running now keeps the cooldown it ends with.
+func set_assist(assist: bool) -> void:
+	cooldown_frames = cooldown_for(assist)
 
 
 func reset_for_fight(p_unlocked: bool) -> void:

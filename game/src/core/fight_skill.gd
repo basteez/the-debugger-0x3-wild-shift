@@ -11,6 +11,12 @@ func reset_for_fight(_unlocked: bool) -> void:
 	pass
 
 
+## Story 7.4 (AC 6, D-S74-7): the attempt's "debug build" assist flag, injected by the wiring before
+## reset_for_fight (never read from SaveService). Default: no effect.
+func set_assist(_assist: bool) -> void:
+	pass
+
+
 ## The fight was left (flow change, debug jump): stop ticking, release anything the skill holds.
 func end_fight() -> void:
 	pass
