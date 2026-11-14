@@ -4,11 +4,20 @@ extends GutTest
 const AudioManagerScript := preload("res://src/autoloads/audio_manager.gd")
 
 
-func _playing_players(node: Node) -> int:
-	var count: int = 0
+## SFX players only: Story 7.1 adds MusicA / MusicB on unlock (the title track).
+func _sfx_players(node: Node) -> Array[AudioStreamPlayer]:
+	var players: Array[AudioStreamPlayer] = []
 	for child: Node in node.get_children():
 		var player := child as AudioStreamPlayer
-		if player != null and player.playing:
+		if player != null and player.bus != &"Music":
+			players.append(player)
+	return players
+
+
+func _playing_players(node: Node) -> int:
+	var count: int = 0
+	for player: AudioStreamPlayer in _sfx_players(node):
+		if player.playing:
 			count += 1
 	return count
 
@@ -52,10 +61,10 @@ func test_unlock_is_idempotent_and_play_uses_sfx() -> void:
 	assert_true(am.is_unlocked())
 	am.play_test_sfx()
 	assert_eq(_playing_players(am), 1)
-	var player := am.get_child(0) as AudioStreamPlayer
+	var player := am.get_node(^"TestSfx") as AudioStreamPlayer
 	assert_eq(player.bus, &"SFX")
 	am.play_test_sfx()
-	assert_eq(am.get_child_count(), 1, "the test SFX player is reused")
+	assert_eq(_sfx_players(am).size(), 1, "the test SFX player is reused")
 	assert_eq(am.get("locked_warn_count"), 0)
 
 
@@ -80,7 +89,7 @@ func test_play_sfx_after_unlock_plays_on_sfx_and_reuses_one_player() -> void:
 	assert_eq(player.stream, stream)
 	var other: AudioStreamWAV = AudioManagerScript.make_blip()
 	am.play_sfx(other)
-	assert_eq(am.get_child_count(), 1, "a rapid second click restarts the same player")
+	assert_eq(_sfx_players(am).size(), 1, "a rapid second click restarts the same player")
 	assert_eq(player.stream, other)
 	assert_true(player.playing)
 	assert_eq(am.get("locked_warn_count"), 0)

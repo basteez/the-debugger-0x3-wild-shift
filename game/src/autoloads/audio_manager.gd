@@ -1,10 +1,12 @@
 extends Node
 ## Audio playback gate (AD-09). Nothing plays before the first user input: the title screen
 ## calls unlock() on that input. Buses come from res://default_bus_layout.tres, not from code.
-## Music crossfade and pooled SFX arrive with the real assets (7.1, 7.2).
+## Music (Story 7.1): two players on the Music bus (MusicA / MusicB) crossfaded by volume; the track
+## is a pure function of the flow context (desired_track). Pooled SFX arrive with 7.2.
 
 const GameFlow := preload("res://src/autoloads/game.gd")
 const SFX_BUS := &"SFX"
+const MUSIC_BUS := &"Music"
 const MASTER_BUS := &"Master"
 const BLIP_HZ := 880.0
 const BLIP_SECONDS := 0.15
@@ -16,6 +18,31 @@ const THUD_SECONDS := 0.09
 const CHIME_LOW_HZ := 660.0
 const CHIME_HIGH_HZ := 990.0
 const CHIME_STEP_SECONDS := 0.08
+
+## Story 7.1 (AC 3, B3): every music stream preloaded; the files are PLACEHOLDERS until the real
+## BeepBox tracks replace them under the same names (assets/audio/music/README.md).
+const TITLE_TRACK: AudioStream = preload("res://assets/audio/music/title.ogg")
+const BOSS_TRACKS: Array[AudioStream] = [
+	preload("res://assets/audio/music/boss_1.ogg"),
+	preload("res://assets/audio/music/boss_2.ogg"),
+	preload("res://assets/audio/music/boss_3.ogg"),
+]
+const BOSS_GLITCH_TRACKS: Array[AudioStream] = [
+	preload("res://assets/audio/music/boss_1_glitch.ogg"),
+	preload("res://assets/audio/music/boss_2_glitch.ogg"),
+	preload("res://assets/audio/music/boss_3_glitch.ogg"),
+]
+const BREAKPOINT_TRACK: AudioStream = preload("res://assets/audio/music/breakpoint_muffled.ogg")
+## D-S71-1: EventBus.boss_phase_changed is 0-based; the GDD's "phase 3" is index 2.
+const GLITCH_PHASE_INDEX := 2
+## D-S71-6 fade lengths, in 60 Hz frames.
+const FLOW_FADE_FRAMES := 60
+const GLITCH_FADE_FRAMES := 30
+const BREAKPOINT_FADE_FRAMES := 12
+## D-S71-5: HARVEST fades the music to silence.
+const HARVEST_FADE_FRAMES := 30
+const FRAMES_PER_SECOND := 60.0
+const MUSIC_PLAYER_NAMES: Array[StringName] = [&"MusicA", &"MusicB"]
 
 ## Number of "play ignored before unlock" warnings written this session (0 or 1).
 var locked_warn_count: int = 0
@@ -41,6 +68,21 @@ var defeat_squeak_count: int = 0
 var _defeat_squeaked: bool = false
 ## Story 4.3: breakpoint_started / breakpoint_ended events handled this session (tests).
 var breakpoint_music_events: int = 0
+## Story 7.1 (D-S71-7): the music context. The wanted track is desired_track() of these four.
+var music_flow: int = GameFlow.FlowState.TITLE
+var music_boss_index: int = 0
+var music_glitch: bool = false
+var music_breakpoint: bool = false
+## Number of crossfade_to calls that changed the music this session (tests).
+var music_switch_count: int = 0
+
+## MusicA / MusicB, created on the first music request after unlock; never more than two.
+var _music_players: Array[AudioStreamPlayer] = []
+var _music_tweens: Array[Tween] = [null, null]
+## Index into _music_players of the player that carries the current track (-1: none yet).
+var _music_active: int = -1
+## The track the active player is playing or fading in (null: silence).
+var _music_track: AudioStream = null
 
 
 func _ready() -> void:
@@ -54,6 +96,7 @@ func _ready() -> void:
 	EventBus.flow_state_changed.connect(_on_flow_state_changed)
 	EventBus.breakpoint_started.connect(on_breakpoint_started)
 	EventBus.breakpoint_ended.connect(on_breakpoint_ended)
+	EventBus.boss_phase_changed.connect(on_boss_phase_changed)
 
 
 ## Story 3.8 (D2, AC 1): the duck squeaks once when the boss is defeated. Presentation only.
@@ -65,21 +108,167 @@ func on_boss_defeated(_boss: StringName) -> void:
 	play_squeak()
 
 
-## Story 4.3 (AC 9, D-S43-9): the muffled Breakpoint loop arrives in 7.1; until then the events are
-## handled with a debug log only (no audible change).
+## Story 4.3 / 7.1 (AC 8, 9): Breakpoint switches to the muffled loop and back, on the bar.
 func on_breakpoint_started() -> void:
 	breakpoint_music_events += 1
-	Log.debug(&"audio", "breakpoint started: muffled music (placeholder until 7.1)")
+	music_breakpoint = true
+	_apply_music(BREAKPOINT_FADE_FRAMES)
 
 
 func on_breakpoint_ended() -> void:
 	breakpoint_music_events += 1
-	Log.debug(&"audio", "breakpoint ended: normal music (placeholder until 7.1)")
+	music_breakpoint = false
+	_apply_music(BREAKPOINT_FADE_FRAMES)
 
 
-func _on_flow_state_changed(_from: int, to: int) -> void:
+## Story 7.1 (AC 5, 6, 9): the third phase (index 2) wants the glitch variant. During Breakpoint the
+## flag only changes; the switch happens when Breakpoint ends (D-S71-7).
+func on_boss_phase_changed(phase: int) -> void:
+	if music_flow != GameFlow.FlowState.FIGHT:
+		return # a late phase event during DEAD / HARVEST must not switch the music
+	music_glitch = phase >= GLITCH_PHASE_INDEX
+	_apply_music(GLITCH_FADE_FRAMES)
+
+
+func _on_flow_state_changed(from: int, to: int) -> void:
 	if to == GameFlow.FlowState.FIGHT:
 		_defeat_squeaked = false
+	on_music_flow_changed(from, to, Game.run.boss_index)
+
+
+## Story 7.1 (AC 1, 7, 10, D-S71-3..6): the music side of a flow change. `boss_index` is read from
+## Game by the caller (presentation reads sim state, never writes it).
+func on_music_flow_changed(from: int, to: int, boss_index: int) -> void:
+	music_flow = to
+	match to:
+		GameFlow.FlowState.FIGHT:
+			# D-S71-4: every FIGHT entry (first start or retry) restarts the base track from 0;
+			# a retry cuts at once, any other entry crossfades from what was playing.
+			music_boss_index = boss_index
+			music_glitch = false
+			music_breakpoint = false
+			var frames: int = 0 if from == GameFlow.FlowState.DEAD else FLOW_FADE_FRAMES
+			_apply_music(frames, true)
+		GameFlow.FlowState.HARVEST:
+			_apply_music(HARVEST_FADE_FRAMES)
+		GameFlow.FlowState.ENDING:
+			_apply_music(FLOW_FADE_FRAMES, true)
+		_:
+			_apply_music(FLOW_FADE_FRAMES)
+
+
+## Story 7.1 (AC 11, D-S71-7): pure. The track the context wants; null is silence. TITLE, INTRO and
+## ENDING want the title track; FIGHT wants the boss track (glitch at phase 3), or the muffled loop
+## during Breakpoint; DEAD keeps the fight track; HARVEST is silent.
+static func desired_track(flow: int, boss_index: int, glitch: bool, breakpoint_active: bool) -> AudioStream:
+	match flow:
+		GameFlow.FlowState.TITLE, GameFlow.FlowState.INTRO, GameFlow.FlowState.ENDING:
+			return TITLE_TRACK
+		GameFlow.FlowState.FIGHT, GameFlow.FlowState.DEAD:
+			if flow == GameFlow.FlowState.FIGHT and breakpoint_active:
+				return BREAKPOINT_TRACK
+			if boss_index < 0 or boss_index >= BOSS_TRACKS.size():
+				return null
+			return BOSS_GLITCH_TRACKS[boss_index] if glitch else BOSS_TRACKS[boss_index]
+	return null
+
+
+## The track the current context wants (desired_track of the four music fields).
+func wanted_track() -> AudioStream:
+	return desired_track(music_flow, music_boss_index, music_glitch, music_breakpoint)
+
+
+## The track currently playing or fading in (null: silence).
+func current_track() -> AudioStream:
+	return _music_track
+
+
+## The player carrying the current track, or null before the first music request.
+func active_music_player() -> AudioStreamPlayer:
+	return _music_players[_music_active] if _music_active >= 0 else null
+
+
+## Moves the music to wanted_track(). Before unlock the context changes silently (the title
+## screen's unlock() starts the music); `restart` replays the track from 0 even if it is current.
+func _apply_music(frames: int, restart: bool = false) -> void:
+	if not _unlocked:
+		return
+	var track: AudioStream = wanted_track()
+	if track == _music_track and not restart:
+		return
+	crossfade_to(track, frames, not restart)
+
+
+## Story 7.1 (AC 2, D-S71-8): crossfades to `track` over `frames` (60 Hz) on the two Music players,
+## alternating. With `sync` the new track starts at the old one's playback position (modulo its
+## length), so a variant stays on the bar; otherwise it starts from 0. A null track fades to
+## silence. The outgoing player stops when its fade ends. Ignored (warn once) before unlock.
+func crossfade_to(track: AudioStream, frames: int, sync: bool = true) -> void:
+	if not _unlocked:
+		_warn_locked_once()
+		return
+	_ensure_music_players()
+	var outgoing: AudioStreamPlayer = active_music_player()
+	var position: float = 0.0
+	if sync and outgoing != null and outgoing.playing:
+		position = outgoing.get_playback_position()
+	var seconds: float = maxf(float(frames), 0.0) / FRAMES_PER_SECOND
+	if outgoing != null:
+		_fade(_music_active, 0.0, seconds, true)
+	_music_track = track
+	music_switch_count += 1
+	Log.debug(&"audio", "music -> %s (%d frames)" % [_track_name(track), frames])
+	if track == null:
+		return
+	_music_active = 0 if _music_active < 0 else 1 - _music_active
+	var incoming: AudioStreamPlayer = _music_players[_music_active]
+	_kill_tween(_music_active)
+	incoming.stop()
+	incoming.stream = track
+	var length: float = track.get_length()
+	position = fmod(position, length) if length > 0.0 else 0.0
+	incoming.volume_linear = 0.0 if seconds > 0.0 else 1.0
+	incoming.play(position)
+	if seconds > 0.0:
+		_fade(_music_active, 1.0, seconds, false)
+
+
+func _ensure_music_players() -> void:
+	if not _music_players.is_empty():
+		return
+	for player_name: StringName in MUSIC_PLAYER_NAMES:
+		var player := AudioStreamPlayer.new()
+		player.name = player_name
+		player.bus = MUSIC_BUS
+		add_child(player)
+		_music_players.append(player)
+
+
+## Tweens player `index` to `target` linear volume; `stop_after` stops it at the end (fade-out).
+func _fade(index: int, target: float, seconds: float, stop_after: bool) -> void:
+	_kill_tween(index)
+	var player: AudioStreamPlayer = _music_players[index]
+	if seconds <= 0.0:
+		player.volume_linear = target
+		if stop_after:
+			player.stop()
+		return
+	var tween: Tween = create_tween()
+	tween.tween_property(player, ^"volume_linear", target, seconds)
+	if stop_after:
+		tween.tween_callback(player.stop)
+	_music_tweens[index] = tween
+
+
+func _kill_tween(index: int) -> void:
+	var tween: Tween = _music_tweens[index]
+	if tween != null and tween.is_valid():
+		tween.kill()
+	_music_tweens[index] = null
+
+
+static func _track_name(track: AudioStream) -> String:
+	return "silence" if track == null else track.resource_path.get_file()
 
 
 ## Story 3.1 (AC 4): every boss tell plays its cue on the SFX bus. Presentation only.
@@ -141,6 +330,7 @@ func unlock() -> void:
 		return
 	_unlocked = true
 	Log.info(&"audio", "unlocked")
+	_apply_music(0) # Story 7.1 (AC 1, D-S71-3): the title track starts on the first input
 
 
 func is_unlocked() -> bool:
