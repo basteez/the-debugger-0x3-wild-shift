@@ -40,8 +40,10 @@ static func lines_for(for_state: int, for_boss_index: int) -> PackedStringArray:
 
 
 ## Pure: true for the advance gesture (DC4): a fresh key press that is not a modifier, Esc or a
-## function key, or a left-button press.
+## function key, or a left-button press. Story 7.5 (AC 9, 10): or a pad button press (is_pad_press).
 static func is_advance(event: InputEvent) -> bool:
+	if is_pad_press(event):
+		return true
 	var key := event as InputEventKey
 	if key != null:
 		if not key.pressed or key.echo or key.keycode in NON_ADVANCE_KEYS:
@@ -49,6 +51,15 @@ static func is_advance(event: InputEvent) -> bool:
 		return not TitleScreen.is_function_key(key.keycode)
 	var mouse := event as InputEventMouseButton
 	return mouse != null and mouse.pressed and mouse.button_index == MOUSE_BUTTON_LEFT
+
+
+## Pure: Story 7.5 (D-S75-4): a fresh pad button press that is not the `pause` action (Start), the
+## pad's "any button". Stick and trigger motion are not buttons, so they never count (D-S75-3).
+static func is_pad_press(event: InputEvent) -> bool:
+	var pad := event as InputEventJoypadButton
+	if pad == null or not pad.pressed:
+		return false
+	return not (InputMap.has_action(&"pause") and pad.is_action(&"pause", true))
 
 
 ## FIGHT is playable since Epic 2: its keys are gameplay, never an any-key advance. Leaving a fight
