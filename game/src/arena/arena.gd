@@ -110,6 +110,9 @@ var watch_skill: FightSkill = make_watch_skill(watch_enabled)
 ## (Main or a test may override it with set_reserved_write_enabled before the fight). Off: the boss
 ## gets the attack id injected as excluded, so the Reserved Write script is never built.
 var reserved_write_enabled: bool = Defs.FEATURE_FLAGS.reserved_write
+## Story 7.4 (AC 7): the assist flag of the fight being entered (enter_fight's parameter), injected
+## into the boss by _set_boss.
+var fight_assist: bool = false
 
 
 func _enter_tree() -> void:
@@ -159,7 +162,11 @@ func _exit_tree() -> void:
 ## RunState) resets the Breakpoint module: gate off, cooldown 0, not active.
 ## Story 5.4 (D-S54-4, D-S54-11): `watch_unlocked` (Boss 2 or later, computed by Main) resets the
 ## Watch module: released, gate off.
-func enter_fight(fight_start: PackedInt32Array, with_practice: bool = false, p_boss_def_path: String = "", breakpoint_unlocked: bool = false, watch_unlocked: bool = false) -> void:
+## Story 7.4 (AC 5-7, 9, 12, D-S74-7): `assist` (Main passes Game.run.assist, the attempt's copy)
+## sets max HP 8, the Breakpoint cooldown 360 and the boss tells x1.5 for this attempt. Injected
+## like `breakpoint_unlocked`: the sim never reads SaveService.
+func enter_fight(fight_start: PackedInt32Array, with_practice: bool = false, p_boss_def_path: String = "", breakpoint_unlocked: bool = false, watch_unlocked: bool = false, assist: bool = false) -> void:
+	fight_assist = assist
 	player.reset_for_fight(SPAWN_PX)
 	player.set_active(true)
 	arena_context.player_effects.clear() # before the ring is replaced, so a live `?` is removed cleanly
@@ -169,13 +176,14 @@ func enter_fight(fight_start: PackedInt32Array, with_practice: bool = false, p_b
 	register.set_active(true)
 	actions.reset_for_fight()
 	actions.set_active(true)
-	health.reset_for_fight()
+	health.reset_for_fight(assist)
 	health.set_active(true)
 	_set_practice(with_practice)
 	arena_context.player_effects.clear()
 	ghost_echo.clear() # Story 6.1 (D-S61-6): fight start and retry
 	_set_boss(p_boss_def_path)
 	if breakpoint_skill != null:
+		breakpoint_skill.set_assist(assist) # Story 7.4 (AC 6): 360-frame cooldown under assist
 		breakpoint_skill.reset_for_fight(breakpoint_unlocked)
 	if watch_skill != null:
 		watch_skill.reset_for_fight(watch_unlocked)
@@ -233,6 +241,7 @@ func _set_boss(path: String) -> void:
 		if is_inside_tree():
 			SimClock.register_system(boss)
 	boss.breakpoint_on = breakpoint_enabled # D-S43-11: the SIGSEGV fallback reads the flag
+	boss.assist = fight_assist # Story 7.4 (AC 7): set before reset, on a new or a kept controller
 	_inject_watch_fallback()
 	boss.reset_for_fight() # also clears Patched (D-S32-23)
 	combat.boss = boss

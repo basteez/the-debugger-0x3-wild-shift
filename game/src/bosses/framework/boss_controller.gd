@@ -13,6 +13,8 @@ enum BossState { GAP, TELL, ACTIVE, RECOVERY, ROAR, DEFEATED }
 
 ## ROAR length in frames (FR30, D-S31-8).
 const ROAR_FRAMES := 60
+## Story 7.4 (FR60, D-S74-4): the TELL length multiplier under the "debug build" assist.
+const ASSIST_TELL_SCALE := 1.5
 ## Jitter steps (D-S31-9): level 1 at or below 66% HP, level 2 at or below 33%.
 const JITTER_STEP_1_PERCENT := 66
 const JITTER_STEP_2_PERCENT := 33
@@ -46,6 +48,12 @@ var defeat_frames_elapsed: int = 0
 ## Story 4.3 (AC 13, D-S43-11): FeatureFlags.breakpoint, injected by the arena (never read here).
 ## Off: an attack with recovery_if_no_breakpoint > 0 uses it in place of recovery (SIGSEGV 150).
 var breakpoint_on: bool = true
+## Story 7.4 (AC 7, 12, D-S74-4): the "debug build" assist of this fight attempt, injected by the
+## arena (never read from SaveService or Game here). On: every TELL lasts scaled_tell(tell, true).
+var assist: bool = false
+## Story 7.4 (AC 7): the length of the current attack's TELL as entered (scaled under assist). Set at
+## TELL entry; the HUD reads it so its tell flash matches the controller. 0 before any tell.
+var tell_frames: int = 0
 ## Story 6.6 (AC 3, AD-12): attack ids dropped from every pool before any attack script is built
 ## (the cut-ladder wiring: &"reserved_write" when FeatureFlags.reserved_write is off). Injected by
 ## the arena before setup; the flag itself is never read here.
@@ -115,6 +123,7 @@ func reset_for_fight() -> void:
 	phase_index = 0
 	current = null
 	_current_index = -1
+	tell_frames = 0
 	last_pick = -1
 	second_last_pick = -1
 	_defeat_emitted = false
@@ -170,7 +179,8 @@ func _advance(rng: RandomNumberGenerator) -> void:
 				return
 			_current_index = pick
 			current = _defs[_current_index]
-			_enter(BossState.TELL, current.tell)
+			tell_frames = scaled_tell(current.tell, assist) # Story 7.4: scaled at read time
+			_enter(BossState.TELL, tell_frames)
 			_on_attack_started()
 			_attacks[_current_index].on_tell(_arena)
 			EventBus.boss_tell_started.emit(current.id, current.tell_sfx)
@@ -190,6 +200,12 @@ func _advance(rng: RandomNumberGenerator) -> void:
 			_end_attack()
 		BossState.DEFEATED:
 			pass
+
+
+## Story 7.4 (AC 7, D-S74-4): a TELL length in frames under the assist flag: roundi(frames * 1.5)
+## when on, else `frames` unchanged. Pure.
+static func scaled_tell(frames: int, p_assist: bool) -> int:
+	return roundi(frames * ASSIST_TELL_SCALE) if p_assist else frames
 
 
 ## Story 6.5 (AC 10, D-S65-2): false for an invalid pick, or an exclusive attack while another

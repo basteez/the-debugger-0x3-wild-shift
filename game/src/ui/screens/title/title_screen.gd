@@ -1,9 +1,11 @@
 class_name TitleScreen
 extends Node2D
 ## Title screen (Story 1.4, FR47, D-048). Presentation only: press any key or click to start.
-## Option hotkeys N/P/B/F are hidden until their stories (7.3, 7.4, 7.6, 7.7) and start the run.
+## Option hotkeys P/F are hidden until their stories (7.6, 7.7) and start the run.
 ## Story 7.3 (AC 6-10): with a save past Boss 1, `[N] new run` shows; N (or a click on it) resets the
 ## save and starts from the Intro, any other key or click resumes at the saved boss without the Intro.
+## Story 7.4 (AC 1, 3, 4, D-S74-2): `[B] debug build on/off` always shows; B (or a click on it) flips
+## the assist through SaveService.set_assist and never starts the run.
 
 enum Action { IGNORE, START, OPTION }
 
@@ -19,6 +21,13 @@ static var PROMPT_TEXT: String:
 static var NEW_RUN_TEXT: String:
 	get:
 		return SCREEN_TEXT.new_run_label
+## Story 7.4 (D-S74-8): the debug build assist labels, audited game text.
+static var DEBUG_BUILD_ON_TEXT: String:
+	get:
+		return SCREEN_TEXT.debug_build_on_label
+static var DEBUG_BUILD_OFF_TEXT: String:
+	get:
+		return SCREEN_TEXT.debug_build_off_label
 ## Pixel font at 2x (16-px glyph cells, Story 1.5 DC2). Y values are the top of each glyph row,
 ## on the 8-px grid; x is centred on the 640-px base and snapped to the 8-px grid.
 const TEXT_SCALE := 2
@@ -26,6 +35,8 @@ const TITLE_TOP_Y := 160
 const PROMPT_TOP_Y := 208
 ## Story 7.3 (D-S73-5): the [N] new run label row, below the prompt.
 const NEW_RUN_TOP_Y := 240
+## Story 7.4 (D-S74-2): the [B] debug build label row, below the new-run row.
+const DEBUG_BUILD_TOP_Y := 272
 ## Option id -> InputMap action (DC7). The keys live only in project.godot [input].
 const OPTION_ACTIONS: Dictionary[StringName, StringName] = {
 	&"new_run": &"title_option_new_run",
@@ -38,7 +49,7 @@ const OPTION_ACTIONS: Dictionary[StringName, StringName] = {
 var available: Dictionary[StringName, bool] = {
 	&"new_run": false,
 	&"practice": false,
-	&"debug_build": false,
+	&"debug_build": true, # Story 7.4 (D-S74-2): always shown
 	&"fullscreen": false,
 }
 ## Clickable label rects of visible options, in canvas space. Empty while all are hidden.
@@ -46,6 +57,8 @@ var label_rects: Dictionary[StringName, Rect2] = {}
 var _started := false
 ## Story 7.3: the saved highest boss read once per title show (_ready); resume when > 1.
 var saved_highest_boss: int = 1
+## Story 7.4: the assist state the label shows (SaveService.assist, read in _ready, flipped by B).
+var assist_shown: bool = false
 
 ## Keys that are not a user gesture for the browser (no AudioContext activation): never start the run.
 const NON_START_KEYS: Array[Key] = [KEY_SHIFT, KEY_CTRL, KEY_ALT, KEY_META, KEY_CAPSLOCK, KEY_ESCAPE]
@@ -102,6 +115,23 @@ func resolve(event: InputEvent) -> Action:
 
 func _ready() -> void:
 	set_saved_progress(SaveService.highest_boss)
+	set_assist_shown(SaveService.assist)
+
+
+## Story 7.4 (AC 10): the label's state and its clickable rect (always present).
+func set_assist_shown(on: bool) -> void:
+	assist_shown = on
+	label_rects[&"debug_build"] = debug_build_label_rect(on)
+	queue_redraw()
+
+
+static func debug_build_text(on: bool) -> String:
+	return DEBUG_BUILD_ON_TEXT if on else DEBUG_BUILD_OFF_TEXT
+
+
+## Pure: the clickable rect of the [B] debug build label (same margins as the new-run label).
+static func debug_build_label_rect(on: bool) -> Rect2:
+	return label_rect_for(debug_build_text(on), DEBUG_BUILD_TOP_Y)
 
 
 ## Story 7.3 (AC 8): the [N] new run option exists only with a save past Boss 1; its label is
@@ -118,10 +148,15 @@ func set_saved_progress(highest_boss: int) -> void:
 
 ## Pure: the clickable rect of the [N] new run label (the glyph row plus a half-cell margin), canvas space.
 static func new_run_label_rect() -> Rect2:
+	return label_rect_for(NEW_RUN_TEXT, NEW_RUN_TOP_Y)
+
+
+## Pure: a centred label's glyph row at `top_y` plus a half-cell margin, canvas space.
+static func label_rect_for(text: String, top_y: int) -> Rect2:
 	var cell: int = GlyphFont.CELL * TEXT_SCALE
 	var margin: float = cell / 2.0
-	return Rect2(centred_x(NEW_RUN_TEXT) - margin, NEW_RUN_TOP_Y - margin,
-			GlyphFont.text_width(NEW_RUN_TEXT, TEXT_SCALE) + 2.0 * margin, cell + 2.0 * margin)
+	return Rect2(centred_x(text) - margin, top_y - margin,
+			GlyphFont.text_width(text, TEXT_SCALE) + 2.0 * margin, cell + 2.0 * margin)
 
 
 ## Every counted input unlocks audio first (DC8). Returns the resolved action.
@@ -134,9 +169,14 @@ func handle_input(event: InputEvent) -> Action:
 	AudioManager.unlock()
 	if action == Action.START:
 		_begin(false)
-	elif option_of(event, label_rects) == &"new_run": # Story 7.3 (AC 9): reset, then the Intro
-		_begin(true)
-	# Other options act in their owning stories (7.4, 7.6, 7.7).
+	else:
+		var option: StringName = option_of(event, label_rects)
+		if option == &"new_run": # Story 7.3 (AC 9): reset, then the Intro
+			_begin(true)
+		elif option == &"debug_build": # Story 7.4 (AC 1, 3): toggle in place, saved at once
+			SaveService.set_assist(not assist_shown)
+			set_assist_shown(SaveService.assist)
+		# Other options act in their owning stories (7.6, 7.7).
 	return action
 
 
@@ -164,6 +204,9 @@ func _draw() -> void:
 	GlyphFont.draw_at(self, Vector2(centred_x(PROMPT_TEXT), PROMPT_TOP_Y), PROMPT_TEXT, Palette.INK, TEXT_SCALE)
 	if is_option_available(&"new_run"):
 		GlyphFont.draw_at(self, Vector2(centred_x(NEW_RUN_TEXT), NEW_RUN_TOP_Y), NEW_RUN_TEXT, Palette.INK, TEXT_SCALE)
+	if is_option_available(&"debug_build"):
+		var assist_text: String = debug_build_text(assist_shown)
+		GlyphFont.draw_at(self, Vector2(centred_x(assist_text), DEBUG_BUILD_TOP_Y), assist_text, Palette.INK, TEXT_SCALE)
 
 
 ## Left x that centres `text` at TEXT_SCALE on the base width, snapped down to the 8-px grid.

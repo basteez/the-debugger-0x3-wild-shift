@@ -284,7 +284,7 @@ func apply_flow_state(state: int, boss_index: int) -> void:
 	hud.set_duck_only(duck_only)
 	if in_fight:
 		var practice: bool = wants_practice()
-		arena.enter_fight(fight_start_ring(Game.run, boss_index), practice, boss_def_path_for(wants_test_boss(), boss_index, practice, Game.segfault_enabled), breakpoint_unlocked_for(boss_index), watch_unlocked_for(boss_index))
+		arena.enter_fight(fight_start_ring(Game.run, boss_index), practice, boss_def_path_for(wants_test_boss(), boss_index, practice, Game.segfault_enabled), breakpoint_unlocked_for(boss_index), watch_unlocked_for(boss_index), Game.run.assist)
 	else:
 		arena.leave_fight()
 	_attach_practice_target()

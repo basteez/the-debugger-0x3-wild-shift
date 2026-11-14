@@ -73,8 +73,9 @@ func test_option_actions_exist_in_input_map() -> void:
 
 func test_all_options_hidden_in_1_4() -> void:
 	var screen: Node = autofree(TitleScreenScript.new())
-	for option: StringName in [&"new_run", &"practice", &"debug_build", &"fullscreen"]:
+	for option: StringName in [&"new_run", &"practice", &"fullscreen"]:
 		assert_false(screen.is_option_available(option), "%s should be hidden" % option)
+	assert_true(screen.is_option_available(&"debug_build"), "Story 7.4: always shown")
 
 
 func test_hidden_option_resolves_to_start() -> void:

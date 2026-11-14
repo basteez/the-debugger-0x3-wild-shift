@@ -5,6 +5,9 @@ extends Node2D
 ## Presentation only: M or a click on the mute label toggles the Master mute (consumed here, so it
 ## never resumes; Story 7.3: the new value is saved through SaveService.set_muted); Esc / P and any other click belong to Game, which resumes on them (DC2,
 ## D-FIX-FS-1). It never writes flow or pause state.
+## Story 7.4 (AC 2-4, D-S74-3): B or a click on the `[B] DEBUG BUILD` row flips the assist (consumed
+## here like M, so it never resumes) and saves it through SaveService.set_assist; it applies from the
+## next fight attempt (D-S74-1).
 
 const TEXT_SCALE := 2
 ## Tops of the text rows, on the 8-px grid. Title, then the GDD controls table, then the options.
@@ -26,21 +29,35 @@ const RESUME_TOP_Y := 240
 const MUTE_TOP_Y := 272
 const MUTE_ON_TEXT := "[M] MUTE ON"
 const MUTE_OFF_TEXT := "[M] MUTE OFF"
+## Story 7.4 (D-S74-3, D-S74-8): the assist row (code constants like the mute row).
+const ASSIST_TOP_Y := 304
+const ASSIST_ON_TEXT := "[B] DEBUG BUILD ON"
+const ASSIST_OFF_TEXT := "[B] DEBUG BUILD OFF"
+## The InputMap action of the assist key (the title's option action, key B).
+const ASSIST_ACTION := &"title_option_debug_build"
 
 var _muted: bool = false
+var _assist: bool = false
 
 
 func _ready() -> void:
 	_muted = AudioManager.is_master_muted()
+	_assist = SaveService.assist
 
 
 ## Pure: every text row, top to bottom. The mute row reads ON when the Master bus is muted.
-static func lines_for(muted: bool) -> PackedStringArray:
+## Story 7.4: the assist row reads ON when `assist` is on.
+static func lines_for(muted: bool, assist: bool = false) -> PackedStringArray:
 	var lines := PackedStringArray([TITLE_TEXT])
 	lines.append_array(CONTROLS)
 	lines.append(RESUME_TEXT)
 	lines.append(mute_text(muted))
+	lines.append(assist_text(assist))
 	return lines
+
+
+static func assist_text(assist: bool) -> String:
+	return ASSIST_ON_TEXT if assist else ASSIST_OFF_TEXT
 
 
 static func mute_text(muted: bool) -> String:
@@ -54,12 +71,18 @@ static func row_tops() -> PackedInt32Array:
 		tops.append(CONTROLS_TOP_Y + i * CONTROLS_STEP)
 	tops.append(RESUME_TOP_Y)
 	tops.append(MUTE_TOP_Y)
+	tops.append(ASSIST_TOP_Y)
 	return tops
 
 
 ## Pure: the clickable rect of the mute label (the glyph row plus a half-cell margin), canvas space.
 static func mute_label_rect(muted: bool) -> Rect2:
 	return row_rect(mute_text(muted), MUTE_TOP_Y)
+
+
+## Story 7.4: the clickable rect of the assist label, same shape as mute_label_rect. Pure.
+static func assist_label_rect(assist: bool) -> Rect2:
+	return row_rect(assist_text(assist), ASSIST_TOP_Y)
 
 
 ## The BG-backed box behind one row: one cell left and right, half a cell above and below.
@@ -77,9 +100,24 @@ static func is_mute_toggle(event: InputEvent, muted: bool) -> bool:
 			and mute_label_rect(muted).has_point(mouse.position)
 
 
+## Story 7.4: true for a fresh B press or a left click inside the assist label. Pure.
+static func is_assist_toggle(event: InputEvent, assist: bool) -> bool:
+	if event is InputEventKey:
+		return InputMap.has_action(ASSIST_ACTION) and event.is_action_pressed(ASSIST_ACTION)
+	var mouse := event as InputEventMouseButton
+	return mouse != null and mouse.pressed and mouse.button_index == MOUSE_BUTTON_LEFT \
+			and assist_label_rect(assist).has_point(mouse.position)
+
+
 ## _input, not _unhandled_input: the placeholder under Screens sits later in the tree, so it would
 ## see M first and consume it as its any-key advance (which DC4 makes a no-op while paused).
 func _input(event: InputEvent) -> void:
+	if is_assist_toggle(event, _assist):
+		get_viewport().set_input_as_handled()
+		SaveService.set_assist(not _assist)
+		_assist = SaveService.assist
+		queue_redraw()
+		return
 	if not is_mute_toggle(event, _muted):
 		return
 	get_viewport().set_input_as_handled()
@@ -91,7 +129,7 @@ func _input(event: InputEvent) -> void:
 
 func _draw() -> void:
 	draw_rect(Rect2(Vector2.ZERO, Vector2(Const.BASE_RES)), Palette.BG)
-	var lines: PackedStringArray = lines_for(_muted)
+	var lines: PackedStringArray = lines_for(_muted, _assist)
 	var tops: PackedInt32Array = row_tops()
 	for i: int in lines.size():
 		GlyphFont.draw_at(self, Vector2(TitleScreen.centred_x(lines[i]), tops[i]), lines[i], Palette.INK, TEXT_SCALE)

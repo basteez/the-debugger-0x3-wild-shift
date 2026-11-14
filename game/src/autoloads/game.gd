@@ -525,6 +525,7 @@ func _begin_fight() -> void:
 		run.run_seed = maxi(Time.get_ticks_usec(), 1)
 	run.fight_attempt += 1
 	run.fight_seed = RunState.fight_seed_for(run.run_seed, run.fight_attempt)
+	run.assist = SaveService.assist # Story 7.4 (AC 12, D-S74-1): the attempt's copy, presentation side
 	SimClock.begin_fight(run.fight_seed)
 	Log.info(&"flow", "fight seed %d" % run.fight_seed)
 

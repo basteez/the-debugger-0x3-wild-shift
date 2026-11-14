@@ -531,3 +531,15 @@ Story 1.3 AC9 / I-6 ("mumble-speech web check, moved to 3.7") is UNBLOCKED. Tizi
 - `save()` writes in place (no temp+rename); a tab closed mid-write could truncate the file (falls back to a fresh save with one warn).
 - Web: no explicit IndexedDB flush and no mute indicator on the title when a persisted mute is restored.
 - [N] new run has no confirmation step.
+
+## Story 7.4 ("Debug build" assist toggle)
+
+- Human checks pending: H-S74-1 Chrome and Firefox web build: press `B` on the title (label flips, run does not start), start a run, die once with assist on, check the HP readout shows 8 bits max and the Breakpoint cooldown counts from 6 s. H-S74-2 one full playtest run with assist on: the x1.5 tells read as fair, the run stays winnable (feeds 7.8 tuning). H-S74-3 reload the tab with assist on: the title shows `[B] debug build on` and the next run is assisted.
+- Replays (D-S74-9): the input recording format has no assist slot; every recording in `tests/replays/` and the integration replays run with assist off and pass unchanged. An assisted fight is not replayable yet (the recordings serve the GUT suite, not the player); add an `assist` header field if one is ever needed.
+- The assist applies from the next fight attempt (D-S74-1): a pause toggle mid-fight changes nothing until the retry / next boss / next run. No on-screen note says so; add one if H-S74-1 shows confusion.
+- No marker on the clear card or stats for assisted runs (D-S74-10).
+
+### Deferred from: code review of story-7.4 (2026-11-14)
+- Under assist the TELL lasts 1.5x; presentation that keys off `frames_left` alone (Infinite Loop `nested_flash_hidden`, boss_view tell marks) still runs in its own phase. Visual only; check in H-S74-2 and fix per boss if it reads wrong.
+- The pause row flips to ON at once although the assist applies from the next attempt (D-S74-1); add an on-screen "next attempt" note if playtests show confusion.
+- Pause row strings are code constants (uppercase), the title ones are audited `.tres` text; unify if the text audit grows to the pause screen.
