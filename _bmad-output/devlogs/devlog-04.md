@@ -3,7 +3,7 @@ devlog: 4
 title: "Devlog #4: Don't lose your run (save, gamepad, practice mode and placeholder music)"
 date: 2026-11-14
 covers: 90be5f5..3e16343   # Epic 7 (Stories 7.1-7.9, PRs #54-#62, stacked, not yet merged to main) and the Devlog #3 record (#53)
-itch_url: TBD (draft filled, Tiziano publishes)
+itch_url: https://basteez.itch.io/wild-shift/devlog/1777465/devlog-4-dont-lose-your-run-save-gamepad-practice-mode-and-placeholder-music
 blog_pr: https://github.com/basteez/basteez.github.io/pull/19
 blog_url: https://bstz.it/p/wild-shift-devlog-4/
 next_up: "Full-run playtest, browser matrix (Chrome/Firefox/Safari), final BeepBox music, jam submission (deadline 2026-11-29)"
