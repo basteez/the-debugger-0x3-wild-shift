@@ -543,3 +543,12 @@ Story 1.3 AC9 / I-6 ("mumble-speech web check, moved to 3.7") is UNBLOCKED. Tizi
 - Under assist the TELL lasts 1.5x; presentation that keys off `frames_left` alone (Infinite Loop `nested_flash_hidden`, boss_view tell marks) still runs in its own phase. Visual only; check in H-S74-2 and fix per boss if it reads wrong.
 - The pause row flips to ON at once although the assist applies from the next attempt (D-S74-1); add an on-screen "next attempt" note if playtests show confusion.
 - Pause row strings are code constants (uppercase), the title ones are audited `.tres` text; unify if the text audit grows to the pause screen.
+
+## Story 7.5 (Gamepad support)
+
+- Human checks pending: H-S75-1 Chrome web build, full run on an Xbox-layout pad (move, both actions, both shifts, RT Breakpoint, Y Watch, Start pause/resume, Select mute, B debug build, a death and retry on a pad button); H-S75-2 PlayStation-layout pad in Chrome plus a Firefox and Safari spot check (RT must read as Breakpoint: if the browser mapping exposes RT as a button rather than axis 5, record the index and reopen 7.5); H-S75-3 gamepad-only first start; H-S75-4 the itch.io embed lets the Gamepad API through (iframe `gamepad` permission, not controllable from the build).
+- Web Audio unlock from a pad press (H-S75-3), coordinator decision 2026-11-14: accepted and documented, no in-game hint. Browsers may not count a Gamepad API press as a user gesture, so a pad-only player may hear nothing until a click. For the 7.9 itch page copy: "click once to enable audio if you play on a pad".
+- If H-S75-4 shows the itch iframe blocks the pad, the 7.9 page copy must say the pad works only on the direct `html.itch.zone` URL.
+- The pause hint row (`PAD STICK X A LB RB RT Y START`) is a code constant like the other pause rows, not audited `.tres` text.
+- Debug hotkeys (`debug_keys.gd`, `debug_grid`) stay keyboard-only.
+- Review 7.5 deferrals: (1) a pad button still held from combat (A/X/LB/RB) can retry or advance on the first frame of DEAD, Intro or Ending; add a short input grace if H-S75-1 shows it (same risk exists for keys). (2) Left stick deadzone 0.2 and unfiltered diagonals: raise or resolve ties if drift shows in H-S75-1. (3) No auto-pause on pad disconnect (`Input.joy_connection_changed`). (4) Cursor stays visible during pad play.

@@ -19,6 +19,8 @@ const TOP_Y := PlaceholderScreen.TOP_Y
 ## Pure: a fresh, non-echo key press that is not Esc, a modifier or an F-key, or a left-button
 ## press. `physical_keycode` stands in when `keycode` is 0 (web events, 1.6 deferral).
 static func is_retry_press(event: InputEvent) -> bool:
+	if PlaceholderScreen.is_pad_press(event): # Story 7.5 (AC 9): any pad button but Start
+		return true
 	var key := event as InputEventKey
 	if key != null:
 		if not key.pressed or key.echo:

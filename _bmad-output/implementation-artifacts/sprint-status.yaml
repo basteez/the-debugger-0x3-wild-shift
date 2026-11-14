@@ -163,7 +163,7 @@ development_status:
   7-2-final-sfx-pass: done
   7-3-save-and-resume: done
   7-4-debug-build-assist-toggle-should: done # Should — first to drop
-  7-5-gamepad-support-should: backlog # Should — first to drop
+  7-5-gamepad-support-should: done # Should — first to drop
   7-6-practice-target-from-the-title-screen-should: backlog # Should — first to drop
   7-7-fullscreen-browser-matrix-and-performance: backlog
   7-8-full-run-playtest-and-final-tuning: backlog # HUMAN CHECKPOINT: playtesters by Nov 27

@@ -6,6 +6,8 @@ extends Node2D
 ## save and starts from the Intro, any other key or click resumes at the saved boss without the Intro.
 ## Story 7.4 (AC 1, 3, 4, D-S74-2): `[B] debug build on/off` always shows; B (or a click on it) flips
 ## the assist through SaveService.set_assist and never starts the run.
+## Story 7.5 (FR61, D-048): any pad button starts the run like a key; Select / B / R3 / L3 are the
+## pad buttons of the option actions (project.godot [input]). Stick and trigger motion are ignored.
 
 enum Action { IGNORE, START, OPTION }
 
@@ -78,6 +80,13 @@ static func classify(event: InputEvent, rects: Dictionary[StringName, Rect2] = {
 		if not mouse.pressed or mouse.button_index != MOUSE_BUTTON_LEFT:
 			return Action.IGNORE
 		return Action.OPTION if option_of(mouse, rects) != &"" else Action.START
+	# Story 7.5 (AC 5-8, D-S75-3): a fresh pad button press counts like a key (Start included: the
+	# title is never paused); stick and trigger motion (InputEventJoypadMotion) never start the run.
+	var pad := event as InputEventJoypadButton
+	if pad != null:
+		if not pad.pressed:
+			return Action.IGNORE
+		return Action.OPTION if option_of(pad) != &"" else Action.START
 	return Action.IGNORE
 
 
@@ -86,9 +95,9 @@ static func is_function_key(keycode: Key) -> bool:
 	return keycode >= KEY_F1 and keycode <= KEY_F35
 
 
-## Option id for a key (via InputMap) or a click on a label rect; &"" when none.
+## Option id for a key or a pad button (via InputMap) or a click on a label rect; &"" when none.
 static func option_of(event: InputEvent, rects: Dictionary[StringName, Rect2] = {}) -> StringName:
-	if event is InputEventKey:
+	if event is InputEventKey or event is InputEventJoypadButton:
 		for option: StringName in OPTION_ACTIONS:
 			if InputMap.has_action(OPTION_ACTIONS[option]) and event.is_action(OPTION_ACTIONS[option], true):
 				return option

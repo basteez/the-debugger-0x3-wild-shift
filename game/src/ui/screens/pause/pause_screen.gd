@@ -24,6 +24,10 @@ const CONTROLS: PackedStringArray = [
 const CONTROLS_TOP_Y := 72
 const CONTROLS_STEP := 24
 ## D-FIX-FS-1: Esc may never reach the canvas in browser fullscreen, so P and a click resume too.
+## Story 7.5 (AC 15, D-S75-5): the gamepad mapping row, in the free slot between the last controls
+## row (192) and the resume row (240). Start pauses and resumes; Select mutes; B flips the assist.
+const PAD_HINT_TEXT := "PAD STICK X A LB RB RT Y START"
+const PAD_HINT_TOP_Y := 216
 const RESUME_TEXT := "[ESC / P / CLICK] RESUME"
 const RESUME_TOP_Y := 240
 const MUTE_TOP_Y := 272
@@ -50,6 +54,7 @@ func _ready() -> void:
 static func lines_for(muted: bool, assist: bool = false) -> PackedStringArray:
 	var lines := PackedStringArray([TITLE_TEXT])
 	lines.append_array(CONTROLS)
+	lines.append(PAD_HINT_TEXT)
 	lines.append(RESUME_TEXT)
 	lines.append(mute_text(muted))
 	lines.append(assist_text(assist))
@@ -69,6 +74,7 @@ static func row_tops() -> PackedInt32Array:
 	var tops := PackedInt32Array([TITLE_TOP_Y])
 	for i: int in CONTROLS.size():
 		tops.append(CONTROLS_TOP_Y + i * CONTROLS_STEP)
+	tops.append(PAD_HINT_TOP_Y)
 	tops.append(RESUME_TOP_Y)
 	tops.append(MUTE_TOP_Y)
 	tops.append(ASSIST_TOP_Y)
@@ -93,7 +99,7 @@ static func row_rect(text: String, top_y: int) -> Rect2:
 
 ## Pure: true for a fresh M press or a left click inside the mute label.
 static func is_mute_toggle(event: InputEvent, muted: bool) -> bool:
-	if event is InputEventKey:
+	if event is InputEventKey or event is InputEventJoypadButton: # Story 7.5: pad Select
 		return InputMap.has_action(&"mute") and event.is_action_pressed(&"mute")
 	var mouse := event as InputEventMouseButton
 	return mouse != null and mouse.pressed and mouse.button_index == MOUSE_BUTTON_LEFT \
@@ -102,7 +108,7 @@ static func is_mute_toggle(event: InputEvent, muted: bool) -> bool:
 
 ## Story 7.4: true for a fresh B press or a left click inside the assist label. Pure.
 static func is_assist_toggle(event: InputEvent, assist: bool) -> bool:
-	if event is InputEventKey:
+	if event is InputEventKey or event is InputEventJoypadButton: # Story 7.5: pad B
 		return InputMap.has_action(ASSIST_ACTION) and event.is_action_pressed(ASSIST_ACTION)
 	var mouse := event as InputEventMouseButton
 	return mouse != null and mouse.pressed and mouse.button_index == MOUSE_BUTTON_LEFT \
