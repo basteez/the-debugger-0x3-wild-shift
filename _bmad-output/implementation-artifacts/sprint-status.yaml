@@ -166,6 +166,6 @@ development_status:
   7-5-gamepad-support-should: done # Should — first to drop
   7-6-practice-target-from-the-title-screen-should: done # Should — first to drop
   7-7-fullscreen-browser-matrix-and-performance: done # human checks H-S77-1..6 pending (deferred-work.md)
-  7-8-full-run-playtest-and-final-tuning: backlog # HUMAN CHECKPOINT: playtesters by Nov 27
+  7-8-full-run-playtest-and-final-tuning: review # HUMAN CHECKPOINT: playtesters by Nov 27 (harness only; sessions pending: H-S78-1..4)
   7-9-itch-io-page-readme-and-submission: backlog
   epic-7-retrospective: optional

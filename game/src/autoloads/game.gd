@@ -101,6 +101,8 @@ func _ready() -> void:
 	if OS.has_feature("web"):
 		_listen_web_focus()
 	EventBus.player_damaged.connect(on_player_damaged)
+	# Story 7.8 (AC 5): first-shift metric; CONNECT_DEFERRED keeps the handler out of the sim tick (the emit comes from Register.shift inside a tick).
+	EventBus.register_shifted.connect(_on_register_shifted, CONNECT_DEFERRED)
 
 
 func _input(event: InputEvent) -> void:
@@ -113,6 +115,8 @@ func _exit_tree() -> void:
 	_unlisten_web_focus()
 	if EventBus.player_damaged.is_connected(on_player_damaged):
 		EventBus.player_damaged.disconnect(on_player_damaged)
+	if EventBus.register_shifted.is_connected(_on_register_shifted):
+		EventBus.register_shifted.disconnect(_on_register_shifted)
 
 
 func _notification(what: int) -> void:
@@ -510,6 +514,11 @@ func finish_defeat(boss: BossController) -> bool:
 		return false
 	var to: FlowState = route_after_defeat(run.boss_index, segfault_enabled)
 	Log.info(&"flow", "boss %d defeated -> %s" % [run.boss_index, FlowState.keys()[to]])
+	if not practice_run: # Story 7.8 (AC 6, 9, D-S78-3): the boss's clear time, retries included
+		var clear: int = stats.note_boss_cleared(run.boss_index, SimClock.sim_frame)
+		if clear >= 0: # no recorded start (e.g. debug jump past a boss): no bogus 0.0 s line
+			Log.info(&"metrics", "boss %d cleared_s=%.1f deaths=%d assist=%s" % [
+				run.boss_index + 1, RunStats.seconds(clear), stats.deaths_on(run.boss_index), str(run.assist)])
 	_set_flow_state(to)
 	return true
 
@@ -618,6 +627,10 @@ func _set_flow_state(to: FlowState) -> void:
 	# Story 6.8 (AC 1, 15): the Ending's timeline origin and the stats snapshot, taken on entry.
 	ending_start_frame = SimClock.sim_frame if to == FlowState.ENDING else -1
 	ending_summary = stats.snapshot(SimClock.sim_frame) if to == FlowState.ENDING else {}
+	if to == FlowState.ENDING and not practice_run: # Story 7.8 (AC 7, D-S78-5): one line per run
+		Log.info(&"metrics", stats.metrics_summary(first_input_frame, SimClock.sim_frame, run.assist, stats.debug_jumped))
+	if to == FlowState.FIGHT and not _retrying and not practice_run:
+		stats.note_fight_entry(run.boss_index, SimClock.sim_frame) # Story 7.8 (AC 6, D-S78-3)
 	if to == FlowState.FIGHT and stats.fight_start_frame < 0:
 		stats.fight_start_frame = SimClock.sim_frame # Story 6.8 (D-S68-4): Fight 1 starts the clear time
 	if to == FlowState.FIGHT:
@@ -635,6 +648,16 @@ func _set_flow_state(to: FlowState) -> void:
 	EventBus.flow_state_changed.emit(from, to)
 	if _focus_lost and to in PAUSABLE_STATES:
 		set_paused(true, &"focus")
+
+
+## Story 7.8 (AC 5, 8, D-S78-4): the run's first player shift in FIGHT logs `first_shift_s`, measured
+## from the first title input (Intro included). Boss rotations (source != &"player"), practice and runs
+## without a title input (resume has one; a debug jump sets one) never log. Writes only Game.stats.
+func _on_register_shifted(_direction: int, _window: Vector2i, _ring: PackedInt32Array, source: StringName) -> void:
+	if source != &"player" or flow_state != FlowState.FIGHT or practice_run or first_input_frame < 0:
+		return
+	if stats.note_first_shift(SimClock.sim_frame):
+		Log.info(&"metrics", "first_shift_s=%.1f" % RunStats.seconds(SimClock.sim_frame - first_input_frame))
 
 
 ## Story 2.9 (D-S29-2): PlayerHealth reports every landed hit; the lethal one (hp 0) is a death.
@@ -656,6 +679,7 @@ func record_death(frame: int) -> bool:
 		return false
 	if not practice_run:
 		run.deaths_on_boss += 1
+		stats.note_death(run.boss_index) # Story 7.8 (AC 6): per-boss deaths across the run
 	Log.info(&"flow", "player died at f=%d (deaths on boss %d%s)" % [frame, run.deaths_on_boss, ", practice" if practice_run else ""])
 	death_frame = frame # before the state change: listeners of flow_state_changed read it
 	_set_flow_state(FlowState.DEAD)
