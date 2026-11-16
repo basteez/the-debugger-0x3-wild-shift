@@ -1,6 +1,21 @@
-# The Debugger 0x03: Wild Shift
+<h1 align="center">
+  <a href="https://basteez.itch.io/wild-shift"><img src=".github/readme/banner.png" alt="The Debugger 0x03: Wild Shift" width="100%"></a>
+</h1>
 
-> Shift your weapon's bits mid-fight to squash monstrous bugs.
+<p align="center">
+  <img src=".github/readme/tagline.svg" alt="> console.log: Shift your weapon's bits mid-fight to squash monstrous bugs." width="100%">
+</p>
+
+<p align="center">
+  <a href="https://basteez.itch.io/wild-shift"><img src="https://img.shields.io/badge/play-itch.io-7cf874?style=for-the-badge&labelColor=020b05&logo=itchdotio&logoColor=7cf874" alt="Play on itch.io"></a>
+  <a href="https://itch.io/jam/game-off-2026"><img src="https://img.shields.io/badge/game_off-2026-7cf874?style=for-the-badge&labelColor=020b05&logo=github&logoColor=7cf874" alt="GitHub Game Off 2026"></a>
+  <a href="https://godotengine.org/"><img src="https://img.shields.io/badge/godot-4.7.2-7cf874?style=for-the-badge&labelColor=020b05&logo=godotengine&logoColor=7cf874" alt="Godot 4.7.2"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-7cf874?style=for-the-badge&labelColor=020b05" alt="MIT License"></a>
+</p>
+
+<p align="center">
+  <a href="https://basteez.itch.io/wild-shift"><img src=".github/readme/cover.jpg" alt="Cover art: a hooded developer with a rubber duck on their shoulder faces a dragon drawn in green terminal glyphs, holding a sword that reads 1011" width="720"></a>
+</p>
 
 A top-down action boss rush made for **[GitHub Game Off 2026](https://itch.io/jam/game-off-2026)** (theme: **SHIFT**).
 
@@ -130,3 +145,7 @@ The code and the documentation of this game were written with an AI coding assis
 ## License
 
 Code is released under the [MIT License](LICENSE).
+
+<p align="center">
+  <img src=".github/readme/footer.svg" alt="> process exited with code 0 · bugs squashed: 3 · rubber duck: happy" width="100%">
+</p>
