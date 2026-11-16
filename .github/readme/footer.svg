@@ -1,0 +1,4 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="56" viewBox="0 0 960 56" role="img" aria-label="Process exited with code 0. Bugs squashed: 3.">
+  <rect x="1" y="1" width="958" height="54" fill="#020b05" stroke="#7cf874" stroke-width="2"/>
+  <text x="20" y="35" fill="#9be895" font-family="'Anonymous Pro', 'DejaVu Sans Mono', Menlo, Consolas, monospace" font-size="16" xml:space="preserve"><tspan fill="#7cf874" font-weight="bold">&gt;</tspan>  process exited with code 0 · bugs squashed: 3 · rubber duck: happy</text>
+</svg>
