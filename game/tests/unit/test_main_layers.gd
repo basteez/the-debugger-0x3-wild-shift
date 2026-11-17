@@ -96,18 +96,14 @@ func test_screen_for_each_state() -> void:
 	assert_eq(_screen_of(main).name, &"IntroScreen")
 	assert_eq(_screen_of(main).get_parent(), main.get_node(^"Screens"))
 	assert_eq(PlaceholderScreen.lines_for(GameScript.FlowState.INTRO, 0).size(), 0, "no INTRO placeholder text")
-	var labels: Dictionary[int, String] = {
-		GameScript.FlowState.FIGHT: "FIGHT 2",
-	}
-	for state: int in labels:
-		var old: Node = _screen_of(main)
-		main.apply_flow_state(state, 1)
-		var screen := _screen_of(main) as PlaceholderScreen
-		assert_not_null(screen, "placeholder for state %d" % state)
-		assert_eq(screen.state, state)
-		assert_eq(screen.lines[0], labels[state])
-		assert_eq(screen.get_parent(), main.get_node(^"Screens"))
-		assert_true(not is_instance_valid(old) or old.is_queued_for_deletion(), "old screen freed")
+	var old: Node = _screen_of(main)
+	main.apply_flow_state(GameScript.FlowState.FIGHT, 1)
+	var screen := _screen_of(main) as PlaceholderScreen
+	assert_not_null(screen, "placeholder node for FIGHT")
+	assert_eq(screen.state, GameScript.FlowState.FIGHT)
+	assert_eq(screen.lines.size(), 0, "the FIGHT n / boss index n label is retired")
+	assert_eq(screen.get_parent(), main.get_node(^"Screens"))
+	assert_true(not is_instance_valid(old) or old.is_queued_for_deletion(), "old screen freed")
 	# Story 6.8 (AC 2, D7): ENDING shows the real screen; the placeholder serves FIGHT only.
 	main.apply_flow_state(GameScript.FlowState.ENDING, 2)
 	assert_true(_screen_of(main) is EndingScreen, "ENDING shows the real screen (6.8), no placeholder")
