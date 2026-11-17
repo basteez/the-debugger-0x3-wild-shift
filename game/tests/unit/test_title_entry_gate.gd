@@ -28,7 +28,8 @@ func before_each() -> void:
 			"practice_loadout_index", "practice_start_frame", "tutorial_routing_enabled"]:
 		_saved_game[key] = Game.get(key)
 	_saved_save = {"path": SaveService.path, "highest_boss": SaveService.highest_boss, "assist": SaveService.assist,
-			"tutorial_done": SaveService.tutorial_done, "track_fights": SaveService.track_fights}
+			"tutorial_done": SaveService.tutorial_done, "track_fights": SaveService.track_fights,
+			"completed": SaveService.completed} # Story 9.3
 	SaveService.path = ""
 	SaveService.track_fights = false
 	_saved_frame = SimClock.sim_frame

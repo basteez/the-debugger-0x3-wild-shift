@@ -246,3 +246,31 @@ func test_moved_strings_never_reappear_as_literals_in_their_former_scripts() -> 
 				continue
 			var quoted: String = "\"%s\"" % text
 			assert_false(source.contains(quoted), "%s holds the literal %s (move it to data/text)" % [path, quoted])
+
+
+# --- Story 9.3 (AC 10, D-S93-4) -----------------------------------------------------------------
+
+
+func _is_ascii(text: String) -> bool:
+	for i: int in text.length():
+		if text.unicode_at(i) > 127:
+			return false
+	return true
+
+
+func test_new_run_confirm_label_is_audited() -> void:
+	assert_eq(SCREEN.validate().size(), 0)
+	assert_eq(SCREEN.new_run_confirm_label, "PRESS N AGAIN: WIPE PROGRESS")
+	assert_has(SCREEN.all_text(), SCREEN.new_run_confirm_label)
+	assert_eq(TitleScreen.NEW_RUN_CONFIRM_TEXT, SCREEN.new_run_confirm_label)
+	assert_lte(SCREEN.new_run_confirm_label.length(), 28)
+	assert_lte(GlyphFont.text_width(SCREEN.new_run_confirm_label, TitleScreen.TEXT_SCALE), Const.BASE_RES.x - 32)
+	assert_true(_is_ascii(SCREEN.new_run_confirm_label))
+
+
+func test_pause_suffix_fits() -> void:
+	for assist: bool in [false, true]:
+		var row: String = PauseScreen.assist_text(assist, true)
+		assert_lte(row.length(), 40, row)
+		assert_lte(GlyphFont.text_width(row, PauseScreen.TEXT_SCALE), Const.BASE_RES.x - 32, "inside the 16-px gutter")
+		assert_true(_is_ascii(row))

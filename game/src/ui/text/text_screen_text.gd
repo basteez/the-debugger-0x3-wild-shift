@@ -16,6 +16,8 @@ const TUTORIAL_STEP_COUNT := 6
 @export var dead_line: String = ""
 ## Story 7.3 (D-S73-5): the title's new-run option label, shown only with a save past Boss 1.
 @export var new_run_label: String = ""
+## Story 9.3 (AC 5, 10, D-S93-2, D-S93-4): the [N] row while armed (a second N within the window wipes).
+@export var new_run_confirm_label: String = ""
 ## Story 7.4 (AC 4, D-S74-8): the title's "debug build" assist label, one per state. Neutral wording.
 @export var debug_build_on_label: String = ""
 @export var debug_build_off_label: String = ""
@@ -52,6 +54,8 @@ func validate() -> PackedStringArray:
 		out.append("dead_line must not be empty")
 	if new_run_label.is_empty():
 		out.append("new_run_label must not be empty")
+	if new_run_confirm_label.is_empty():
+		out.append("new_run_confirm_label must not be empty")
 	if debug_build_on_label.is_empty():
 		out.append("debug_build_on_label must not be empty")
 	if debug_build_off_label.is_empty():
@@ -97,7 +101,7 @@ func caption_for(panel: int) -> PackedStringArray:
 
 ## Every string this resource holds (font coverage, the audit).
 func all_text() -> PackedStringArray:
-	var out := PackedStringArray([title, prompt, dead_line, new_run_label, debug_build_on_label, debug_build_off_label, practice_label, practice_hint, fullscreen_label, windowed_label])
+	var out := PackedStringArray([title, prompt, dead_line, new_run_label, new_run_confirm_label, debug_build_on_label, debug_build_off_label, practice_label, practice_hint, fullscreen_label, windowed_label])
 	for panel: PackedStringArray in intro_captions:
 		out.append_array(panel)
 	out.append_array([tutorial_label, tutorial_hint_skip, tutorial_hint_pause, tutorial_all_pass_1, tutorial_all_pass_2])

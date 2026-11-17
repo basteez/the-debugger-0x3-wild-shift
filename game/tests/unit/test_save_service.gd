@@ -28,6 +28,7 @@ func before_each() -> void:
 		"path": SaveService.path, "highest_boss": SaveService.highest_boss, "assist": SaveService.assist,
 		"muted": SaveService.muted, "storage_warned": SaveService.storage_warned,
 		"track_fights": SaveService.track_fights, "tutorial_done": SaveService.tutorial_done,
+		"completed": SaveService.completed, # Story 9.3
 	}
 	_saved_enabled = Debug.enabled
 	_saved_frame = SimClock.sim_frame
@@ -40,6 +41,7 @@ func before_each() -> void:
 	Game.title_entry_frame = -1 # Story 9.1: these title tests start on a boot title (no entry gate)
 	_saved_unlocked = AudioManager.is_unlocked()
 	SaveService.highest_boss = 1
+	SaveService.completed = false # Story 9.3
 	SaveService.track_fights = true
 	_delete(SCRATCH)
 
@@ -438,6 +440,8 @@ func test_n_resets_and_goes_to_intro() -> void:
 	SaveService.highest_boss = 2
 	var title := _title(2)
 	assert_eq(title.handle_input(_key(KEY_N)), TitleScreenScript.Action.OPTION)
+	assert_eq(SaveService.highest_boss, 2, "Story 9.3 (D-S93-2): the first N only arms")
+	assert_eq(title.handle_input(_key(KEY_N)), TitleScreenScript.Action.OPTION)
 	assert_eq(SaveService.highest_boss, 1)
 	assert_eq(Game.flow_state, S.INTRO)
 
@@ -447,6 +451,8 @@ func test_click_on_label_is_the_same_as_n() -> void:
 	SaveService.highest_boss = 3
 	var title := _title(3)
 	title.handle_input(_click(TitleScreenScript.new_run_label_rect().get_center()))
+	assert_eq(SaveService.highest_boss, 3, "Story 9.3 (D-S93-2): the first click only arms")
+	title.handle_input(_click(title.label_rects[&"new_run"].get_center()))
 	assert_eq(SaveService.highest_boss, 1)
 	assert_eq(Game.flow_state, S.INTRO)
 
@@ -505,3 +511,275 @@ func test_pause_mute_toggle_writes_muted() -> void:
 	assert_eq(cfg.load(SCRATCH), OK)
 	assert_eq(cfg.get_value("save", "muted"), not was_muted)
 	AudioManager.set_master_muted(was_muted)
+
+
+# --- Story 9.3: the cleared run (528, AC 1-4, D-S93-1) ------------------------------------------
+
+func test_completed_round_trips_and_defaults_false() -> void:
+	assert_false(SaveScript.defaults()["completed"])
+	var parsed: Dictionary = SaveScript.parse(SaveScript.to_config(3, false, false, true, true))
+	assert_true(parsed["valid"])
+	assert_true(parsed["completed"])
+	assert_eq(parsed["highest_boss"], 3)
+	assert_false(SaveScript.parse(SaveScript.to_config(3, false, false))["completed"], "3-arg callers write false")
+	for version: int in [1, 2]: # a file without the key (any v1 or v2 save) reads as false
+		var cfg := ConfigFile.new()
+		cfg.set_value("save", "version", version)
+		cfg.set_value("save", "highest_boss", 3)
+		cfg.set_value("save", "assist", false)
+		cfg.set_value("save", "muted", false)
+		var p: Dictionary = SaveScript.parse(cfg)
+		assert_true(p["valid"], "v%d without completed loads" % version)
+		assert_false(p["completed"])
+		assert_eq(p["highest_boss"], 3)
+	assert_eq(SaveScript.VERSION, 2, "no VERSION bump")
+	var svc: Node = _service()
+	svc.highest_boss = 3
+	svc.completed = true
+	assert_true(svc.save())
+	var other: Node = _service()
+	other.load_save()
+	assert_true(other.completed)
+
+
+func test_completed_wrong_type_reads_false_and_keeps_the_save() -> void:
+	var cfg := SaveScript.to_config(3, true, false)
+	cfg.set_value("save", "completed", 1)
+	var parsed: Dictionary = SaveScript.parse(cfg)
+	assert_true(parsed["valid"], "a bad completed flag does not invalidate the file")
+	assert_false(parsed["completed"])
+	assert_eq(parsed["highest_boss"], 3, "the rest of the save survives")
+	assert_true(parsed["assist"])
+
+
+func test_note_run_cleared_writes_once() -> void:
+	var svc: Node = _service()
+	svc.highest_boss = 3
+	svc.note_run_cleared()
+	assert_true(svc.completed)
+	var cfg := ConfigFile.new()
+	assert_eq(cfg.load(SCRATCH), OK)
+	assert_eq(cfg.get_value("save", "completed"), true)
+	_delete(SCRATCH)
+	svc.note_run_cleared()
+	assert_true(svc.completed)
+	assert_false(FileAccess.file_exists(SCRATCH), "already set: no second write")
+
+
+func test_note_run_cleared_respects_track_fights() -> void:
+	var svc: Node = _service()
+	svc.track_fights = false
+	svc.note_run_cleared()
+	assert_false(svc.completed)
+	assert_false(FileAccess.file_exists(SCRATCH))
+
+
+func test_fresh_fight_one_after_completed_resets_progress() -> void:
+	var svc: Node = _service()
+	svc.highest_boss = 3
+	svc.completed = true
+	svc.note_fight_start(0)
+	assert_eq(svc.highest_boss, 1)
+	assert_false(svc.completed)
+	var cfg := ConfigFile.new()
+	assert_eq(cfg.load(SCRATCH), OK)
+	assert_eq(cfg.get_value("save", "highest_boss"), 1)
+	assert_eq(cfg.get_value("save", "completed"), false)
+
+
+func test_fresh_fight_one_without_completed_keeps_progress() -> void:
+	var svc: Node = _service()
+	svc.highest_boss = 3
+	svc.note_fight_start(0)
+	assert_eq(svc.highest_boss, 3, "the 7.3 rule: Fight 1 never lowers")
+	assert_false(FileAccess.file_exists(SCRATCH), "unchanged: no write")
+
+
+func test_later_fight_with_completed_keeps_flag() -> void:
+	var svc: Node = _service()
+	svc.highest_boss = 3
+	svc.completed = true
+	svc.note_fight_start(1) # only a fresh Fight 1 clears it
+	assert_true(svc.completed)
+	assert_eq(svc.highest_boss, 3)
+
+
+func _play_to_ending(game: Node) -> void:
+	game.start_run_from_title(0)
+	game.finish_intro(GameScript.INTRO_MAX_FRAMES)
+	for i: int in 2:
+		game.advance() # FIGHT -> HARVEST
+		assert_true(game.finish_harvest(0))
+	game.advance() # Boss 3 -> ENDING
+	assert_eq(game.flow_state, S.ENDING)
+
+
+func test_ending_entry_marks_completed() -> void:
+	var game: Node = _game()
+	_play_to_ending(game)
+	assert_true(SaveService.completed, "written at ENDING entry")
+	assert_eq(SaveService.highest_boss, 3, "the clear never lowers the save")
+
+
+func test_debug_or_practice_ending_does_not_mark_completed() -> void:
+	Debug.enabled = true
+	var game: Node = _game()
+	game.debug_jump(S.ENDING, 2)
+	assert_eq(game.flow_state, S.ENDING)
+	assert_false(SaveService.completed, "a debug-jumped run is not a clear")
+	var practice: Node = _game()
+	practice.practice_run = true
+	practice._set_flow_state(S.ENDING)
+	assert_false(SaveService.completed, "practice never writes the save")
+
+
+func test_new_run_after_clear_resets_on_fight_one() -> void:
+	SaveService.highest_boss = 3
+	SaveService.completed = true
+	var game: Node = _game()
+	game.start_run_from_title(0)
+	assert_true(SaveService.completed, "the Intro writes nothing")
+	game.finish_intro(GameScript.INTRO_MAX_FRAMES)
+	assert_false(SaveService.completed)
+	assert_eq(SaveService.highest_boss, 1, "the new run's own progress from now on")
+
+
+func test_completed_save_hides_new_run_and_starts_fresh() -> void:
+	_title_state()
+	SaveService.highest_boss = 3
+	SaveService.completed = true
+	var title: TitleScreen = autofree(TitleScreenScript.new())
+	title.set_saved_progress(3, true)
+	assert_false(title.is_option_available(&"new_run"))
+	assert_false(title.label_rects.has(&"new_run"))
+	assert_eq(title.handle_input(_key(KEY_SPACE)), TitleScreenScript.Action.START)
+	assert_eq(Game.flow_state, S.INTRO, "a fresh run through the Intro, never a resume into boss 3")
+	assert_eq(Game.run.boss_index, 0)
+
+
+func test_completed_save_n_is_a_plain_start() -> void:
+	_title_state()
+	SaveService.highest_boss = 3
+	SaveService.completed = true
+	var title: TitleScreen = autofree(TitleScreenScript.new())
+	title.set_saved_progress(3, true)
+	assert_eq(title.handle_input(_key(KEY_N)), TitleScreenScript.Action.START)
+	assert_eq(Game.flow_state, S.INTRO)
+
+
+func test_title_reads_completed_on_ready() -> void:
+	SaveService.highest_boss = 3
+	SaveService.completed = true
+	var title: TitleScreen = TitleScreenScript.new()
+	add_child_autofree(title)
+	assert_true(title.saved_completed)
+	assert_false(title.is_option_available(&"new_run"))
+
+
+# --- Story 9.3: two-press [N] (533, AC 5-7, D-S93-2) --------------------------------------------
+
+func test_n_arms_then_second_n_wipes() -> void:
+	_title_state()
+	SaveService.highest_boss = 3
+	var title := _title(3)
+	SimClock.sim_frame = 100
+	assert_eq(title.handle_input(_key(KEY_N)), TitleScreenScript.Action.OPTION)
+	assert_eq(title.new_run_text(), TitleScreenScript.NEW_RUN_CONFIRM_TEXT)
+	assert_eq(title.label_rects[&"new_run"], TitleScreenScript.new_run_label_rect(TitleScreenScript.NEW_RUN_CONFIRM_TEXT))
+	assert_eq(Game.flow_state, S.TITLE, "nothing starts")
+	assert_eq(SaveService.highest_boss, 3, "nothing is wiped")
+	SimClock.sim_frame = 150
+	title.handle_input(_key(KEY_N))
+	assert_eq(SaveService.highest_boss, 1)
+	assert_eq(Game.flow_state, S.INTRO)
+
+
+func test_arm_lapses_after_ninety_frames() -> void:
+	assert_eq(TitleScreenScript.NEW_RUN_CONFIRM_FRAMES, 90)
+	assert_true(TitleScreenScript.new_run_armed(100, 100))
+	assert_true(TitleScreenScript.new_run_armed(100, 189))
+	assert_false(TitleScreenScript.new_run_armed(100, 190))
+	assert_false(TitleScreenScript.new_run_armed(-1, 0))
+	assert_false(TitleScreenScript.new_run_armed(100, 99), "a clock behind the arm is not armed")
+	_title_state()
+	SaveService.highest_boss = 3
+	var title := _title(3)
+	SimClock.sim_frame = 100
+	title.handle_input(_key(KEY_N))
+	SimClock.sim_frame = 190
+	assert_eq(title.new_run_text(), TitleScreenScript.NEW_RUN_TEXT, "the label lapses by itself")
+	title._process(0.0)
+	assert_eq(title.new_run_armed_frame, -1)
+	assert_eq(title.label_rects[&"new_run"], TitleScreenScript.new_run_label_rect())
+	title.handle_input(_key(KEY_N))
+	assert_eq(Game.flow_state, S.TITLE, "a late N re-arms, never starts")
+	assert_eq(SaveService.highest_boss, 3)
+	assert_eq(title.new_run_armed_frame, 190)
+
+
+func test_other_key_disarms_and_resumes() -> void:
+	_title_state()
+	SaveService.highest_boss = 3
+	var title := _title(3)
+	SimClock.sim_frame = 100
+	title.handle_input(_key(KEY_N))
+	SimClock.sim_frame = 110
+	assert_eq(title.handle_input(_key(KEY_SPACE)), TitleScreenScript.Action.START)
+	assert_eq(title.new_run_armed_frame, -1)
+	assert_eq(Game.flow_state, S.FIGHT, "resumes at the saved boss, as today")
+	assert_eq(Game.run.boss_index, 2)
+	assert_eq(SaveService.highest_boss, 3)
+
+
+func test_other_option_disarms() -> void:
+	_title_state()
+	SaveService.highest_boss = 3
+	var title := _title(3)
+	SimClock.sim_frame = 100
+	title.handle_input(_key(KEY_N))
+	title.handle_input(_key(KEY_B)) # the assist toggle: acts as today and clears the arm
+	assert_eq(title.new_run_armed_frame, -1)
+	title.handle_input(_key(KEY_N))
+	assert_eq(Game.flow_state, S.TITLE, "the N after a cleared arm only arms again")
+	assert_eq(SaveService.highest_boss, 3)
+
+
+func test_click_on_armed_row_confirms() -> void:
+	_title_state()
+	SaveService.highest_boss = 3
+	var title := _title(3)
+	SimClock.sim_frame = 100
+	title.handle_input(_click(TitleScreenScript.new_run_label_rect().get_center()))
+	assert_eq(Game.flow_state, S.TITLE)
+	var armed_rect: Rect2 = TitleScreenScript.new_run_label_rect(TitleScreenScript.NEW_RUN_CONFIRM_TEXT)
+	SimClock.sim_frame = 120
+	title.handle_input(_click(armed_rect.position + Vector2(2, 2))) # the wider armed row's left edge
+	assert_eq(SaveService.highest_boss, 1)
+	assert_eq(Game.flow_state, S.INTRO)
+
+
+func test_click_elsewhere_while_armed_resumes() -> void:
+	_title_state()
+	SaveService.highest_boss = 2
+	var title := _title(2)
+	SimClock.sim_frame = 100
+	title.handle_input(_key(KEY_N))
+	title.handle_input(_click(Vector2(8, 8)))
+	assert_eq(Game.flow_state, S.FIGHT)
+	assert_eq(Game.run.boss_index, 1)
+	assert_eq(SaveService.highest_boss, 2)
+
+
+func test_arm_ignored_inside_the_title_gate() -> void:
+	_title_state()
+	SaveService.highest_boss = 3
+	var title := _title(3)
+	Game.title_entry_frame = 100 # Story 9.1: the gate is closed for 30 frames from here
+	SimClock.sim_frame = 110
+	assert_eq(title.handle_input(_key(KEY_N)), TitleScreenScript.Action.IGNORE)
+	assert_eq(title.new_run_armed_frame, -1, "nothing arms")
+	SimClock.sim_frame = 120
+	title.handle_input(_key(KEY_N))
+	assert_eq(title.new_run_armed_frame, -1)
+	assert_eq(Game.flow_state, S.TITLE)
+	assert_eq(SaveService.highest_boss, 3)
