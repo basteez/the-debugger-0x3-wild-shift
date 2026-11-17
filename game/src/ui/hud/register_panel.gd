@@ -87,9 +87,6 @@ var slide_px: int = 0:
 ## The child that draws the cells; clipped to CLIP_RECT by this node.
 var content: Node2D
 
-## 8x8 50% checker of BG pixels (transparent elsewhere), built once on first draw.
-static var _checker: ImageTexture
-
 
 func _init() -> void:
 	clip_children = CanvasItem.CLIP_CHILDREN_ONLY
@@ -261,14 +258,7 @@ static func _pair_text(window: Vector2i) -> String:
 	return Register.glyph_of(window.x) + " ".repeat(K_COL - J_COL - 1) + Register.glyph_of(window.y)
 
 
-## The dither (D-S23-7, NFR8): BG on pixels where x + y is even, transparent elsewhere. Built from
-## Palette.BG only, so the panel draws no colour outside INK and BG. Shared with LogPanel (3.2).
+## The dither (D-S23-7, NFR8): the 50% BG checker, built in core (Story 9.7: Dither.checker(), shared
+## with the arena and the sky row). Shared with LogPanel (3.2).
 static func checker_texture() -> ImageTexture:
-	if _checker == null:
-		var img: Image = Image.create_empty(GlyphFont.CELL, GlyphFont.CELL, false, Image.FORMAT_RGBA8)
-		for y: int in GlyphFont.CELL:
-			for x: int in GlyphFont.CELL:
-				if (x + y) % 2 == 0:
-					img.set_pixel(x, y, Palette.BG)
-		_checker = ImageTexture.create_from_image(img)
-	return _checker
+	return Dither.checker()

@@ -147,27 +147,37 @@ func test_checklist_lines_turn_to_pass() -> void:
 	assert_eq(TutorialChecklistView.done_lines(), PackedStringArray(["ALL TESTS PASSED.", "deploying to production..."]))
 
 
-func test_every_row_fits_the_play_area_and_clears_the_dummy() -> void:
-	var dummy := Rect2(Arena.TUTORIAL_DUMMY_PX - Vector2(24, 8), Vector2(48, 16))
+## Story 9.7 (D-S97-4, AC 6, 7): the checklist sits in the console's left block (HUD rows 39-44,
+## the rows at column 2, the cursor at column 0) and the prompt in the right block from column 24,
+## word-wrapped to the 56 columns left; nothing of either is inside the play area any more. The
+## hints and the completion rows stay in the play area (Story 9.1).
+func test_checklist_and_prompt_fit_the_console_blocks() -> void:
 	for i: int in TutorialSteps.STEP_COUNT:
 		var text: String = "[PASS] " + SCREEN.tutorial_tests[i]
-		var at: Vector2 = TutorialChecklistView.row_top_left(i)
-		assert_true(TutorialChecklistView.fits_play_area(at, text, TutorialChecklistView.TEST_SCALE), text)
-		var r := Rect2(at, Vector2(GlyphFont.text_width(text, 2), 16))
-		assert_false(r.intersects(dummy), "%s never covers the dummy" % text)
+		var cell: Vector2i = TutorialConsole.line_cell(TutorialConsole.CHECKLIST_COL, i)
+		assert_eq(cell, Vector2i(2, 39 + i))
+		assert_true(Hud.LOG.has_point(cell), text)
+		assert_lt(cell.x + text.length(), TutorialConsole.PROMPT_COL, "%s stays in the left block" % text)
+	assert_eq(TutorialConsole.PROMPT_COL, 24)
+	assert_eq(TutorialConsole.PROMPT_WIDTH, 56)
+	var widest: int = 0
 	for step: int in TutorialSteps.STEP_COUNT:
-		var rows: PackedStringArray = TutorialScreen.prompt_rows(step, PAD)
-		for i: int in rows.size():
-			assert_true(TutorialChecklistView.fits_play_area(TutorialChecklistView.prompt_top_left(rows[i], i, rows.size()), rows[i], 1), rows[i])
+		for device: int in [KB, PAD]:
+			var wrapped: PackedStringArray = TutorialConsole.wrap_prompt(TutorialScreen.prompt_rows(step, device))
+			assert_between(wrapped.size(), 1, 3, "step %d: the prompt leaves at least 3 log lines" % step)
+			for line: String in wrapped:
+				widest = maxi(widest, line.length())
+				assert_lte(TutorialConsole.PROMPT_COL + line.length(), Hud.COLS, "%s never passes column 79" % line)
+			assert_eq(" ".join(wrapped), " ".join(TutorialScreen.prompt_rows(step, device)), "no word lost")
+	assert_lte(widest, TutorialConsole.PROMPT_WIDTH)
+	assert_gt(widest, 40, "the wrap uses the block's width")
 	for device: int in [KB, PAD]:
 		var hints: PackedStringArray = TutorialScreen.hint_rows(device)
 		for i: int in hints.size():
 			assert_true(TutorialChecklistView.fits_play_area(TutorialChecklistView.hint_row_top_left(hints, i), hints[i], 1), hints[i])
 	var done: PackedStringArray = TutorialChecklistView.done_lines()
 	for i: int in done.size():
-		var at: Vector2 = TutorialChecklistView.done_top_left(done[i], i)
-		assert_true(TutorialChecklistView.fits_play_area(at, done[i], 2), done[i])
-		assert_false(Rect2(at, Vector2(GlyphFont.text_width(done[i], 2), 16)).intersects(dummy))
+		assert_true(TutorialChecklistView.fits_play_area(TutorialChecklistView.done_top_left(done[i], i), done[i], 2), done[i])
 
 
 ## A row's drawn rect with its BG backing (what _text paints).
@@ -176,45 +186,33 @@ static func _backed(top_left: Vector2, text: String, scale: int) -> Rect2:
 	return Rect2(top_left - Vector2.ONE * b, Vector2(GlyphFont.text_width(text, scale), GlyphFont.CELL * scale) + Vector2.ONE * b * 2.0)
 
 
-## Story 9.1 (AC 7, 618a, D-S91-4): the skip / pause hint rows and the hold bar never touch a
-## checklist row ([ ] or [PASS], backing included), for either device.
-func test_hint_rows_and_hold_bar_clear_the_checklist() -> void:
-	var rows: Array[Rect2] = []
-	for i: int in TutorialSteps.STEP_COUNT:
-		for mark: String in [TutorialChecklistView.TODO_MARK, TutorialChecklistView.PASS_MARK]:
-			var text: String = "%s %s" % [mark, SCREEN.tutorial_tests[i]]
-			rows.append(_backed(TutorialChecklistView.row_top_left(i), text, TutorialChecklistView.TEST_SCALE))
-			rows.append(_backed(Vector2(TutorialChecklistView.CURSOR_LEFT, TutorialChecklistView.row_top_left(i).y), TutorialChecklistView.CURSOR, TutorialChecklistView.TEST_SCALE))
+## Story 9.1 (AC 7, D-S91-4): the hint rows are short ASCII rows and the pause row clears the hold
+## bar, for either device.
+func test_hint_rows_and_hold_bar_clear_each_other() -> void:
 	for device: int in [KB, PAD]:
 		var hints: PackedStringArray = TutorialScreen.hint_rows(device)
 		assert_eq(hints.size(), 2, "skip row and pause row")
-		var drawn: Array[Rect2] = [TutorialChecklistView.hold_bar_rect(hints[0])]
 		for i: int in hints.size():
 			assert_lte(hints[i].length(), PROMPT_MAX)
 			assert_true(DuckLineDef.is_ascii(hints[i]), hints[i])
-			drawn.append(_backed(TutorialChecklistView.hint_row_top_left(hints, i), hints[i], TutorialChecklistView.PROMPT_SCALE))
-		for d: Rect2 in drawn:
-			for r: Rect2 in rows:
-				assert_false(d.intersects(r), "hint %s overlaps checklist %s" % [d, r])
-		assert_false(_backed(TutorialChecklistView.hint_row_top_left(hints, 1), hints[1], 1).intersects(drawn[0]), "the pause row clears the hold bar")
+		var bar: Rect2 = TutorialChecklistView.hold_bar_rect(hints[0])
+		assert_false(_backed(TutorialChecklistView.hint_row_top_left(hints, 1), hints[1], 1).intersects(bar), "the pause row clears the hold bar")
 
 
-## Hotfix: the 2x checklist rows' backings reach into the next row (BACKING px), so _draw paints every
-## backing before any glyph; text_rows() hands _draw all rows, the cursor included, in one list.
-func test_checklist_backings_overlap_neighbours_so_draw_is_two_pass() -> void:
-	var view := TutorialChecklistView.new()
-	add_child_autofree(view)
-	var texts := PackedStringArray()
-	for i: int in TutorialSteps.STEP_COUNT:
-		texts.append("[ ] test_row_%d" % i)
-	view.show_state(texts, 1, PackedStringArray(), PackedStringArray(), 0.0, false)
-	var all: Array[Dictionary] = view.text_rows()
-	assert_eq(all.size(), TutorialSteps.STEP_COUNT + 1, "six rows and the cursor")
-	var first: Dictionary = all[0]
-	var second: Dictionary = all[1]
-	var glyphs := Rect2(first["at"], Vector2(GlyphFont.text_width(first["text"], first["scale"]), GlyphFont.CELL * first["scale"]))
-	var next_back: Rect2 = TutorialChecklistView.backing_rect(second["at"], second["text"], second["scale"])
-	assert_true(next_back.intersects(glyphs), "row 2's backing covers the underscore row of row 1 (hence two passes)")
+## Story 9.7 (D-S97-4, AC 6): the arena view draws only the hints and the completion rows; the
+## checklist and the prompt are never drawn in the play area.
+func test_view_rows_are_hints_and_completion_only() -> void:
+	var view: TutorialChecklistView = autofree(TutorialChecklistView.new())
+	var hints: PackedStringArray = TutorialScreen.hint_rows(KB)
+	view.show_state(hints, 0.0, false)
+	var texts: Array[String] = []
+	for r: Dictionary in view.text_rows():
+		texts.append(r["text"])
+	assert_eq(texts, [hints[0], hints[1]] as Array[String])
+	view.show_state(hints, 0.0, true)
+	assert_eq(view.text_rows().size(), hints.size() + TutorialChecklistView.done_lines().size())
+	for r: Dictionary in view.text_rows():
+		assert_false(String(r["text"]).contains("test_"), "no checklist row in the arena")
 
 
 ## Hotfix: the hint rows and the hold bar (backing included) sit inside the tree ring, so they never
@@ -266,10 +264,68 @@ func test_completion_rows_clear_the_spawn_and_the_dummy() -> void:
 func test_view_draws_only_while_fed() -> void:
 	var view: TutorialChecklistView = autofree(TutorialChecklistView.new())
 	assert_false(view.active)
-	view.show_state(TutorialChecklistView.checklist_lines(TutorialSteps.new()), 0, PackedStringArray(["x"]), PackedStringArray(["hint"]), 0.0, false)
+	view.show_state(PackedStringArray(["hint"]), 0.0, false)
 	assert_true(view.active)
-	assert_eq(view.current, 0)
 	view.clear()
+	assert_false(view.active)
+
+
+## Story 9.7 (D-S97-4, AC 6-8): the console draws the checklist (cursor on the current row) and the
+## wrapped prompt, moves the log lines under the prompt in the right block, and hands the full-width
+## log back on clear.
+func test_console_layout_and_the_log_block() -> void:
+	var log_panel: LogPanel = autofree(LogPanel.new())
+	var console: TutorialConsole = autofree(TutorialConsole.new())
+	console.log_panel = log_panel
+	var lines: PackedStringArray = TutorialChecklistView.checklist_lines(TutorialSteps.new())
+	var prompt: PackedStringArray = TutorialScreen.prompt_rows(TutorialSteps.Step.ACTIONS, KB)
+	console.show_state(lines, 1, prompt)
+	var wrapped: PackedStringArray = TutorialConsole.wrap_prompt(prompt)
+	var rows: Array[Dictionary] = console.text_rows()
+	assert_eq(rows.size(), lines.size() + 1 + wrapped.size(), "six rows, the cursor, the prompt")
+	assert_eq(rows[0], {"cell": Vector2i(2, 39), "text": lines[0]})
+	assert_true(rows.has({"cell": Vector2i(0, 40), "text": ">"}), "the cursor on the current test")
+	for i: int in wrapped.size():
+		assert_true(rows.has({"cell": Vector2i(24, 39 + i), "text": wrapped[i]}), wrapped[i])
+	assert_eq(log_panel.block_col, 24)
+	assert_eq(log_panel.block_first_line, wrapped.size())
+	assert_eq(log_panel.block_max_lines, Hud.LOG_LINES - wrapped.size())
+	for i: int in 6:
+		log_panel.append_line("line %d" % i)
+	var shown: Array[Dictionary] = log_panel.block_rows()
+	assert_eq(shown.size(), Hud.LOG_LINES - wrapped.size(), "as many log lines as fit")
+	assert_eq(shown[shown.size() - 1]["text"], "line 5", "newest at the bottom")
+	assert_eq(shown[shown.size() - 1]["cell"], Vector2i(24, 44))
+	assert_eq(shown[0]["cell"], Vector2i(24, 39 + wrapped.size()))
+	console.clear()
+	assert_eq(console.text_rows().size(), 0)
+	assert_eq([log_panel.block_col, log_panel.block_first_line, log_panel.block_max_lines], [0, 0, Hud.LOG_LINES])
+	assert_eq(log_panel.block_rows().size(), 6, "the full-width log is back")
+	assert_eq(log_panel.block_rows()[0]["cell"], Vector2i(0, 39))
+
+
+## Story 9.7 (D-S97-4): the screen feeds both views; the console only redraws when its state
+## changes (the screen calls show_state every physics frame).
+func test_screen_feeds_the_console() -> void:
+	_arena = Arena.new()
+	_arena.enter_fight(Register.fight_start_for_boss(0), false, Arena.TUTORIAL_DEF_PATH)
+	Game.flow_state = S.TUTORIAL
+	var view: TutorialChecklistView = autofree(TutorialChecklistView.new())
+	var console: TutorialConsole = autofree(TutorialConsole.new())
+	var screen: TutorialScreen = autofree(TutorialScreen.new())
+	screen.arena = _arena
+	screen.view = view
+	screen.console = console
+	add_child(screen)
+	screen.set_physics_process(false)
+	screen.poll(1, false)
+	assert_true(console.active)
+	assert_eq(console.current, TutorialSteps.Step.MOVE)
+	assert_eq(console.lines, TutorialChecklistView.checklist_lines(screen.steps))
+	assert_eq(console.prompt_lines, TutorialConsole.wrap_prompt(TutorialScreen.prompt_rows(TutorialSteps.Step.MOVE, KB)))
+	assert_true(view.active)
+	screen.free()
+	assert_false(console.active, "leaving the screen clears the console")
 	assert_false(view.active)
 
 

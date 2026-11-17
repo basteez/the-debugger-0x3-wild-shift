@@ -12,7 +12,7 @@ const GLYPH_SCALE := 2
 const TREE := "♣"
 const GRASS := "\""
 const ROCK := "o"
-const WATER := "~"
+const WATER := "=" # Story 9.7 (D-S97-2): the font has no `≈`; `~` read as noise under the dither
 const LABEL := "stack frame 0x03"
 const LABEL_COL := 2
 const PLAYER_DEF: PlayerDef = preload("res://data/player/player_def.tres")
@@ -49,6 +49,14 @@ const WATCH_SKILL_PATH := "res://src/skills/watch/watch_skill.gd"
 ## Inset of the player's glyph centre from the play-area edge: half a tile, so the whole `@` cell
 ## stays inside the 32x18 play area (D-S22-2). One more tile inward makes the tree ring a wall.
 const PLAYER_EDGE_INSET_PX := TILE_PX / 2.0
+## Story 9.7 (D-S97-3) [design call]: the actor halo radii, arena-local pixels. A scenery cell whose
+## centre is this close to an actor is not drawn, so the `@`, the bosses, the practice target and a
+## live decoy never sit on the scenery glyphs.
+const HALO_PLAYER_PX := 24.0
+## Added to the boss's own body radius (BossController.body_radius_px()).
+const HALO_BOSS_PX := 20.0
+const HALO_PRACTICE_PX := 32.0
+const HALO_DECOY_PX := 24.0
 ## 18 rows x 32 glyphs (DC5): tree ring, grass, a connected stream, rocks, the label on row 0.
 const LAYOUT: PackedStringArray = [
 	'♣♣stack frame 0x03♣♣♣♣♣♣♣♣♣♣♣♣♣♣',
@@ -58,10 +66,10 @@ const LAYOUT: PackedStringArray = [
 	'♣   "    o    "    "    "    " ♣',
 	'♣    "    " o  "    "    o    "♣',
 	'♣"    "    "    "    "    "    ♣',
-	'♣ "    "    "    "    "   ~~~~~♣',
-	'♣~~~~~~ "    "    "   ~~~~~ "  ♣',
-	'♣   " ~~~~~~~ "  ~~~~~~ "    " ♣',
-	'♣    "    " ~~~~~~  "    "    "♣',
+	'♣ "    "    "    "    "   =====♣',
+	'♣====== "    "    "   ===== "  ♣',
+	'♣   " ======= "  ====== "    " ♣',
+	'♣    "    " ======  "    "    "♣',
 	'♣"    "    "    "    "    "    ♣',
 	'♣ "    "    "    "    "    "   ♣',
 	'♣  "    "    " o  "    "   o"  ♣',
@@ -118,6 +126,10 @@ var reserved_write_enabled: bool = Defs.FEATURE_FLAGS.reserved_write
 ## Story 7.4 (AC 7): the assist flag of the fight being entered (enter_fight's parameter), injected
 ## into the boss by _set_boss.
 var fight_assist: bool = false
+## Story 9.7 (D-S97-3): the scenery cells the last _draw skipped (the actor halo), sorted indices.
+var _hidden: PackedInt32Array = PackedInt32Array()
+## Every scenery cell's index in LAYOUT (static, built once; LAYOUT is constant).
+static var _scenery_index: PackedInt32Array = PackedInt32Array()
 
 
 func _enter_tree() -> void:
@@ -394,13 +406,107 @@ func _ready() -> void:
 	queue_redraw()
 
 
+## Story 9.7 (D-S97-3): draw-only, no sim state. The scenery cells hidden by the actor halo are recomputed
+## every frame (a few hundred distance checks), and the arena redraws only when that set changes:
+## no per-frame full redraw of the scenery (60 fps rule).
+func _process(_delta: float) -> void:
+	refresh_hidden_cells()
+
+
 func _draw() -> void:
+	var tile := Vector2(TILE_PX, TILE_PX)
 	for row: int in LAYOUT.size():
 		var line: String = LAYOUT[row]
 		for col: int in line.length():
 			var ch: String = line[col]
-			if ch != " ":
-				GlyphFont.draw_cell(self, Vector2i(col, row), ch, Palette.INK, GLYPH_SCALE)
+			if ch == " ":
+				continue
+			var scenery: bool = is_scenery(ch)
+			if scenery and _hidden.has(cell_index(Vector2i(col, row))):
+				continue
+			GlyphFont.draw_cell(self, Vector2i(col, row), ch, Palette.INK, GLYPH_SCALE)
+			if scenery: # D-S97-1: the 75% BG dither over the glyph cell
+				draw_texture_rect(Dither.scenery(), Rect2(Vector2(col, row) * tile, tile), true)
+
+
+## Story 9.7 (D-S97-1): grass, rock and water are scenery (dithered, hidden by the halo); the tree
+## ring and the `stack frame 0x03` label are the frame and stay full INK. Pure.
+static func is_scenery(ch: String) -> bool:
+	return ch == GRASS or ch == ROCK or ch == WATER
+
+
+## Row-major index of a layout cell. Pure.
+static func cell_index(cell: Vector2i) -> int:
+	return cell.y * TILES.x + cell.x
+
+
+## Centre of a layout cell, arena-local pixels. Pure.
+static func cell_centre_px(cell: Vector2i) -> Vector2:
+	return (Vector2(cell) + Vector2(0.5, 0.5)) * TILE_PX
+
+
+## Story 9.7 (D-S97-3): true when a scenery cell centred at `centre` lies in an actor halo: within
+## HALO_PLAYER_PX of the player, the boss body radius + HALO_BOSS_PX of the boss body centre,
+## HALO_PRACTICE_PX of the practice target, HALO_DECOY_PX of a live Ghost Echo decoy. An absent
+## actor is Vector2.INF. Distances are inclusive. Pure.
+static func in_halo(centre: Vector2, player_px: Vector2, boss_px: Vector2, boss_radius: float, practice_px: Vector2, decoy_px: Vector2) -> bool:
+	return centre.distance_to(player_px) <= HALO_PLAYER_PX \
+			or centre.distance_to(boss_px) <= boss_radius + HALO_BOSS_PX \
+			or centre.distance_to(practice_px) <= HALO_PRACTICE_PX \
+			or centre.distance_to(decoy_px) <= HALO_DECOY_PX
+
+
+## Story 9.7 (D-S97-3): the sorted indices (cell_index) of the scenery cells in a halo. Trees and the
+## label are never in the list. Pure.
+static func hidden_cells_for(player_px: Vector2, boss_px: Vector2, boss_radius: float, practice_px: Vector2, decoy_px: Vector2) -> PackedInt32Array:
+	var out := PackedInt32Array()
+	var cells: PackedInt32Array = _scenery_cells()
+	for idx: int in cells:
+		@warning_ignore("integer_division")
+		var cell := Vector2i(idx % TILES.x, idx / TILES.x)
+		if in_halo(cell_centre_px(cell), player_px, boss_px, boss_radius, practice_px, decoy_px):
+			out.append(idx)
+	return out
+
+
+## The hidden cells for the live actors of this arena (reads only; AD-05).
+func current_hidden_cells() -> PackedInt32Array:
+	var boss_px: Vector2 = Vector2.INF
+	var boss_radius: float = 0.0
+	if is_instance_valid(boss):
+		boss_px = boss.body_center_px
+		boss_radius = boss.body_radius_px()
+	var practice_px: Vector2 = practice_target.position_px if practice_target != null else Vector2.INF
+	var decoy: GhostDecoy = ghost_echo.decoy if ghost_echo != null else null
+	var decoy_px: Vector2 = decoy.position_px if decoy != null and decoy.is_live() else Vector2.INF
+	var player_px: Vector2 = player.position_px if player != null else Vector2.INF
+	return hidden_cells_for(player_px, boss_px, boss_radius, practice_px, decoy_px)
+
+
+## Recomputes the hidden set; queues a redraw only when it changed. True when it changed.
+func refresh_hidden_cells() -> bool:
+	var now: PackedInt32Array = current_hidden_cells()
+	if now == _hidden:
+		return false
+	_hidden = now
+	queue_redraw()
+	return true
+
+
+## The hidden set the arena last drew with (tests).
+func hidden_cells() -> PackedInt32Array:
+	return _hidden
+
+
+## The indices of every scenery cell in LAYOUT, built once.
+static func _scenery_cells() -> PackedInt32Array:
+	if _scenery_index.is_empty():
+		for row: int in LAYOUT.size():
+			var line: String = LAYOUT[row]
+			for col: int in line.length():
+				if is_scenery(line[col]):
+					_scenery_index.append(cell_index(Vector2i(col, row)))
+	return _scenery_index
 
 
 ## Play area in arena-local pixels: 512x288, max edge inclusive (DC4).

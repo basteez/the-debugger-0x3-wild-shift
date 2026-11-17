@@ -186,4 +186,5 @@ development_status:
   9-4-doc-consistency: done
   9-5-test-isolation-hardening: done # optional, cut first
   9-6-save-and-pad-robustness: done # optional
+  9-7-arena-readability: done # playtest-driven (2026-11-17), design calls D-S97-1..14, decision log D-054
   epic-9-retrospective: optional

@@ -661,3 +661,14 @@ Story 1.3 AC9 / I-6 ("mumble-speech web check, moved to 3.7") is UNBLOCKED. Tizi
 - Deferred (low): the guard regex misses an `@export` annotation on its own line above the `var`, and `= (...)`/line-continuation defaults.
 - Deferred (low): 9-1 story file hint coordinates (bar y 18-20) are stale: now bar y 27-29, hints inside the tree ring (HINT_TOP must stay >= BACKING).
 - Deferred (low): `test_checklist_backings_overlap_neighbours_so_draw_is_two_pass` proves the overlap geometry, not the draw order (no pixel read in headless); verified visually on the web build.
+
+## Story 9.7 (Arena readability, 2026-11-17, playtest-driven)
+- Out of scope for 9.7 (deferred, low): the duck bubble wraps into the narrow columns 0-11 under the register box (rows 22-37), and one hint line was cut mid-word ("the rest are in code review" shows as "th"). Fix in a later pass: wrap the duck line at the 12-column box and check every hint's last word against the 64-column tutorial prompt limit.
+- Deferred (low, dev 9.7): the `/* test */` label of the practice target is wider than its 32-px halo, so a dithered water cell can touch the `*/` end; the halo radius is the approved D-S97-3 value.
+- Note (dev 9.7): `test_checklist_backings_overlap_neighbours_so_draw_is_two_pass` was removed with the 2x checklist rows (they moved to the console); the 9.4 deferred item above about it is moot. The Story 1.5 story file keeps its historical `~` water text.
+- Deferred (low, review 9.7): `TutorialConsole.wrap_prompt` (via `DuckBubble.wrap`) never splits a word longer than 56 columns, and a prompt of 6+ lines would hide the log; today's prompts wrap to 2-3 lines. Add a test that every prompt, for both devices, wraps to at most 3 lines of at most 56 chars.
+- Deferred (low, review 9.7): the sky comment's descender row (glyph row 7 of `// sandbox: ...`, `// FIXME: who owns this pointer?`) lands on y = 16, row 2's first pixel row, in plain INK (pre-existing from D-S97-11).
+- Deferred (low, review 9.7): `PracticeFrameCounter.header_text` pads one space each side, so the visible text ends 3 columns from the edge (spec: 2); the test checks the padded string.
+- Deferred (low, review 9.7): perf polish for `Arena.refresh_hidden_cells` (allocates a PackedInt32Array per frame and `_hidden.has` is linear); skip when no actor moved or use a bool mask. Measure on the web build first.
+- Deferred (low, review 9.7): the crit-inversion frame on row 0 was never captured in a web build (H-S97-1); the HP readout vs a long boss header overlap is not tested (header + readout <= 80 columns).
+- Resolved in review 9.7: D-S97-13 (sky comment plain INK) and D-S97-14 (tell clearance, 8-px bar, all-caps tell) replaced the two dev-deferred items about the tell reading as a tab of the bar and the dotted 1x sky text.

@@ -114,7 +114,7 @@ This document provides the complete epic and story breakdown for The Debugger 0x
 
 **Arena and HUD**
 
-- FR56: The Clearing (labelled `stack frame 0x03`): a fantasy hunting ground drawn in glyphs (trees `♣`, grass `"`, rocks `o`, a stream of `~`), decorative only, with a per-boss sky comment (`// TODO: this should terminate`, `// FIXME: who owns this pointer?`, `// HACK: do not read past this line`). Collision never changes.
+- FR56: The Clearing (labelled `stack frame 0x03`): a fantasy hunting ground drawn in glyphs (trees `♣`, grass `"`, rocks `o`, a stream of `=`; Story 9.7, D-S97-2: was `~`), decorative only, with a per-boss sky comment (`// TODO: this should terminate`, `// FIXME: who owns this pointer?`, `// HACK: do not read past this line`). Collision never changes.
 - FR57: IDE HUD laid out per the GDD's HUD Layout wireframe (D-047: HUD text at 1× on an 8-px grid, 80×45 cells; world glyphs at 2×): register panel on the left (8 bits with `reserved` nibble, shift previews, hex value, active combo name and a `J→K` glyph, cooldowns), log panel at the bottom (crits in CAPS, resisted lines dithered with `// resisted`), line numbers down the left edge, boss signature header.
 
 **Options, practice and input**
@@ -142,7 +142,7 @@ This document provides the complete epic and story breakdown for The Debugger 0x
 - NFR5: Responsiveness — no added input latency beyond the browser/engine baseline; 0-frame shift with feedback on the input frame; retry after death in ≤ 2 s.
 - NFR6: Display — 640×360 base resolution, integer-scaled (pixel-perfect), Nearest filtering.
 - NFR7: Compatibility — Chrome and Firefox fully supported; Safari playable (cosmetic WebGL2 quirks accepted); no mobile; no crash in Safari over a full run.
-- NFR8: Readability (Pillar 2) — 1-bit palette ink `#E8E8E8` on `#101014`; inversion and 50% dither are the only extra states; red `#FF4040` is reserved for warnings (Breakpoint, SIGSEGV); one monospace pixel font on a 16-px grid; no damage without a tell.
+- NFR8: Readability (Pillar 2) — 1-bit palette ink `#E8E8E8` on `#101014`; inversion, a 50% dither and a 75% scenery dither (Story 9.7, D-S97-1) are the only extra states; red `#FF4040` is reserved for warnings (Breakpoint, SIGSEGV); one monospace pixel font on a 16-px grid; no damage without a tell.
 - NFR9: Session length — a first-time full run takes 10–15 minutes including deaths; per-boss first-clear targets 60–120 s / 120–150 s / 150–210 s.
 - NFR10: Onboarding — the first shift happens within 30 s of the first title-screen input, intro included.
 - NFR11: Reliability — zero blocking bugs across 3 consecutive full runs before submission; the game never shows an error to the player.
@@ -448,7 +448,7 @@ So that the code-as-fantasy look is clear from the first screen.
 
 **Given** the FIGHT placeholder screen
 **When** the arena is drawn
-**Then** a 32×18-tile play area at 16 px per tile shows trees `♣` as the boundary tree line, grass `"`, rocks `o` and a stream of `~`, labelled `stack frame 0x03`, all drawn with `draw_char`/`draw_string` in `_draw()` using one 8×8 CP437-style monospace pixel font at 2× (CC0/OFL, licence file in `assets/fonts/`; D-047)
+**Then** a 32×18-tile play area at 16 px per tile shows trees `♣` as the boundary tree line, grass `"`, rocks `o` and a stream of `=` (Story 9.7, D-S97-2; `~` at Story 1.5), labelled `stack frame 0x03`, all drawn with `draw_char`/`draw_string` in `_draw()` using one 8×8 CP437-style monospace pixel font at 2× (CC0/OFL, licence file in `assets/fonts/`; D-047)
 **And** only the two palette colours are used
 
 **Given** the HUD (`CanvasLayer`)
@@ -1747,7 +1747,7 @@ So that I know what to do before Boss 1 starts, without a manual.
 
 ## Epic 9: Deferred Work Burn-down
 
-Burn-down of the deferred-work backlog after Epic 8, scoped by the triage of `deferred-work.md` (2026-11-17). Items are fixed only where they touch player experience, the submission docs or test reliability; the rest stay WONTFIX or HUMAN. Stories are stacked PRs in this order. Each story marks its covered items in `deferred-work.md` as "Resolved in Story 9.N". Design calls are marked `[design call]` with IDs D-S9n-n in the story files and recorded in the GDD decision log (D-052). Window: started 2026-11-17, well before the internal target Nov 29 12:00 PST (official cutoff Dec 1 13:37 PST). Cut 9.4 and 9.5 first if the window overruns.
+Burn-down of the deferred-work backlog after Epic 8, scoped by the triage of `deferred-work.md` (2026-11-17). Items are fixed only where they touch player experience, the submission docs or test reliability; the rest stay WONTFIX or HUMAN. Stories are stacked PRs in this order. Each story marks its covered items in `deferred-work.md` as "Resolved in Story 9.N". Design calls are marked `[design call]` with IDs D-S9n-n in the story files and recorded in the GDD decision log (D-052; D-054 for Story 9.7). Window: started 2026-11-17, well before the internal target Nov 29 12:00 PST (official cutoff Dec 1 13:37 PST). Cut 9.4 and 9.5 first if the window overruns. Story 9.7 (arena readability) is added on 2026-11-17 from the first playtest's screenshots, not from the deferred list; it comes last in the stack.
 
 ### Story 9.1: Input Grace and Tutorial Polish
 
@@ -1912,3 +1912,53 @@ So that a closed tab or an unplugged pad does not cost progress.
 **Given** web builds
 **When** the rename path ships
 **Then** a human check note is recorded for a real browser save (IndexedDB-backed `user://`)
+
+### Story 9.7: Arena Readability
+
+As a player,
+I want the player, the bosses and the in-arena text to stand out from the scenery, and the top two rows to read clearly,
+So that I can always tell what is mine and what is the fight.
+
+**Requirements:** playtest feedback 2026-11-17 (screenshots `before-tutorial.png`, `before-practice.png`; coordinator brief in the 9-7 worktree folder); NFR8 (a 75% scenery dither is added; still 1-bit); D-054. Not a deferred-work item: the duck-bubble wrap is the one deferred row it adds. Story file `9-7-arena-readability.md`; design calls D-S97-1..8.
+
+**Acceptance Criteria:**
+
+**Given** the scenery glyphs grass `"`, rock `o` and water
+**When** the arena is drawn
+**Then** they carry a 75% BG dither, the tree ring `♣` and the `stack frame 0x03` label stay full INK, and the dither is built in `src/core/` (D-S97-1)
+
+**Given** the water glyph
+**When** the layout is read
+**Then** water is `=` (the font has no `≈`), and no `~` remains in `Arena.LAYOUT` or the tests (D-S97-2)
+
+**Given** a scenery cell whose centre is within 24 px of the player, within the boss radius + 20 px, within 32 px of the practice target or within 24 px of a live Ghost Echo decoy
+**When** the frame is drawn
+**Then** that cell is not drawn; trees and the label are never hidden; the hidden set is recomputed per frame and the arena redraws only when it changes; `src/arena/` never references `ui/` or `presentation/` (D-S97-3, DC4a)
+
+**Given** the tutorial
+**When** the checklist is shown
+**Then** the six test rows and the `>` cursor sit in the console's left block (HUD rows 39-44), the current prompt in the right block from column 24 word-wrapped to 56 columns, and the log lines under the prompt; the skip and pause hints stay top-right with backing and the completion rows stay in the arena bottom band (D-S97-4)
+
+**Given** practice
+**When** the frame counter runs
+**Then** `frames N` and the practice key hint are drawn on the console header row 38, right-aligned, with a BG backing, and nothing practice-related is drawn in the arena (D-S97-5)
+
+**Given** row 0
+**When** it is drawn
+**Then** it is a full-width INK bar with BG text (boss signature and the player HpReadout), still legible during the full-screen crit inversion and the Breakpoint dither (D-S97-6)
+
+**Given** the exported web build at 1280x720
+**When** row 0 is viewed
+**Then** its glyphs are fully visible and not shifted up, row 1 no longer crowds the `reg` box, and the root cause is recorded with evidence (D-S97-7)
+
+**Given** the sky row (row 1)
+**When** it is drawn normally
+**Then** it is plain INK (not dithered, D-S97-13) and the inverted `SIGSEGV INCOMING` tell keeps 1 px of BG under the title bar with all its glyphs visible (D-S97-14); the tutorial shows `// TODO: write the tests first` and practice shows `// sandbox: nothing here ships` (D-S97-8)
+
+**Given** the change set
+**When** it is verified
+**Then** the GUT suite, `game/tools/check_guards.sh` and a real exported web build (checked by eye, screenshot captured) pass, and no scenery is redrawn every frame (60 fps)
+
+**Given** the planning docs
+**When** this story closes
+**Then** NFR8 names the 75% scenery dither, the GDD art/palette and HUD sections match the shipped layout, decision-log row D-054 exists, and deferred-work.md records the duck-bubble wrap as out of scope
