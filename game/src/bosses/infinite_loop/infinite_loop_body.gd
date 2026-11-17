@@ -43,6 +43,9 @@ const OUTER := 0
 const INNER := 1
 ## Story 4.4 (D-S44-1): live ticks without a shift after which the ring starts on its own (5 s).
 const START_NUDGE_TICKS := 300
+## Story 3.5 (D-S35-14), moved here in Story 9.2 (D-S92-1): the Nested Loop TELL blink hides the
+## ring on alternate blocks of this many sim frames (BossView.FLASH_BLOCK aliases it).
+const FLASH_BLOCK := 6
 const SemicolonSpit := preload("res://src/bosses/infinite_loop/attacks/semicolon_spit.gd")
 
 ## The ring numbers (D-S33-15). Tests may swap it before setup.
@@ -412,10 +415,13 @@ func hit_position() -> Vector2:
 
 ## Story 8.1 (D-S81-3): the ring body for the miss feedback. A segment (outer, then inner after the
 ## split) counts as touched when the shape overlaps its contact circle (`contact_radius_tiles`).
-## Nothing while the boss is not hittable (ROAR, DEFEATED, inactive, AC 8). Returns the first touched
-## segment's centre, or Vector2.INF. Read only.
+## Nothing while the boss is not hittable (ROAR, DEFEATED, inactive, AC 8), nor while the Nested Loop
+## blink hides the ring (Story 9.2, D-S92-1: the player could not see it; the `;` hurtbox in
+## overlaps_shape is not gated). Returns the first touched segment's centre, or Vector2.INF. Read only.
 func body_touch_px(shape: HitShape, origin: Vector2, facing: Vector2) -> Vector2:
 	if shape == null or not is_hittable():
+		return Vector2.INF
+	if ring_blinked_out():
 		return Vector2.INF
 	var r: float = HitShape.tiles_to_px(ring.contact_radius_tiles)
 	for k: int in _units.size():
@@ -427,6 +433,28 @@ func body_touch_px(shape: HitShape, origin: Vector2, facing: Vector2) -> Vector2
 		if shape.overlaps(origin, facing, p, r):
 			return p
 	return Vector2.INF
+
+
+## Story 3.5 (D-S35-14), sim side since Story 9.2 (D-S92-1): true while the boss is in the Nested
+## Loop's TELL. Pure read.
+func nested_telling() -> bool:
+	return state == BossState.TELL and current != null and current.id == NESTED_LOOP_ID
+
+
+## Story 3.5 (D-S35-14), sim side since Story 9.2 (D-S92-1): the ring is hidden on alternate
+## FLASH_BLOCK blocks of the Nested Loop TELL countdown (the blink), shown otherwise. Pure.
+static func blink_hidden(telling: bool, p_frames_left: int) -> bool:
+	if not telling:
+		return false
+	@warning_ignore("integer_division")
+	return (p_frames_left / FLASH_BLOCK) % 2 == 1
+
+
+## Story 9.2 (D-S92-1): true on the frames the Nested Loop blink hides the ring. The one predicate
+## for the sim (body_touch_px) and the drawing (BossView delegates). Pure read, derived from the
+## hashed state / current / frames_left; writes nothing.
+func ring_blinked_out() -> bool:
+	return blink_hidden(nested_telling(), frames_left)
 
 
 ## Story 8.1 (D-S81-2): the weak point is the `;`, open while hittable.

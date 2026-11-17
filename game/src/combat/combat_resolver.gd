@@ -88,8 +88,9 @@ func tick(_ctx: SimContext) -> void:
 	var dispelled: int = boss.decoy_hit(def.hit_shape, origin, facing) if boss != null else 0
 	_note_body_touch(def.hit_shape, origin, facing, serial)
 	if hit.is_empty() and not boss_hit and dispelled == 0:
-		_check_whiff(def, serial)
-		_check_miss(def, serial)
+		# Story 9.2 (D-S92-4): a whiff stun on this frame is the swing's only feedback (no miss line).
+		if not _check_whiff(def, serial):
+			_check_miss(def, serial)
 		return
 	_landed_serial = serial
 	var is_combo: bool = actions.combo != null
@@ -143,25 +144,27 @@ func _strike_ghost() -> bool:
 ## solo or chain ATTACK slash the player started (not an Echo, not a combo) that landed nothing,
 ## with a hittable boss whose whiff range is > 0 and whose centre is within it (centre to centre,
 ## edge included): the FSM is stunned. The stun starts on the next tick (ACTIONS ran already).
-func _check_whiff(def: ActionDef, serial: int) -> void:
+## Story 9.2 (D-S92-4): returns true when it stunned (the caller then skips the miss line).
+func _check_whiff(def: ActionDef, serial: int) -> bool:
 	if boss == null or _landed_serial == serial:
-		return
+		return false
 	if actions.action_frame != def.startup_frames + def.active_frames:
-		return
+		return false
 	if actions.echoing or actions.combo != null or not is_attack_slash(def):
-		return
+		return false
 	# [design call] D-S53-12: a slash whose combo link already holds the K follow-up (A->D Dash
 	# Strike, a link_second) is a combo opener, not a blind swing: it never stuns.
 	if actions.link.held:
-		return
+		return false
 	var reach: float = boss.whiff_stun_range_px()
 	if reach <= 0.0 or not boss.is_hittable():
-		return
+		return false
 	var at: Vector2 = player.position_px if player != null else actions.action_origin_px
 	if at.distance_to(boss.body_center_px) > reach:
-		return
+		return false
 	Log.debug(&"combat", "whiff %s: %s" % [def.id, NPE_REASON])
 	actions.begin_stun(NPE_STUN_FRAMES, NPE_REASON)
+	return true
 
 
 ## Story 8.1 (D-S81-3, D-S81-4): remembers that the action with `serial` touched the boss's body
@@ -182,12 +185,16 @@ func _note_body_touch(shape: HitShape, origin: Vector2, facing: Vector2, serial:
 ## Story 8.1 (AC 5, D-S81-4): on the last ACTIVE frame of an action that touched the boss's body and
 ## landed nothing, one EventBus.hit_missed (closed = the weak point was never open while touched).
 ## Serial-guarded like _check_whiff, so it fires once per action. No sim write.
+## Story 9.2 (D-S92-2, D-S92-3): an Echo replay, and a combo opener whose K follow-up is held (the
+## follow-up is judged), never miss; their touch bookkeeping is dropped without a line.
 func _check_miss(def: ActionDef, serial: int) -> void:
 	if boss == null or _body_touch_serial != serial or _landed_serial == serial:
 		return
 	if actions.action_frame != def.startup_frames + def.active_frames:
 		return
 	_body_touch_serial = -1
+	if actions.echoing or actions.link.held:
+		return
 	Log.debug(&"combat", "miss %s (%s)" % [def.id, "open" if _body_touch_open else "closed"])
 	EventBus.hit_missed.emit(boss.hit_target_id(), not _body_touch_open, _body_touch_px)
 

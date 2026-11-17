@@ -44,8 +44,9 @@ extends Node2D
 
 const GLYPH_SCALE := 2
 const TELL_MARK := "!"
-## ROAR flash: inverted on alternate blocks of this many sim frames.
-const FLASH_BLOCK := 6
+## ROAR flash: inverted on alternate blocks of this many sim frames. Story 9.2 (D-S92-1): the same
+## block as the Nested Loop blink, whose predicate lives on the sim side.
+const FLASH_BLOCK := InfiniteLoopBody.FLASH_BLOCK
 const PATCHED_TAG := "// patched"
 const TAG_SCALE := 1
 ## Countdown bar height in px, and the gap between the tag, the bar and the body line.
@@ -198,7 +199,7 @@ func _draw_ring(body: InfiniteLoopBody) -> void:
 	var jitter := Vector2(0.0 if defeated else jitter_offset(body.jitter_level(), SimClock.sim_frame), 0.0)
 	var flash: bool = roar_flash_on(body.state == BossController.BossState.ROAR, body.frames_left)
 	var open: bool = body.is_open() and not defeated
-	var hidden: bool = not defeated and nested_flash_hidden(nested_telling(body), body.frames_left)
+	var hidden: bool = not defeated and body.ring_blinked_out()
 	if defeated and body.def.fixed_line != "":
 		_draw_reassembly(body, cell)
 		_draw_number(Vector2(0, 0))
@@ -540,19 +541,16 @@ static func glyph_mark_centre(anchor: Vector2, above: bool) -> Vector2:
 	return Vector2(clampf(p.x, area.position.x + half, area.end.x - half), clampf(p.y, area.position.y + half, area.end.y - half))
 
 
-## Story 3.5 (D-S35-14): true while the boss is in the Nested Loop's TELL. Reads only.
+## Story 3.5 (D-S35-14): true while the boss is in the Nested Loop's TELL. Reads only; delegates to
+## the sim (Story 9.2, D-S92-1).
 static func nested_telling(body: InfiniteLoopBody) -> bool:
-	return body.state == BossController.BossState.TELL and body.current != null \
-			and body.current.id == InfiniteLoopBody.NESTED_LOOP_ID
+	return body.nested_telling()
 
 
 ## Story 3.5 (D-S35-14): the ring is hidden on alternate FLASH_BLOCK blocks of the Nested Loop TELL
-## countdown (the blink), shown otherwise. Pure.
+## countdown (the blink), shown otherwise. Pure; delegates to the sim predicate (Story 9.2, D-S92-1).
 static func nested_flash_hidden(telling: bool, frames_left: int) -> bool:
-	if not telling:
-		return false
-	@warning_ignore("integer_division")
-	return (frames_left / FLASH_BLOCK) % 2 == 1
+	return InfiniteLoopBody.blink_hidden(telling, frames_left)
 
 
 ## Story 3.5 (D-S35-9): true while the Spit's origin `;` glows (its last spit_tell_frames ticks). Reads only.
@@ -580,7 +578,7 @@ static func dummy_cue_centre(semicolon: Vector2) -> Vector2:
 static func semicolon_cue_on(body: InfiniteLoopBody) -> bool:
 	if body == null or not body.is_semicolon_hittable():
 		return false
-	return not nested_flash_hidden(nested_telling(body), body.frames_left)
+	return not body.ring_blinked_out()
 
 
 ## Story 8.1 (D-S81-7): the countdown bar fill, open_left / open_frames clamped to 0..1, 0 without

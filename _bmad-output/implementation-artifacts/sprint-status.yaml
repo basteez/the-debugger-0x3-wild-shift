@@ -181,7 +181,7 @@ development_status:
   # Stacked PRs in key order. Design calls D-S9n-n in the story files; decision log D-052.
   epic-9: in-progress
   9-1-input-grace-and-tutorial-polish: done
-  9-2-miss-feedback-polish: backlog
+  9-2-miss-feedback-polish: done
   9-3-run-and-assist-clarity: backlog
   9-4-doc-consistency: backlog
   9-5-test-isolation-hardening: backlog # optional, cut first

@@ -118,6 +118,45 @@ func test_no_body_while_roaring_or_defeated() -> void:
 	assert_false(b.body_overlaps_shape(small, b.segment_px(4), Vector2.RIGHT), "DEFEATED")
 
 
+## Story 9.2 (AC 1, 3, D-S92-1): the sim-side blink predicate equals the drawn blink for every
+## frames_left in a Nested Loop TELL, is off outside it, and hides the ring body while on.
+func test_ring_blinked_out_matches_the_drawn_blink() -> void:
+	var b: InfiniteLoopBody = _body()
+	_start(b)
+	assert_true(b.debug_skip_phase())
+	assert_true(b.debug_skip_phase())
+	assert_eq(b.phase_index, InfiniteLoopBody.PHASE_3)
+	var guard: int = 0
+	while b.state != BossController.BossState.TELL and guard < 3000:
+		b.tick(SimContext.new())
+		guard += 1
+	assert_eq(b.state, BossController.BossState.TELL)
+	assert_eq(b.current.id, InfiniteLoopBody.NESTED_LOOP_ID, "the first phase-3 pick is the Nested Loop")
+	assert_true(BossView.nested_telling(b))
+	var hidden: int = 0
+	for f: int in range(0, 61):
+		b.frames_left = f
+		var drawn: bool = BossView.nested_flash_hidden(BossView.nested_telling(b), f)
+		assert_eq(b.ring_blinked_out(), drawn, "frames_left %d" % f)
+		# Independent expectation (the delegation above would make the parity alone tautological).
+		assert_eq(drawn, (f / 6) % 2 == 1, "blink arithmetic at frames_left %d" % f)
+		if drawn:
+			hidden += 1
+	assert_gt(hidden, 0)
+	assert_lt(hidden, 61, "a blink, not a blank")
+	assert_eq(BossView.FLASH_BLOCK, InfiniteLoopBody.FLASH_BLOCK)
+	var small: HitCircle = _circle(0.25)
+	b.frames_left = InfiniteLoopBody.FLASH_BLOCK # a hidden block
+	assert_true(b.ring_blinked_out())
+	assert_false(b.body_touch_px(small, b.segment_px(4), Vector2.RIGHT).is_finite(), "no body while blinked out")
+	b.frames_left = 0 # a drawn block
+	assert_false(b.ring_blinked_out())
+	assert_true(b.body_touch_px(small, b.segment_px(4), Vector2.RIGHT).is_finite(), "body while drawn")
+	b.state = BossController.BossState.GAP
+	b.frames_left = InfiniteLoopBody.FLASH_BLOCK
+	assert_false(b.ring_blinked_out(), "no blink outside TELL")
+
+
 # --- AC 3, 4: the open cue (presentation) ---
 
 func test_open_bar_fraction_edges() -> void:
