@@ -7,6 +7,7 @@ extends Node2D
 ## Story 2.9: EventBus.player_damaged appends `WARN: hp--` (D-S29-9).
 ## Story 3.2 (FR27, D-S32-18): the line depends on the damage state; resisted lines are dithered.
 ## Story 5.3 (D-S53-6): EventBus.player_stunned appends its reason (`NullPointerException`).
+## Story 8.1 (D-E8-3, D-S81-2): EventBus.hit_missed appends a dithered `// miss` line.
 
 const SCALE := 1
 
@@ -31,6 +32,8 @@ func _enter_tree() -> void:
 		EventBus.player_damaged.connect(_on_player_damaged)
 	if not EventBus.player_stunned.is_connected(_on_player_stunned):
 		EventBus.player_stunned.connect(_on_player_stunned)
+	if not EventBus.hit_missed.is_connected(_on_hit_missed):
+		EventBus.hit_missed.connect(_on_hit_missed)
 
 
 func _exit_tree() -> void:
@@ -40,6 +43,8 @@ func _exit_tree() -> void:
 		EventBus.player_damaged.disconnect(_on_player_damaged)
 	if EventBus.player_stunned.is_connected(_on_player_stunned):
 		EventBus.player_stunned.disconnect(_on_player_stunned)
+	if EventBus.hit_missed.is_connected(_on_hit_missed):
+		EventBus.hit_missed.disconnect(_on_hit_missed)
 
 
 ## Appends a line; once the ring is full the oldest line scrolls off.
@@ -96,6 +101,11 @@ static func line_for_player_hit() -> String:
 	return "WARN: hp--"
 
 
+## Story 8.1 (D-S81-2): the log line for a miss on the boss's body. ASCII only. Pure.
+static func line_for_miss(closed: bool) -> String:
+	return "// miss: \";\" is closed" if closed else "// miss: aim for the \";\""
+
+
 ## HUD cell of log line `index` (0 = top line, row 39). Pure.
 static func line_cell(index: int) -> Vector2i:
 	return Vector2i(Hud.LOG.position.x, Hud.LOG.position.y + 1 + index)
@@ -122,3 +132,8 @@ func _on_player_damaged(_hp: int) -> void:
 ## Story 5.3 (D-S53-6): the stun's reason, as is (`NullPointerException`).
 func _on_player_stunned(reason: StringName) -> void:
 	append_line(String(reason))
+
+
+## Story 8.1 (D-E8-3): one dithered line per miss, like a resisted hit.
+func _on_hit_missed(_target: StringName, closed: bool, _pos: Vector2) -> void:
+	append_line(line_for_miss(closed), true)

@@ -380,7 +380,7 @@ func test_infinite_loop_ring_def_matches_the_gdd() -> void:
 	assert_eq(ring.validate(), PackedStringArray())
 	assert_eq([ring.segments, ring.base_speed_tps, ring.speed_cap_tps, ring.ramp_percent, ring.drift_tps, ring.open_frames], [24, 8, 12, 5, 2, 90])
 	assert_eq(ring.contact_radius_tiles, 0.5)
-	assert_eq(ring.hurt_radius_tiles, 0.5)
+	assert_eq(ring.hurt_radius_tiles, 1.0, "Story 8.1 (D-E8-1): was 0.5")
 	assert_eq(RingDef.new().validate(), PackedStringArray(), "defaults are the GDD values")
 
 

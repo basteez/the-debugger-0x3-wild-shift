@@ -314,6 +314,10 @@ A complete framed run from Intro to Ending: Ghost Echo and Dereference, the fina
 A jam-ready release, submitted: music and the full SFX pass, save/resume, assist toggle, fullscreen, (Should) gamepad and title-screen practice target, browser matrix and performance check, itch.io page and README; submitted by Nov 29 12:00 PST.
 **FRs covered:** FR53, FR55, FR59 (title), FR60, FR61, FR62, FR63 (full pass), FR64
 
+### Epic 8: Playtest Response: Onboarding and Hit Readability (Nov 17–25)
+The first external playtester could not tell what to do, when the `;` was hittable, or why hits felt unreliable. The `;` becomes readable at a glance (larger hurt circle, an unmistakable open cue, a miss line that says why), and a guided "running the test suite" tutorial before Boss 1 has the player perform every core verb once, in isolation. Epic 8 must finish before the Epic 7 full-run playtest (story 7.8).
+**FRs covered:** none new (playtest findings of 2026-11-17; design calls D-E8-1 to D-E8-7 in the stories)
+
 ## Epic 1: Web Foundation
 
 The player opens the game on the itch.io draft page: a title screen with press-to-start (which unlocks audio), The Clearing arena inside the IDE HUD frame, placeholder scene flow, and pause/auto-pause. Every later epic builds on this running web build. Window: Nov 6–7.
@@ -1640,3 +1644,103 @@ So that raters understand the game in 30 seconds and the entry is valid.
 **Given** the jam
 **When** the entry is submitted to GitHub Game Off 2026
 **Then** it is submitted by 2026-11-29 12:00 PST (≥ 49 h before the deadline)
+
+## Epic 8: Playtest Response: Onboarding and Hit Readability
+
+Response to the first external playtest (2026-11-17): the player did not know what to do, did not know when the `;` was hittable, and found hits hard to land. Window: Nov 17–25 (accepted 2026-11-17). Source: the verbatim playtest notes in the Epic 8 brief (scratchpad); design calls are marked `[design call]` with IDs D-E8-n and recorded in the GDD decision log (D-051).
+
+### Story 8.1: Semicolon Readability and Hit Forgiveness
+
+As a player,
+I want to see at a glance when the `;` is hittable and where it is,
+So that near-misses count and I can tell why a hit did or did not land.
+
+**Requirements:** playtest finding 2 (hit detection feels off, unclear when the `;` is vulnerable); D-E8-1, D-E8-2, D-E8-3
+
+**Acceptance Criteria:**
+
+**Given** `data/bosses/infinite_loop/ring_def.tres` (`hurt_radius_tiles`, D-E8-1)
+**When** the tuning is applied
+**Then** `hurt_radius_tiles` is 1.0 (was 0.5) for both rings, `contact_radius_tiles` stays 0.5, and `test_data_validation` and the Infinite Loop tests assert the new value
+
+**Given** the `;` is open and a player hit overlaps its hurt circle
+**When** the hit resolves
+**Then** it lands exactly as today (damage, Patched rules, hit-stop, log line); only the circle grew
+
+**Given** the `;` is open
+**When** the ring is drawn
+**Then** the open `;` keeps the inverted cell and gains an INK marker on the inner side of the ring, inside the ring's existing footprint (a pointer toward the `;`, D-E8-2, D-S81-1), plus a small countdown bar of `open_left / open_frames` also inside the footprint (presentation only, AD-05)
+
+**Given** the `;` is closed
+**When** the ring is drawn
+**Then** the `;` is the plain glyph with no marker and no bar, so closed and open are clearly different at a glance
+
+**Given** a player damaging action (not Echo Dash or any PASS_THROUGH action) whose hit shape overlaps a ring body segment (outer or inner) and does not hit the open `;`
+**When** the action's active frames resolve
+**Then** exactly one log line is appended for that action: `// miss: ";" is closed` when the `;` is closed, or `// miss: aim for the ";"` when it is open but missed (D-E8-3, D-S81-2), dithered like the resisted line
+**And** a small deflect particle burst is drawn at the contact point and the existing `hit_resisted` SFX plays (no new audio asset)
+**And** the miss feedback is emitted through EventBus from the resolver after the sim decision and never writes sim state, so replay hashes and determinism tests still pass
+
+**Given** a damaging action overlaps nothing (empty space or the arena)
+**When** it resolves
+**Then** no miss line, no particle and no SFX are produced (the Null Pointer whiff stun path is unchanged)
+
+**Given** the Infinite Loop is DEFEATED or in ROAR
+**When** an action overlaps the body
+**Then** no miss feedback is produced
+
+**Given** the new hit and miss logic
+**When** `test_combat_resolver`, `test_infinite_loop_body`, `test_log_panel`, `test_infinite_loop_replay` and `test_replays` run in CI (and the full GUT suite locally)
+**Then** all pass, with a new unit test per AC above and the seed fixed where an attack pick is involved
+
+### Story 8.2: Guided Tutorial Before Boss 1 ("Running the Test Suite")
+
+As a first-time player,
+I want a short guided tutorial that has me perform each core verb once,
+So that I know what to do before Boss 1 starts, without a manual.
+
+**Requirements:** playtest finding 1 (no idea what to do; wants a dumbed-down tutorial at the start); D-E8-4, D-E8-5, D-E8-6, D-E8-7
+
+**Acceptance Criteria:**
+
+**Given** a fresh run (save flag `tutorial_done` false or missing)
+**When** the flow leaves INTRO
+**Then** a new flow state TUTORIAL runs in The Clearing against a tutorial dummy before the Boss 1 FIGHT (D-E8-4)
+**And** a checklist of six tests is drawn as large ASCII text in the play area (not in the duck bubble): `[ ] test_move`, `[ ] test_actions`, `[ ] test_shift`, `[ ] test_combo`, `[ ] test_patch`, `[ ] test_crit`, turning to `[PASS] ...` as each passes
+
+**Given** each step is gated on the player actually doing it (D-E8-5)
+**When** the step's condition is met in sim state
+**Then** it passes: `test_move` after ~3 tiles of movement; `test_actions` after both J (LEFT) and K (RIGHT) have been used; `test_shift` when the window reads `[A, D]`; `test_combo` on a Dash Strike; `test_patch` on Patched applied by the `;` that opens on a fixed slow timer; `test_crit` on a Patched hit (x1.5)
+**And** the register starts `[D, A]` like Boss 1, and each prompt is a single short line
+
+**Given** the tutorial dummy
+**When** it is hit
+**Then** it uses damage states (Patched and unpatched) and never attacks; the `;` opens on a fixed stationary timer with the same open cue as Story 8.1
+
+**Given** the last input device is a gamepad (Story 7.5 mapping) or a keyboard
+**When** a prompt is drawn
+**Then** it shows gamepad glyph names or keyboard keys accordingly
+
+**Given** all six tests pass
+**When** the last one completes
+**Then** the screen shows `ALL TESTS PASSED. deploying to production...` and Boss 1 starts exactly as today (duck beats T1 to T4 still play, D-E8-7)
+
+**Given** the player holds Esc for about 1 s at any point in the tutorial
+**When** the hold completes
+**Then** the tutorial is skipped; a hint line shows while Esc is held (D-E8-6)
+
+**Given** the tutorial is completed or skipped
+**When** the save is written
+**Then** `tutorial_done` is true in `SaveService` (save version bumped compatibly; missing key reads as false) and Retry, Continue and resume (Story 7.3) never re-show it
+
+**Given** the title screen
+**When** the player presses `[T]` or clicks "tutorial" (D-E8-6)
+**Then** the tutorial replays regardless of `tutorial_done`, and Esc returns to the title
+
+**Given** NFR10 (first shift within 30 s of the first title input, intro included)
+**When** a first-time player goes straight through
+**Then** the shift step (`test_shift`) is reached within the first 30 s of the first title input, measured in the tutorial test
+
+**Given** the tutorial and its flow
+**When** the suite runs
+**Then** a flow test covers INTRO to TUTORIAL to FIGHT, skip, replay and the save flag, and `test_text_audit` still passes; no new duck line is added (budget 10, D-039)

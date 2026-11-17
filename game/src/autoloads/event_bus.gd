@@ -19,6 +19,12 @@ signal register_changed(window: Vector2i, ring: PackedInt32Array, cause: StringN
 ## the hitting action is a combo (D-S27-14) and the target's arena-local position.
 @warning_ignore("unused_signal")
 signal hit_landed(target: StringName, damage: int, state: int, is_combo: bool, pos: Vector2)
+## Story 8.1 (D-E8-3, D-S81-4): a player damaging action touched the boss's body but landed nothing
+## (the Infinite Loop's ring, not the open `;`). Once per action, on its last ACTIVE frame: who
+## (&"boss"), whether the weak point was closed on every touched frame, and the arena-local contact
+## point (the first touched segment's centre). Emitted by CombatResolver; presentation only listens.
+@warning_ignore("unused_signal")
+signal hit_missed(target: StringName, closed: bool, pos: Vector2)
 ## The player took a hit (Story 2.9, FR2): the remaining HP (0 on the lethal hit). Emitted by
 ## PlayerHealth from the sim tick; Game raises the death at 0, the HUD and juice listen.
 @warning_ignore("unused_signal")

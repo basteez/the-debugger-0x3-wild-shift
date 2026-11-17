@@ -238,6 +238,7 @@ All timings assume a 60 FPS simulation. 1 tile = 16 px at the 640×360 base reso
 | Shift | 0 | The HUD register slides over 6 frames with an overshoot bounce; a mechanical key-click SFX; the weapon inverts for 4 frames |
 | Patched applied | 4 frames | `// patched` tag; a rising chime |
 | Player hit | 4 frames | `WARN: hp--`; a 3-px screen shake; 60 frames of invulnerability blink |
+| Miss on a boss body (Infinite Loop ring, not the open `;`) | 0 | One line per action in 50% dither: `// miss: ";" is closed`, or `// miss: aim for the ";"` while it is open; a 3-glyph deflect burst; the dull resisted thud SFX. No damage, no state change (D-051) |
 | Boss at 66% / 33% HP | — | Glyph jitter amplitude rises in steps |
 | Boss defeated | 20 frames | Glyphs reassemble into the boss's **fixed line** (see Boss Design); a duck squeak |
 
@@ -347,6 +348,7 @@ This section uses the `fighting` genre guide's structure for frame data, combos,
 - **Bug behaviour:** it never stops, and it speeds up every iteration.
   - The junction where head meets tail is the **loop condition**, a `;` glyph that travels around the ring at spin speed.
   - Once per lap, as `i++` ticks, the `;` **opens for 90 frames**. The open `;` is the only damageable point. (Phase 3 uses a fixed alternating timer instead; see Nested Loop.)
+  - The open `;` has a hurt circle of **1.0 tile** around the junction (was 0.5, D-051), so a hit from inside or outside the ring that lands within a tile counts. While it is open, the `;` is an inverted cell with an ink pointer and a countdown bar of the remaining open frames on the inside of the ring; the closed `;` is a plain glyph. A hit on the ring body logs a `// miss` line (see Hit Feedback).
 - **Spin speed:** 8 tiles/s (one lap ≈ 3 s), +5% per lap, capped at 12 tiles/s.
 - **HP:** 400. **Drop:** LOOP.
 - **Fixed line on defeat:** `for (i = 0; i < n; i++) { }`

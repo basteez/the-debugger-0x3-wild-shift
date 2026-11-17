@@ -32,6 +32,12 @@ extends Node2D
 ## as an inverted `null` cell while the body's flash timer runs. Live decoys are never drawn.
 ## Story 6.4 (D-S64-10): Segfault's tile attacks (detected by method) draw their floor tiles under
 ## the dragon: `░` marked, `▓` hazard, `·` safe. INK only.
+## Story 8.1 (D-E8-2, D-S81-1, D-S81-7): while the `;` is hittable (semicolon_cue_on) it keeps its
+## inverted cell and gains an INK cue on the INNER side of the ring, inside the ring's footprint (so
+## the drift clamp D-S33-7 is unchanged): a countdown bar tangent to the ring just inside the `;`
+## cell (open_left / open_frames) and a filled triangle pointing at the `;`. Closed, ROAR, DEFEATED
+## or hidden by the Nested Loop blink: plain glyph, no cue. Drawn after the `i = N` counter and before
+## the Patched stack, so the Patched stack wins any overlap. INK only. Reads only (AD-05).
 
 const GLYPH_SCALE := 2
 const TELL_MARK := "!"
@@ -56,6 +62,21 @@ const HEAD_GLYPH := "{"
 const OUTLINE_POINTS := 48
 ## Story 5.2 (D-S52-10): inset in px of the second outline of a live rect hazard (Null Rain ACTIVE).
 const RECT_INSET := 3.0
+## Story 8.1 (D-S81-1, D-S81-7): the open `;` cue, in px inward from the `;` centre toward the ring
+## centre (clamped to the ring radius, so it never passes the centre). The `;` cell's inner corner
+## reaches 8 * sqrt(2) = 11.3 px at a diagonal, so the bar starts just inside it.
+const CUE_BAR_INSET := 12.0
+const CUE_BAR_LENGTH := 16.0
+const CUE_BAR_WIDTH := 2.0
+const CUE_MARKER_TIP := 14.0
+const CUE_MARKER_BASE := 18.0
+## Review fix: the cue shrinks with rings smaller than this radius in px (the phase-3 inner ring is
+## about 20 px), so it never collapses onto the centre; the base also stays clear of the `i = N` counter.
+const CUE_REF_RADIUS := 40.0
+const CUE_MIN_SCALE := 0.5
+## The bar never sits closer than this to the `;` centre (its cell reaches 8 px on an axis).
+const CUE_BAR_MIN_INSET := 10.0
+const CUE_MARKER_HALF := 4.0
 ## Story 5.1: the ghost's glyph lines (two rows of `null`) and the column glyph, at GHOST_SCALE.
 const GHOST_LINES: PackedStringArray = ["null", "null"]
 const TRAIL_GLYPH := "null"
@@ -190,6 +211,8 @@ func _draw_ring(body: InfiniteLoopBody) -> void:
 	var counter_size := Vector2(GlyphFont.text_width(counter, COUNTER_SCALE), GlyphFont.CELL * COUNTER_SCALE)
 	var counter_left: Vector2 = line_top_left(counter_centre(body.body_center_px, body.radius_px()), counter_size) + jitter
 	GlyphFont.draw_at(self, counter_left, counter, Palette.INK, COUNTER_SCALE)
+	if semicolon_cue_on(body):
+		_draw_open_cue(body, jitter)
 	if body.weak_window.is_patched() and not defeated:
 		_draw_patched(counter_left, counter_size, body.weak_window.frames_left)
 	if not defeated:
@@ -379,6 +402,20 @@ func _draw_ring_cell(centre: Vector2, glyph: String, lit: bool, cell: Vector2, j
 		GlyphFont.draw_at(self, top_left, glyph, Palette.INK, GLYPH_SCALE)
 
 
+## Story 8.1 (D-E8-2): the open `;` cue: the countdown bar (outline, then the fill from its first
+## end) and the pointer triangle, on the inner side of the ring. Reads only.
+func _draw_open_cue(body: InfiniteLoopBody, jitter: Vector2) -> void:
+	var centre: Vector2 = body.body_center_px + jitter
+	var semicolon: Vector2 = body.semicolon_px() + jitter
+	var bar: PackedVector2Array = open_cue_bar(centre, semicolon)
+	var normal: Vector2 = (semicolon - centre).normalized() * (CUE_BAR_WIDTH / 2.0 + 1.0)
+	draw_polyline(PackedVector2Array([bar[0] + normal, bar[1] + normal, bar[1] - normal, bar[0] - normal, bar[0] + normal]), Palette.INK, 1.0)
+	var fraction: float = open_bar_fraction(body.open_left, body.ring.open_frames)
+	if fraction > 0.0:
+		draw_line(bar[0], bar[0].lerp(bar[1], fraction), Palette.INK, CUE_BAR_WIDTH)
+	draw_colored_polygon(open_cue_marker(centre, semicolon), Palette.INK)
+
+
 ## Story 3.4 (G1): the running attack's tell marks, hazard cells and outline. Reads only.
 func _draw_attack(attack: BossAttack, cell: Vector2, live: bool = false) -> void:
 	if attack == null:
@@ -491,6 +528,54 @@ static func nested_flash_hidden(telling: bool, frames_left: int) -> bool:
 ## Story 3.5 (D-S35-9): true while the Spit's origin `;` glows (its last spit_tell_frames ticks). Reads only.
 static func spit_glow_on(body: InfiniteLoopBody) -> bool:
 	return body.spit.glowing()
+
+
+## Story 8.1 (AC 3, 4): true while the open `;` cue is drawn: the `;` is hittable (open, not ROAR,
+## not DEFEATED) and the ring is not hidden by the Nested Loop blink. Reads only.
+static func semicolon_cue_on(body: InfiniteLoopBody) -> bool:
+	if body == null or not body.is_semicolon_hittable():
+		return false
+	return not nested_flash_hidden(nested_telling(body), body.frames_left)
+
+
+## Story 8.1 (D-S81-7): the countdown bar fill, open_left / open_frames clamped to 0..1, 0 without
+## an open window. Pure.
+static func open_bar_fraction(open_left: int, open_frames: int) -> float:
+	if open_frames <= 0:
+		return 0.0
+	return clampf(float(open_left) / float(open_frames), 0.0, 1.0)
+
+
+## Story 8.1 (D-S81-1): the point `inset` px from `semicolon` toward `centre`, never past the centre. Pure.
+static func _cue_inward(centre: Vector2, semicolon: Vector2, inset: float) -> Vector2:
+	var to_centre: Vector2 = centre - semicolon
+	var d: float = to_centre.length()
+	if d <= 0.0:
+		return semicolon
+	return semicolon + to_centre / d * minf(inset, d)
+
+
+## Review fix: the cue scale, 1 on rings of CUE_REF_RADIUS px or more, down to CUE_MIN_SCALE. Pure.
+static func _cue_scale(centre: Vector2, semicolon: Vector2) -> float:
+	return clampf(centre.distance_to(semicolon) / CUE_REF_RADIUS, CUE_MIN_SCALE, 1.0)
+
+
+## Story 8.1 (D-S81-1): the pointer triangle on the ring's inner side, tip first (pointing at the
+## `;`), then the two base corners. Pure.
+static func open_cue_marker(centre: Vector2, semicolon: Vector2) -> PackedVector2Array:
+	var k: float = _cue_scale(centre, semicolon)
+	var tangent: Vector2 = (semicolon - centre).normalized().orthogonal() * CUE_MARKER_HALF * k
+	var base: Vector2 = _cue_inward(centre, semicolon, CUE_MARKER_BASE * k)
+	return PackedVector2Array([_cue_inward(centre, semicolon, CUE_MARKER_TIP * k), base + tangent, base - tangent])
+
+
+## Story 8.1 (D-S81-7): the countdown bar's two ends, tangent to the ring, just inside the `;` cell
+## on the inner side. The fill runs from the first end. Pure.
+static func open_cue_bar(centre: Vector2, semicolon: Vector2) -> PackedVector2Array:
+	var k: float = _cue_scale(centre, semicolon)
+	var half: Vector2 = (semicolon - centre).normalized().orthogonal() * (CUE_BAR_LENGTH * k / 2.0)
+	var mid: Vector2 = _cue_inward(centre, semicolon, maxf(CUE_BAR_INSET * k, CUE_BAR_MIN_INSET))
+	return PackedVector2Array([mid - half, mid + half])
 
 
 ## The loop counter text (AC 1). Pure.

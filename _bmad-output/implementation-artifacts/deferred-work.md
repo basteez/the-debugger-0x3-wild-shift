@@ -603,3 +603,10 @@ Story 1.3 AC9 / I-6 ("mumble-speech web check, moved to 3.7") is UNBLOCKED. Tizi
 - Deferred (low): confirm the font bitmaps' "made by Tiziano Basile" attribution and that mumble-speech contains no ML model (covered by H-S79-4).
 - Deferred (info): README could mention `--import` before the first headless run and the macOS Godot path; itch copy still holds `[COVER GIF]` marker and HTML comments (H-S79-1/3, replace before pasting).
 - Deferred (info): the final music tracks have no licence chosen yet (settle before submission).
+
+## Code review of Story 8.1 (2026-11-17)
+- Patched in review: the open `;` cue collided with the `i = N` counter (marker base 21 -> 18 px) and collapsed on the small phase-3 inner ring (cue now scales with the ring radius, bar kept off the `;` cell); test added.
+- Deferred (low): a swing at the ring while the Nested Loop blink hides it still logs a miss (no visible target); consider gating `body_touch_px` on visibility.
+- Deferred (low): a miss and the NPE whiff stun can fire on the same last active frame; Echo replay / non-final combo steps also log a miss (no `echoing` filter). Watch for log spam in playtests.
+- Deferred (low): the open `;` countdown bar saturates at full for windows longer than `ring.open_frames` (Spit / phase-3 timers); `hurt_radius > contact_radius` is relied on for hit/miss exclusivity but not enforced by `RingDef.validate()`.
+- Human check: the open-`;` cue and the `i = N` counter overlap, and the Constrict radius, in a running build.

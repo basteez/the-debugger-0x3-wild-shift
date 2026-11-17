@@ -653,3 +653,116 @@ func test_a_dash_through_the_closed_semicolon_lands_when_it_opens_mid_action() -
 	_tick()
 	assert_eq(_boss_hits().size(), 1, "the same action lands once the `;` opens")
 	assert_eq(b.hp, 370)
+
+
+# --- Story 8.1 (AC 5, 7, 8, D-E8-3, D-S81-4): miss feedback on the ring body ---
+
+func _misses() -> Array:
+	var out: Array = []
+	for i: int in get_signal_emit_count(EventBus, "hit_missed"):
+		out.append(get_signal_parameters(EventBus, "hit_missed", i))
+	return out
+
+
+func _finish_action() -> void:
+	var guard: int = 0
+	while _fsm.action != null and guard < 100:
+		_tick()
+		guard += 1
+
+
+func _is_segment_centre(b: InfiniteLoopBody, p: Vector2) -> bool:
+	for k: int in b.outer_segments():
+		if b.segment_px(k).is_equal_approx(p):
+			return true
+	return false
+
+
+func test_a_dash_strike_on_the_closed_ring_logs_one_closed_miss_on_its_last_active_frame() -> void:
+	_ring([A, D])
+	var b: InfiniteLoopBody = _loop(SPAWN + Vector2(64, 0), 0, false)
+	_dash_strike()
+	var last: int = Defs.DASH_STRIKE.startup_frames + Defs.DASH_STRIKE.active_frames
+	while _fsm.action == Defs.DASH_STRIKE and _fsm.action_frame < last:
+		assert_eq(_misses().size(), 0, "nothing before the last active frame (frame %d)" % _fsm.action_frame)
+		_tick()
+	assert_eq(_misses().size(), 1, "one miss on the last active frame")
+	_assert_loop_untouched(b)
+	var miss: Array = _misses()
+	assert_eq(miss.size(), 1, "exactly one per action")
+	assert_eq(miss[0][0], &"boss")
+	assert_true(miss[0][1], "closed")
+	assert_true(_is_segment_centre(b, miss[0][2]), "at the first touched segment's centre")
+
+
+func test_a_dash_strike_past_the_open_semicolon_logs_one_open_miss() -> void:
+	_ring([A, D])
+	var b: InfiniteLoopBody = _loop(SPAWN + Vector2(64, 0), 12) # the `;` is on the far side
+	assert_true(b.is_open())
+	_dash_strike()
+	_assert_loop_untouched(b)
+	var miss: Array = _misses()
+	assert_eq(miss.size(), 1)
+	assert_false(miss[0][1], "open but missed")
+
+
+func test_a_landed_semicolon_hit_logs_no_miss() -> void:
+	_ring([A, D])
+	var b: InfiniteLoopBody = _loop(SPAWN + Vector2(64, 0))
+	_dash_strike()
+	_finish_action()
+	assert_eq(_boss_hits().size(), 1)
+	assert_lt(b.hp, 400)
+	assert_signal_emit_count(EventBus, "hit_missed", 0, "a hit on the `;` suppresses the miss")
+
+
+func test_a_solo_slash_on_the_closed_ring_logs_one_miss_and_no_stun() -> void:
+	_ring([A, D])
+	var b: InfiniteLoopBody = _loop(SPAWN + Vector2(24, 0), 0, false)
+	_buf.push(J, 0)
+	_run_to(1)
+	assert_eq(_fsm.action, Defs.SLASH_1)
+	_finish_action()
+	assert_eq(b.hp, 400)
+	assert_signal_emit_count(EventBus, "hit_landed", 0)
+	assert_eq(_misses().size(), 1)
+	assert_true(_misses()[0][1])
+	assert_signal_emit_count(EventBus, "player_stunned", 0, "the Infinite Loop never whiff-stuns")
+
+
+func test_a_slash_into_empty_space_logs_nothing() -> void:
+	_ring([A, D])
+	var b: InfiniteLoopBody = _loop(SPAWN + Vector2(-100, 0), 0, false) # the ring is behind the player
+	assert_false(b.body_overlaps_shape(Defs.DASH_STRIKE.hit_shape, SPAWN, RIGHT))
+	_dash_strike()
+	_finish_action()
+	assert_signal_emit_count(EventBus, "hit_missed", 0)
+	assert_signal_emit_count(EventBus, "hit_landed", 0)
+	assert_eq(SimClock._pending_hitstop, 0)
+
+
+func test_a_roaring_ring_gives_no_miss() -> void:
+	_ring([A, D])
+	var b: InfiniteLoopBody = _loop(SPAWN + Vector2(64, 0), 0, false)
+	b.debug_skip_phase()
+	assert_eq(b.state, BossController.BossState.ROAR)
+	_dash_strike()
+	_finish_action()
+	assert_signal_emit_count(EventBus, "hit_missed", 0)
+
+
+func test_a_plain_boss_never_gets_miss_feedback() -> void:
+	_ring([A, D])
+	_boss(Vector2i(A, D), SPAWN + Vector2(400, 0))
+	_dash_strike()
+	_finish_action()
+	assert_signal_emit_count(EventBus, "hit_missed", 0, "no ring body (D-S81-8)")
+
+
+func test_a_plain_boss_hit_gives_no_miss() -> void:
+	_ring([A, D])
+	_boss(Vector2i(A, D), SPAWN + Vector2(64, 0))
+	_dash_strike()
+	_finish_action()
+	assert_eq(_boss_hits().size(), 1)
+	assert_signal_emit_count(EventBus, "hit_missed", 0)

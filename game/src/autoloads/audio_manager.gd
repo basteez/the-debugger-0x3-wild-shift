@@ -116,6 +116,7 @@ var _music_track: AudioStream = null
 func _ready() -> void:
 	EventBus.boss_tell_started.connect(_on_boss_tell_started)
 	EventBus.hit_landed.connect(_on_hit_landed)
+	EventBus.hit_missed.connect(_on_hit_missed)
 	EventBus.patched_applied.connect(_on_patched_applied)
 	EventBus.player_damaged.connect(_on_player_damaged)
 	EventBus.boss_roar_started.connect(_on_boss_roar_started)
@@ -317,6 +318,12 @@ func _on_hit_landed(target: StringName, _damage: int, state: int, _is_combo: boo
 	var cue: StringName = hit_cue(target, state)
 	if cue != &"":
 		play_cue(cue)
+
+
+## Story 8.1 (D-E8-3): a miss on the boss's body plays the existing dull `hit_resisted` cue (no new
+## asset). Presentation only.
+func _on_hit_missed(_target: StringName, _closed: bool, _pos: Vector2) -> void:
+	play_cue(&"hit_resisted")
 
 
 ## Pure: the hit cue for a hit on `target` in damage `state` (&"" = none).
