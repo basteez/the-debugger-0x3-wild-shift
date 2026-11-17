@@ -7,6 +7,8 @@ extends Node2D
 
 const SCALE := 1
 const ROW := 0
+## Story 9.7 (D-S97-6): BG text on the inverted title bar HudFrame draws under it.
+const COLOR := Palette.BG
 
 var health: PlayerHealth
 ## The text drawn last; redraws only when it changes.
@@ -32,7 +34,12 @@ static func cell_for(text: String) -> Vector2i:
 	return Vector2i(Hud.COLS - text.length(), ROW)
 
 
+## Story 9.7 (D-S97-7): the readout's top-left pixel, Hud.TITLE_TEXT_DY down like the bar text. Pure.
+static func top_left_for(text: String) -> Vector2:
+	return GlyphFont.cell_to_px(cell_for(text), SCALE) + Vector2(0, Hud.TITLE_TEXT_DY)
+
+
 func _draw() -> void:
 	var text: String = current_text()
 	if text != "":
-		GlyphFont.draw_cell(self, cell_for(text), text, Palette.INK, SCALE)
+		GlyphFont.draw_at(self, top_left_for(text), text, COLOR, SCALE)

@@ -4,7 +4,8 @@ extends Node
 ## suite"), built by Main._make_screen like the Intro screen. Presentation only (AD-05): once per
 ## physics frame, after SimClock's tick, it reads the arena's sim state (player position, the action
 ## serial and slot, the register window) and the boss hit events, feeds them to a pure TutorialSteps,
-## and hands the text to the arena's TutorialChecklistView. It owns the Esc / Select skip hold and the
+## and hands the text to the arena's TutorialChecklistView (hints, completion rows) and, Story 9.7
+## (D-S97-4), to the HUD's TutorialConsole (checklist, prompt). It owns the Esc / Select skip hold and the
 ## outro beat, both counted in unpaused physics frames, and the last input device (D-S82-10). It
 ## never writes sim state; it leaves TUTORIAL only through Game.finish_tutorial (AD-08).
 
@@ -47,9 +48,10 @@ const PLACEHOLDERS: Dictionary[String, StringName] = {
 const TRIGGER_AXES: Array[JoyAxis] = [JOY_AXIS_TRIGGER_LEFT, JOY_AXIS_TRIGGER_RIGHT]
 const MOTION_THRESHOLD := 0.5
 
-## Main injects the arena (read only) and its checklist view.
+## Main injects the arena (read only), its checklist view and (Story 9.7) the HUD's console.
 var arena: Arena
 var view: TutorialChecklistView
+var console: TutorialConsole
 var steps: TutorialSteps = TutorialSteps.new()
 var device: Device = Device.KEYBOARD
 ## Consecutive unpaused frames the skip key has been held.
@@ -81,6 +83,8 @@ func _exit_tree() -> void:
 		EventBus.patched_applied.disconnect(_on_patched_applied)
 	if is_instance_valid(view):
 		view.clear()
+	if is_instance_valid(console):
+		console.clear()
 
 
 func _input(event: InputEvent) -> void:
@@ -126,6 +130,8 @@ func _finish(frame: int, skipped: bool) -> bool:
 	_finished = Game.finish_tutorial(frame, skipped)
 	if _finished and is_instance_valid(view):
 		view.clear() # review: never draw over FIGHT 1 for the frame before queue_free
+	if _finished and is_instance_valid(console):
+		console.clear()
 	return _finished
 
 
@@ -165,11 +171,11 @@ func _on_hit_landed(target: StringName, _damage: int, state: int, is_combo: bool
 
 
 func _refresh_view() -> void:
-	if not is_instance_valid(view):
-		return
-	var current: int = -1 if steps.all_passed() else steps.current_step()
-	view.show_state(TutorialChecklistView.checklist_lines(steps), current, prompt_rows(steps.current_step(), device),
-			hint_rows(device), hold_fraction(hold_frames), steps.all_passed())
+	if is_instance_valid(view):
+		view.show_state(hint_rows(device), hold_fraction(hold_frames), steps.all_passed())
+	if is_instance_valid(console): # Story 9.7 (D-S97-4)
+		var current: int = -1 if steps.all_passed() else steps.current_step()
+		console.show_state(TutorialChecklistView.checklist_lines(steps), current, prompt_rows(steps.current_step(), device))
 
 
 ## Pure (Story 9.1, AC 7, D-S91-4): the hint rows for `p_device`: the skip hold, then the pause key.

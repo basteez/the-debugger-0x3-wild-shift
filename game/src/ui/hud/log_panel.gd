@@ -10,6 +10,11 @@ extends Node2D
 ## Story 8.1 (D-E8-3, D-S81-2): EventBus.hit_missed appends a dithered `// miss` line.
 
 const SCALE := 1
+## Story 9.7 (D-S97-4): the block the lines are drawn in. Full width by default (column 0, from
+## console line 0, every line); the tutorial console moves them to its right block, under its prompt.
+var block_col: int = 0
+var block_first_line: int = 0
+var block_max_lines: int = Hud.LOG_LINES
 
 var _ring: PackedStringArray = PackedStringArray()
 ## Index of the oldest line in the ring.
@@ -111,14 +116,46 @@ static func line_cell(index: int) -> Vector2i:
 	return Vector2i(Hud.LOG.position.x, Hud.LOG.position.y + 1 + index)
 
 
-func _draw() -> void:
+## Story 9.7 (D-S97-4): draw the lines in a block from column `col`, console line `first_line`, at
+## most `max_lines` of them (the newest; newest at the bottom). Lines are cut at the last column.
+func set_block(col: int, first_line: int, max_lines: int) -> void:
+	var c: int = clampi(col, 0, Hud.COLS - 1)
+	var f: int = clampi(first_line, 0, Hud.LOG_LINES)
+	var m: int = clampi(max_lines, 0, Hud.LOG_LINES - f)
+	if c == block_col and f == block_first_line and m == block_max_lines:
+		return
+	block_col = c
+	block_first_line = f
+	block_max_lines = m
+	queue_redraw()
+
+
+## Story 9.7: the plain full-width console again.
+func reset_block() -> void:
+	set_block(0, 0, Hud.LOG_LINES)
+
+
+## Story 9.7 (D-S97-4): what _draw shows in the current block, oldest first: {cell, text, dithered}.
+## The newest block_max_lines lines, each cut to the columns left of the block's origin.
+func block_rows() -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
 	var shown: PackedStringArray = lines()
 	var dithered: Array[bool] = dithered_lines()
-	for i: int in shown.size():
-		GlyphFont.draw_cell(self, line_cell(i), shown[i], Palette.INK, SCALE)
-		if dithered[i]:
-			var rect := Rect2(GlyphFont.cell_to_px(line_cell(i), SCALE), Vector2(shown[i].length(), 1) * GlyphFont.CELL * SCALE)
-			draw_texture_rect(RegisterPanel.checker_texture(), rect, true)
+	var skip: int = maxi(shown.size() - block_max_lines, 0)
+	var width: int = Hud.COLS - block_col
+	for i: int in range(skip, shown.size()):
+		var cell := Vector2i(block_col, Hud.LOG.position.y + 1 + block_first_line + i - skip)
+		out.append({"cell": cell, "text": shown[i].left(width), "dithered": dithered[i]})
+	return out
+
+
+func _draw() -> void:
+	for r: Dictionary in block_rows():
+		var text: String = r["text"]
+		GlyphFont.draw_cell(self, r["cell"], text, Palette.INK, SCALE)
+		if r["dithered"]:
+			var rect := Rect2(GlyphFont.cell_to_px(r["cell"], SCALE), Vector2(text.length(), 1) * GlyphFont.CELL * SCALE)
+			draw_texture_rect(Dither.checker(), rect, true)
 
 
 func _on_hit_landed(_target: StringName, damage: int, state: int, _is_combo: bool, _pos: Vector2) -> void:

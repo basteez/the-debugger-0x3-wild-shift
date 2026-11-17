@@ -1,30 +1,23 @@
 class_name TutorialChecklistView
 extends Node2D
 ## Story 8.2 (D-E8-4, AC 2, 9, 11, 12, E2): the tutorial's text inside the play area (arena-local px,
-## Arena.play_area()), never in the duck bubble: the six-test checklist at 2x in the top-left corner
-## (a `>` marks the current test), the current prompt (one or two rows at 1x) along the bottom edge,
-## the skip hint at 1x in the top-right corner with a fill bar while the key is held and the pause
-## hint under the bar (Story 9.1), and the two completion rows at 2x in the bottom band once every
-## test passed (Story 9.1, D-S91-5: clear of the `@` at spawn and the dummy). Every row has a BG backing so it reads
+## Arena.play_area()), never in the duck bubble. Story 9.7 (D-S97-4): the six-test checklist and the
+## current prompt moved to the HUD console (TutorialConsole); this view keeps the skip hint at 1x in
+## the top-right corner with a fill bar while the key is held and the pause hint under the bar
+## (Story 9.1), and the two completion rows at 2x in the bottom band once every test passed (Story
+## 9.1, D-S91-5: clear of the `@` at spawn and the dummy). Every row has a BG backing so it reads
 ## over the scenery. A child of the Arena added by Main before the player and boss views (drawn under
-## them; the Arena draws its scenery in its own _draw, before every child, and has no fill, so the
-## view is above the ground and under the `@` and the dummy). Presentation only: the TUTORIAL screen
-## hands it the text (show_state); it reads no sim state. INK/BG only.
+## them). Presentation only: the TUTORIAL screen hands it the text (show_state); it reads no sim
+## state. INK/BG only. The pure checklist_lines / done_lines stay here (the screen and the console
+## use them).
 
 const SCREEN_TEXT: TextScreenText = preload("res://data/text/screen_text.tres")
 const TEST_SCALE := 2
 const PROMPT_SCALE := 1
 const PASS_MARK := "[PASS]"
 const TODO_MARK := "[ ]"
-const CURSOR := ">"
-## Checklist rows: the `>` cursor column, then the rows, 16 px (one 2x row) apart.
-const CURSOR_LEFT := 8.0
-const CHECKLIST_LEFT := 24.0
-const CHECKLIST_TOP := 16.0
-const ROW_STEP := 16.0
-## Prompt rows: centred, the last one 8 px above the play area's bottom edge.
+## The completion rows' bottom margin above the play area's bottom edge (was the prompt's, Story 9.1).
 const PROMPT_BOTTOM_MARGIN := 8.0
-const PROMPT_STEP := 12.0
 ## Skip hint: right-aligned in the top-right corner of the arena interior (the play area inside the
 ## tree ring, hint_area()), HINT_MARGIN in from its right edge and HINT_TOP below its top edge; the hold
 ## bar HOLD_BAR_GAP under it. Story 9.1 (D-S91-4): further hint rows (the pause key) right-aligned
@@ -45,10 +38,7 @@ const DONE_STEP := 24.0
 const BACKING := 2.0
 
 var active: bool = false
-var lines: PackedStringArray = []
-var current: int = -1
-var prompt: PackedStringArray = []
-var hints: PackedStringArray = []
+var hints: PackedStringArray = PackedStringArray()
 var hold: float = 0.0
 var done: bool = false
 
@@ -64,19 +54,6 @@ static func checklist_lines(steps: TutorialSteps) -> PackedStringArray:
 ## Pure (D-S82-7): the two completion rows.
 static func done_lines() -> PackedStringArray:
 	return PackedStringArray([SCREEN_TEXT.tutorial_all_pass_1, SCREEN_TEXT.tutorial_all_pass_2])
-
-
-## Pure: top-left of checklist row `i`.
-static func row_top_left(i: int) -> Vector2:
-	return Vector2(CHECKLIST_LEFT, CHECKLIST_TOP + i * ROW_STEP)
-
-
-## Pure: top-left of prompt row `i` of `count`, centred on the play area, the last row at the bottom.
-static func prompt_top_left(text: String, i: int, count: int) -> Vector2:
-	var area: Rect2 = Arena.play_area()
-	var bottom_top: float = area.end.y - PROMPT_BOTTOM_MARGIN - GlyphFont.CELL * PROMPT_SCALE
-	var x: float = area.position.x + (area.size.x - GlyphFont.text_width(text, PROMPT_SCALE)) / 2.0
-	return Vector2(x, bottom_top - (count - 1 - i) * PROMPT_STEP).round()
 
 
 ## Pure (hotfix): the rect the hint rows live in: the play area inside the tree ring (one tile in on
@@ -123,11 +100,10 @@ static func fits_play_area(top_left: Vector2, text: String, scale: int) -> bool:
 	return Arena.play_area().encloses(r)
 
 
-func show_state(p_lines: PackedStringArray, p_current: int, p_prompt: PackedStringArray, p_hints: PackedStringArray, p_hold: float, p_done: bool) -> void:
+## Story 9.7 (D-S97-4): the hints, the hold progress and the completion flag (the checklist and the
+## prompt go to TutorialConsole).
+func show_state(p_hints: PackedStringArray, p_hold: float, p_done: bool) -> void:
 	active = true
-	lines = p_lines
-	current = p_current
-	prompt = p_prompt
 	hints = p_hints
 	hold = p_hold
 	done = p_done
@@ -142,13 +118,6 @@ func clear() -> void:
 ## Every text row of the current state as {at, text, scale}, in draw order.
 func text_rows() -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
-	for i: int in lines.size():
-		var at: Vector2 = row_top_left(i)
-		out.append({"at": at, "text": lines[i], "scale": TEST_SCALE})
-		if i == current:
-			out.append({"at": Vector2(CURSOR_LEFT, at.y), "text": CURSOR, "scale": TEST_SCALE})
-	for i: int in prompt.size():
-		out.append({"at": prompt_top_left(prompt[i], i, prompt.size()), "text": prompt[i], "scale": PROMPT_SCALE})
 	for i: int in hints.size():
 		out.append({"at": hint_row_top_left(hints, i), "text": hints[i], "scale": PROMPT_SCALE})
 	if done:
@@ -165,7 +134,8 @@ static func backing_rect(top_left: Vector2, text: String, scale: int) -> Rect2:
 
 
 ## All the backings first, then all the glyphs: a row's backing reaches BACKING px into its
-## neighbours, so drawing row by row hid the underscore (the glyph's bottom row) of the row above.
+## neighbours, so drawing row by row hid the underscore (the glyph's bottom row) of the row above
+## (the 2x checklist rows did; the hint rows keep the two passes).
 func _draw() -> void:
 	if not active:
 		return

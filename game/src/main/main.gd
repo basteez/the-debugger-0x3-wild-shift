@@ -72,6 +72,8 @@ var watch_overlay: Node2D
 ## Story 8.2 (E2): the tutorial checklist, prompt and skip hint (a child of the Arena, drawn under the
 ## player and boss views); it draws only while the TUTORIAL screen feeds it.
 var tutorial_view: TutorialChecklistView
+## Story 9.7 (D-S97-4): the tutorial's checklist and prompt in the HUD console.
+var tutorial_console: TutorialConsole
 
 
 func _ready() -> void:
@@ -146,9 +148,6 @@ func _build_layers() -> void:
 	practice_view = PracticeTargetView.new()
 	practice_view.name = &"PracticeTargetView"
 	arena.add_child(practice_view)
-	practice_counter = PracticeFrameCounter.new()
-	practice_counter.name = &"PracticeFrameCounter"
-	arena.add_child(practice_counter)
 	for layer_name: StringName in [&"Entities", &"Particles"]:
 		var node := Node2D.new()
 		node.name = layer_name
@@ -176,6 +175,16 @@ func _build_layers() -> void:
 	hp_readout.name = &"HpReadout"
 	hp_readout.health = arena.health
 	hud.add_child(hp_readout)
+	# Story 9.7 (D-S97-4): the tutorial's checklist and prompt, in the console; it moves the log
+	# lines to its right block while fed. Story 9.7 (D-S97-5, D-S97-9): the practice readout sits on
+	# the console header, so it is a HUD child too (presentation/, so Main attaches both).
+	tutorial_console = TutorialConsole.new()
+	tutorial_console.name = &"TutorialConsole"
+	tutorial_console.log_panel = hud.log_panel
+	hud.add_child(tutorial_console)
+	practice_counter = PracticeFrameCounter.new()
+	practice_counter.name = &"PracticeFrameCounter"
+	hud.add_child(practice_counter)
 	_build_breakpoint_views()
 	_build_warning_border()
 	_build_watch_views()
@@ -309,6 +318,10 @@ func apply_flow_state(state: int, boss_index: int) -> void:
 		arena.leave_fight()
 	_attach_practice_target()
 	practice_counter.set_active(in_fight and Game.practice_run) # Story 7.6 (AC 5)
+	if not in_tutorial and tutorial_console != null:
+		tutorial_console.clear() # 9.7 review: never leave the log shifted right outside the tutorial
+	# Story 9.7 (D-S97-8): the tutorial and the practice fight have their own sky comment.
+	hud.set_sky_context(sky_context_for(in_tutorial, in_fight and wants_practice()))
 	_attach_boss(in_play)
 
 
@@ -376,6 +389,15 @@ func wants_practice() -> bool:
 	if Game.practice_run:
 		return true
 	return Debug.enabled and is_instance_valid(debug_keys) and debug_keys.practice_requested
+
+
+## Story 9.7 (D-S97-8): the HUD sky row context for a flow state. Pure.
+static func sky_context_for(in_tutorial: bool, practice_fight: bool) -> StringName:
+	if in_tutorial:
+		return Hud.SKY_CONTEXT_TUTORIAL
+	if practice_fight:
+		return Hud.SKY_CONTEXT_PRACTICE
+	return Hud.SKY_CONTEXT_FIGHT
 
 
 ## True when the fight should have the framework test boss: Shift+F3 was the last jump (Story 3.1,
@@ -452,6 +474,7 @@ func make_tutorial_screen() -> TutorialScreen:
 	var screen: TutorialScreen = TutorialScreenScript.new()
 	screen.arena = arena
 	screen.view = tutorial_view
+	screen.console = tutorial_console
 	return screen
 
 

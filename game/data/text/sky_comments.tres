@@ -7,3 +7,5 @@ script = ExtResource("1_tsky")
 default_comment = "// TODO: this should terminate"
 null_pointer = "// FIXME: who owns this pointer?"
 segfault = "// HACK: do not read past this line"
+tutorial = "// TODO: write the tests first"
+practice = "// sandbox: nothing here ships"

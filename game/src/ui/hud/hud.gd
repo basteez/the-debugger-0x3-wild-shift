@@ -31,11 +31,32 @@ static var SKY_NULL_POINTER: String:
 static var SKY_SEGFAULT: String:
 	get:
 		return SKY_COMMENTS.segfault
+## Story 9.7 (D-S97-8): the tutorial's and the practice fight's sky comments (sky_context).
+static var SKY_TUTORIAL: String:
+	get:
+		return SKY_COMMENTS.tutorial
+static var SKY_PRACTICE: String:
+	get:
+		return SKY_COMMENTS.practice
+## Story 9.7 (D-S97-8): the sky row contexts Main sets on every flow change (set_sky_context).
+const SKY_CONTEXT_FIGHT := &""
+const SKY_CONTEXT_TUTORIAL := &"tutorial"
+const SKY_CONTEXT_PRACTICE := &"practice"
 ## Story 6.5 (AC 3, D-S65-8): the warning tell line, inverted (BG on INK) in the sky row for the
 ## whole SIGSEGV tell. wildshift8 covers printable ASCII, so lowercase stays.
-const WARNING_TELL_TEXT := "SIGSEGV incoming"
+const WARNING_TELL_TEXT := "SIGSEGV INCOMING"
 ## Story 6.6 (D-S66-8): the `reserved` nibble inverts and restores every 8 frames during the tell.
 const RESERVED_FLASH_FRAMES := 8
+## Story 9.7 (D-S97-14) [design call]: rows 0 and 1 in pixels, 16 px in all. The font's glyphs have no
+## leading (caps start on the cell's top pixel row, row 7 is the descender). The title bar is one cell
+## (8 px) tall and its text is drawn on it from its top row; one BG pixel row (y = 8) separates the
+## bar from the sky row; the sky text starts at y = 9 (SKY_TEXT_DY below the row top) and the inverted
+## warning tell is cap height (7 px, y 9..15), so it ends on row 2's top edge and never covers row 2's
+## first pixel row. Its text is all caps (no descender row, which would not fit).
+const TITLE_BAR_PX := 8
+const TITLE_TEXT_DY := 0
+const SKY_TEXT_DY := 1
+const TELL_HEIGHT_PX := 7
 const REG_TITLE := "reg"
 const LOG_HEADER := "── console ─────────────────────────────────────────────────────────────────────"
 ## One per arena tile row (DC6): drawn at cols 13-14 on HUD row 2 + 2 * index.
@@ -60,6 +81,9 @@ const SEPARATOR_COL := 15
 var boss: BossController = null
 ## Story 6.5: the warning state the frame last drew.
 var _warning_shown: bool = false
+## Story 9.7 (D-S97-8): SKY_CONTEXT_TUTORIAL / SKY_CONTEXT_PRACTICE pick their own sky comment;
+## SKY_CONTEXT_FIGHT keeps the boss's (sky_for).
+var sky_context: StringName = SKY_CONTEXT_FIGHT
 
 
 func _ready() -> void:
@@ -101,7 +125,24 @@ func top_bar_text() -> String:
 func sky_text() -> String:
 	if warning_tell_on(boss):
 		return WARNING_TELL_TEXT
-	return sky_for(boss.def.boss_id if boss != null and boss.def != null else &"")
+	return sky_for_context(sky_context, boss.def.boss_id if boss != null and boss.def != null else &"")
+
+
+## Story 9.7 (D-S97-8): Main hands the sky row context on every flow change.
+func set_sky_context(context: StringName) -> void:
+	sky_context = context
+	if frame != null:
+		frame.queue_redraw()
+
+
+## Story 9.7 (D-S97-8): the tutorial and the practice fight have their own comment; any other
+## context falls back to the boss's (sky_for). Pure.
+static func sky_for_context(context: StringName, boss_id: StringName) -> String:
+	if context == SKY_CONTEXT_TUTORIAL:
+		return SKY_TUTORIAL
+	if context == SKY_CONTEXT_PRACTICE:
+		return SKY_PRACTICE
+	return sky_for(boss_id)
 
 
 ## Story 6.5 (AC 3, 4, D-S65-7): true while the boss's current attack reports a warning tell

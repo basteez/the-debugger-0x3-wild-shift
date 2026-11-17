@@ -305,7 +305,7 @@ This section uses the `fighting` genre guide's structure for frame data, combos,
 ### Arena Design
 
 - **One arena: "The Clearing"** (labelled `stack frame 0x03`).
-  - A fantasy hunting ground rendered in glyphs: trees `♣`, grass `"`, rocks `o`, a stream of `~`.
+  - A fantasy hunting ground rendered in glyphs: trees `♣`, grass `"`, rocks `o`, a stream of `=` (Story 9.7, D-S97-2: the font has no `≈`; was `~`).
   - It is framed by the IDE HUD: the register panel on the left, the log panel at the bottom, and line numbers down the left edge.
   - The world is the fantasy RPG; the HUD is the debugger's view of it.
 - **Size and boundaries:** 32 × 18 tiles of play area with solid walls (the tree line) and no wall interactions. Scenery is decorative only, with no collision inside the play area.
@@ -333,7 +333,7 @@ This section uses the `fighting` genre guide's structure for frame data, combos,
 ### Onboarding: the Tutorial
 
 - **"Running the test suite"** (Story 8.2, D-051): on a run whose save has not done it, the Intro is followed by a **TUTORIAL** flow state in The Clearing, against a tutorial dummy (`{;}`) that never attacks, never hurts and never dies. It takes damage states like a boss (×0.5 unpatched, ×1.5 Patched).
-- **Six tests**, each passed only by doing it, in order, shown as a large checklist in the play area (`[ ] test_x` → `[PASS] test_x`) with a one- or two-row prompt naming the keys of the last input device (keyboard or pad): `test_move` (walk 3 tiles), `test_actions` (use J and K), `test_shift` (shift until the live bits read `A D`), `test_combo` (a Dash Strike), `test_patch` (Dash Strike the dummy's `;` while it is open: it opens on a fixed timer, closed 3 s then open 2 s, with the Boss 1 open cue), `test_crit` (hit it again while Patched).
+- **Six tests**, each passed only by doing it, in order, shown as a checklist in the console's left block (`[ ] test_x` → `[PASS] test_x`; Story 9.7, D-S97-4: it was a large checklist in the play area) with a prompt in the console's right block, word-wrapped, naming the keys of the last input device (keyboard or pad): `test_move` (walk 3 tiles), `test_actions` (use J and K), `test_shift` (shift until the live bits read `A D`), `test_combo` (a Dash Strike), `test_patch` (Dash Strike the dummy's `;` while it is open: it opens on a fixed timer, closed 3 s then open 2 s, with the Boss 1 open cue), `test_crit` (hit it again while Patched).
 - When all pass: `ALL TESTS PASSED.` / `deploying to production...`, then Boss 1 exactly as before (start set `[D, A]`, duck lines T1–T4). The register starts at `[D, A]`, so the run's first shift is the tutorial's `test_shift`, well inside the 30-s first-shift goal.
 - **Skip:** hold Esc or Backspace (pad: Select) for 1 s at any time (shown as `hold Esc or Bksp: skip`; Backspace because the browser eats Esc in itch fullscreen); a tap does nothing, and P pauses. **Replay:** `[T] tutorial` on the title (key T or a click, no pad button; it ends back at the title).
 - Completing or skipping sets `tutorial_done` in the save (version 2; version 1 saves load with it false). Resume and retry never show the tutorial; `[N] new run` shows it only while `tutorial_done` is false. No new duck line, music or asset (the title track plays during the tutorial).
@@ -523,7 +523,7 @@ This section uses the `fighting` genre guide's structure for frame data, combos,
 
 - **World:** a fantasy RPG seen through a debugger's eyes. The world is drawn as text glyphs (trees, grass, monsters made of characters) and is always framed by IDE chrome. The debugger sees the bits beneath everything.
 - **Palette:** 1-bit, two colours: ink `#E8E8E8` on near-black `#101014`.
-  - Colour inversion and 50% dither are the only additional states.
+  - Colour inversion, a 50% dither and a 75% scenery dither (Story 9.7, D-S97-1) are the only additional states. Scenery (grass, rock, water) is dithered and drops out under a halo around the player, the bosses, the practice target and a live decoy, so the actors read against the ground.
   - **One accent, red `#FF4040`,** is reserved for warnings: the Breakpoint line and dot, and SIGSEGV. Nothing else may use it.
 - **Glyphs (D-047):** everything is a glyph from one 8×8 CP437-style monospace pixel font (CC0 or OFL): the player (`@` with a `>o` duck companion), the bosses, the particles, the environment and the HUD.
   - World glyphs are drawn at 2× on the 16-px tile grid.
@@ -575,7 +575,8 @@ row 39..44  console.log("-5") // resisted   ·   CRITICAL: 15 dmg   (6 lines)
 - **Register panel** (cols 0–11): the hex value; the 8 bits as `reserved` nibble + playable nibble (unowned slots shown as a greyed `0`); the `<<` preview **above** the active window and the `>>` preview **below** it, faded, each showing its combo name or "(no combo)"; the active window, inverted, with its combo name and `J→K`; then the cooldowns. Combo names are ≤ 11 characters.
 - **Line numbers** (cols 13–15): one per tile row (`01`–`18`).
 - **Duck bubble** (cols 0–11, rows 22–37): the `>o` duck with its line word-wrapped at 12 columns.
-- **Top bar:** the boss signature and HP bar (row 0) and the sky comment (row 1).
+- **Top bar:** a full-width inverted title bar on row 0 (ink cell, background text): the boss signature and the player HP readout. The sky comment (row 1) is plain INK (D-S97-13); the inverted `SIGSEGV INCOMING` tell sits under the bar with one BG pixel row between them (Story 9.7, D-S97-6, D-S97-14). Rows 0-1 are 16 px: an 8-px bar, a 1-px gap, the sky text and the 7-px tell from y = 9, because the font has no leading (D-S97-7).
+- **Console header** (row 38): the `── console ──` rule carries the practice readout `frames N` and its key hint, right-aligned (Story 9.7, D-S97-5). In the tutorial, the checklist fills the console's left block (cols 0–21) and the prompt its right block (from col 24, word-wrapped to 56 columns as one paragraph, D-S97-10); the log shows under the prompt.
 - **Log panel** (rows 38–44): 6 lines, 80 columns.
 - The `// patched` tag, its countdown bar and the Watch labels are drawn in the world, above the boss.
 - **Damage states:** bosses glitch harder at 66% and 33% HP. On death their glyphs reassemble into their fixed line.
