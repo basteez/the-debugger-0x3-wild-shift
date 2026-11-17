@@ -7,6 +7,11 @@ extends Node
 ## Story 8.2: also written when the tutorial is completed or skipped (set_tutorial_done). Read once at boot; written on a non-retry, non-debug FIGHT entry (Game._set_flow_state),
 ## on the title's [N] new run, on set_assist (7.4) and on set_muted (the pause screen's [M] toggle).
 ## Any storage failure keeps the in-memory values and logs one warn per session (D-S73-6).
+## Story 9.6 (D-S96-1): off the web, a write goes to save.cfg.tmp, is read back and parsed to the same
+## values, and only then is renamed over save.cfg, so a write cut short never leaves a truncated save.
+## Any failure there falls back to the in-place write. On the web (IndexedDB-backed user://, rename
+## unverified) the in-place write is kept as it was ([design call] coordinator, H-S96-1).
+## Story 9.6 (D-S96-2): a wrong-typed key takes its own default; the rest of the file still loads.
 ## Presentation-side only: nothing in the sim tick calls this (AC 12).
 
 const PATH := "user://save.cfg"
@@ -18,6 +23,8 @@ const SECTION := "save"
 const MIN_BOSS := 1
 ## Game.LAST_BOSS_INDEX + 1 (literal: test_save_service checks the two stay in step).
 const MAX_BOSS := 3
+## Story 9.6 (D-S96-1): the temp file written next to the save before the rename.
+const TEMP_SUFFIX := ".tmp"
 
 var highest_boss: int = MIN_BOSS
 var assist: bool = false
@@ -37,6 +44,9 @@ var path: String = PATH
 ## test that plays a fight never leaves a raised highest_boss behind for a later title (which would
 ## then resume instead of playing the Intro); tests of the write rules turn it on and restore it.
 var track_fights: bool = true
+## Story 9.6 (D-S96-1, [design call] coordinator): temp + read-back + rename, off the web only. Test
+## seam: a test turns it off to exercise the plain in-place write the web build keeps.
+var atomic_writes: bool = not OS.has_feature("web")
 
 
 func _ready() -> void:
@@ -69,19 +79,28 @@ static func running_under_gut() -> bool:
 static func clamp_highest(v: Variant) -> int:
 	if typeof(v) != TYPE_INT and typeof(v) != TYPE_FLOAT:
 		return MIN_BOSS
-	return clampi(int(v), MIN_BOSS, MAX_BOSS)
+	if typeof(v) == TYPE_FLOAT and not is_finite(v):
+		return MIN_BOSS # 9.6 review: int(NAN / INF) is platform-dependent; ConfigFile parses nan / inf
+	return clampi(int(clampf(v, MIN_BOSS, MAX_BOSS)), MIN_BOSS, MAX_BOSS)
 
 
-## Pure: the fresh-save values.
+## Pure: the temp file a save is written to before the rename (Story 9.6, D-S96-1).
+static func temp_path(p: String) -> String:
+	return p + TEMP_SUFFIX
+
+
+## Pure: the fresh-save values. "bad_keys" (Story 9.6, D-S96-2) names the wrong-typed keys a parse
+## replaced by their defaults.
 static func defaults() -> Dictionary:
 	return {"highest_boss": MIN_BOSS, "assist": false, "muted": false, "tutorial_done": false, "completed": false,
-			"valid": true}
+			"valid": true, "bad_keys": PackedStringArray()}
 
 
-## Pure: the values held by `cfg`. A version not in READ_VERSIONS, or a value of the wrong type,
-## gives the defaults with "valid" false (D-S73-8); the caller logs it once. Story 8.2 (D-S82-8): a
-## missing tutorial_done key (any version 1 file) reads as false. Story 9.3 (D-S93-1): so does a
-## missing completed key (any version 1 or 2 file); a wrong-typed one reads as false (the rest of the file still loads).
+## Pure: the values held by `cfg`. A missing version or one not in READ_VERSIONS gives the defaults
+## with "valid" false (D-S73-8); the caller logs it once. Story 8.2 (D-S82-8): a missing tutorial_done
+## key (any version 1 file) reads as false. Story 9.3 (D-S93-1): so does a missing completed key.
+## Story 9.6 (D-S96-2): a wrong-typed key takes its own default (highest_boss MIN_BOSS, a flag false)
+## and is named in "bad_keys"; "valid" stays true and every other key still loads.
 static func parse(cfg: ConfigFile) -> Dictionary:
 	var out := defaults()
 	if not cfg.has_section_key(SECTION, "version"):
@@ -91,20 +110,19 @@ static func parse(cfg: ConfigFile) -> Dictionary:
 	if typeof(version) != TYPE_INT or not READ_VERSIONS.has(int(version)):
 		out["valid"] = false
 		return out
+	var bad := PackedStringArray()
 	var hb: Variant = cfg.get_value(SECTION, "highest_boss", MIN_BOSS)
-	var a: Variant = cfg.get_value(SECTION, "assist", false)
-	var m: Variant = cfg.get_value(SECTION, "muted", false)
-	var t: Variant = cfg.get_value(SECTION, "tutorial_done", false)
-	var c: Variant = cfg.get_value(SECTION, "completed", false)
-	if (typeof(hb) != TYPE_INT and typeof(hb) != TYPE_FLOAT) or typeof(a) != TYPE_BOOL or typeof(m) != TYPE_BOOL \
-			or typeof(t) != TYPE_BOOL:
-		out["valid"] = false
-		return out
-	out["highest_boss"] = clamp_highest(hb)
-	out["assist"] = a
-	out["muted"] = m
-	out["tutorial_done"] = t
-	out["completed"] = c if typeof(c) == TYPE_BOOL else false # 9.3 review: a bad flag never costs the rest of the save
+	if typeof(hb) == TYPE_INT or typeof(hb) == TYPE_FLOAT:
+		out["highest_boss"] = clamp_highest(hb)
+	else:
+		bad.append("highest_boss") # falls back to MIN_BOSS (the only key a bad value can lower); logged by load_save
+	for key: String in ["assist", "muted", "tutorial_done", "completed"]:
+		var v: Variant = cfg.get_value(SECTION, key, false)
+		if typeof(v) == TYPE_BOOL:
+			out[key] = v
+		else:
+			bad.append(key) # the default false (9.3 review: a bad flag never costs the rest of the save)
+	out["bad_keys"] = bad
 	return out
 
 
@@ -137,20 +155,56 @@ func load_save() -> void:
 		return
 	var values: Dictionary = parse(cfg)
 	if not values["valid"]:
-		_warn_once("save version or values not recognised, using a fresh save")
+		_warn_once("save version not recognised, using a fresh save")
 		return
+	var bad: PackedStringArray = values["bad_keys"]
+	if not bad.is_empty():
+		_warn_once("save values not recognised, using defaults for: %s" % ", ".join(bad))
 	_apply(values)
 
 
 ## Writes the in-memory values to `path`. True on success; false (one warn per session) when
 ## storage refuses it, or when the service is in-memory only (empty path, no warn). Never raises.
+## Story 9.6 (D-S96-1): off the web, temp + read-back + rename first; the in-place write is the
+## fallback (and the only path on the web). The warn fires only when the in-place write also fails.
 func save() -> bool:
 	if path.is_empty():
 		return false
-	var err: Error = to_config(highest_boss, assist, muted, tutorial_done, completed).save(path)
+	var cfg := to_config(highest_boss, assist, muted, tutorial_done, completed)
+	if atomic_writes and _save_atomic(cfg):
+		return true
+	var err: Error = cfg.save(path)
 	if err != OK:
 		_warn_once("write failed (%s), progress kept in memory only" % error_string(err))
 		return false
+	return true
+
+
+## Story 9.6 (D-S96-1): writes `cfg` to the temp file, reads it back, checks it parses to the same
+## values, then renames it over `path` (DirAccess.rename overwrites an existing file; atomic on POSIX, not guaranteed on Windows, see deferred-work 9.6 review). False on any
+## failure, after removing a leftover temp file; the caller then writes in place.
+func _save_atomic(cfg: ConfigFile) -> bool:
+	var temp: String = temp_path(path)
+	if cfg.save(temp) == OK and _read_back_matches(temp, parse(cfg)):
+		var dir := DirAccess.open(path.get_base_dir())
+		if dir != null and dir.rename(temp.get_file(), path.get_file()) == OK:
+			return true
+	if FileAccess.file_exists(temp):
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(temp))
+	return false
+
+
+## True when the file at `p` loads and parses (valid, no bad key) to the values in `expected`.
+static func _read_back_matches(p: String, expected: Dictionary) -> bool:
+	var back := ConfigFile.new()
+	if back.load(p) != OK:
+		return false
+	var values: Dictionary = parse(back)
+	if not values["valid"] or not (values["bad_keys"] as PackedStringArray).is_empty():
+		return false
+	for key: String in ["highest_boss", "assist", "muted", "tutorial_done", "completed"]:
+		if values[key] != expected[key]:
+			return false
 	return true
 
 
