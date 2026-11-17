@@ -12,6 +12,7 @@ const DeadScreenScript := preload("res://src/ui/screens/dead/dead_screen.gd")
 const HarvestScreenScript := preload("res://src/ui/screens/harvest/harvest_screen.gd")
 const IntroScreenScript := preload("res://src/ui/screens/intro/intro_screen.gd")
 const EndingScreenScript := preload("res://src/ui/screens/ending/ending_screen.gd")
+const TutorialScreenScript := preload("res://src/ui/screens/tutorial/tutorial_screen.gd")
 const DebugKeysScript := preload("res://src/debug/debug_keys.gd")
 const GameFlow := preload("res://src/autoloads/game.gd")
 const HudScene := preload("res://src/ui/hud/hud.tscn")
@@ -68,6 +69,9 @@ var breakpoint_overlay: Node2D
 var breakpoint_readout: BreakpointReadout
 ## Story 5.4: the Watch read-outs above the boss (a child of the Arena); null when the module is off.
 var watch_overlay: Node2D
+## Story 8.2 (E2): the tutorial checklist, prompt and skip hint (a child of the Arena, drawn under the
+## player and boss views); it draws only while the TUTORIAL screen feeds it.
+var tutorial_view: TutorialChecklistView
 
 
 func _ready() -> void:
@@ -112,6 +116,10 @@ func _build_layers() -> void:
 	arena.set_reserved_write_enabled(feature_flags.reserved_write) # Story 6.6 (AC 3): cut #1
 	Game.segfault_enabled = feature_flags.segfault # Story 5.6 review: one startup read for every cut flag
 	add_child(arena)
+	# Story 8.2 (E2): the tutorial text, the arena's first child so the `@` and the dummy draw over it.
+	tutorial_view = TutorialChecklistView.new()
+	tutorial_view.name = &"TutorialChecklistView"
+	arena.add_child(tutorial_view)
 	# Story 6.1 (D-S61-10): the Ghost Echo decoy placeholder, under the `@` (presentation/, so Main).
 	var ghost_view := GhostDecoyView.new(arena.ghost_echo.decoy)
 	ghost_view.name = &"GhostDecoyView"
@@ -279,23 +287,29 @@ func apply_flow_state(state: int, boss_index: int) -> void:
 	particle_pool.clear()
 	camera_shake.reset()
 	var in_fight: bool = state == GameFlow.FlowState.FIGHT
-	if in_fight:
+	# Story 8.2 (AC 1, A2, A8): TUTORIAL plays in the arena with the full HUD (the register panel shows),
+	# against the tutorial dummy, from Boss 1's start set [D, A].
+	var in_tutorial: bool = state == GameFlow.FlowState.TUTORIAL
+	var in_play: bool = in_fight or in_tutorial
+	if in_play:
 		hud.log_panel.clear()
-	arena.visible = in_fight
+	arena.visible = in_play
 	# Story 3.8 (D-S38-16): HARVEST shows the HUD's duck bubble only (the harvest line).
 	# Story 6.7 (D-S67-2): so does INTRO (duck line 1 on panel 3). Story 6.8 (AC 3): and ENDING (line 9).
 	var duck_only: bool = state == GameFlow.FlowState.HARVEST or state == GameFlow.FlowState.INTRO \
 			or state == GameFlow.FlowState.ENDING
-	hud.visible = in_fight or duck_only
+	hud.visible = in_play or duck_only
 	hud.set_duck_only(duck_only)
 	if in_fight:
 		var practice: bool = wants_practice()
 		arena.enter_fight(fight_start_ring(Game.run, boss_index), practice, boss_def_path_for(wants_test_boss(), boss_index, practice, Game.segfault_enabled), breakpoint_unlocked_for(boss_index), watch_unlocked_for(boss_index), Game.run.assist)
+	elif in_tutorial:
+		arena.enter_fight(fight_start_ring(Game.run, 0), false, boss_def_path_for(false, 0, false, Game.segfault_enabled, true), false, false, Game.run.assist)
 	else:
 		arena.leave_fight()
 	_attach_practice_target()
 	practice_counter.set_active(in_fight and Game.practice_run) # Story 7.6 (AC 5)
-	_attach_boss(in_fight)
+	_attach_boss(in_play)
 
 
 ## Story 3.8 (B4, D-S38-8, D-S38-11): the defeat exit is polled here, after SimClock's tick of the
@@ -336,13 +350,16 @@ static func watch_unlocked_for(boss_index: int) -> bool:
 ## Shift+F3 (takes precedence), no boss in the Shift+F2 practice sandbox (D-S33-22), the Infinite
 ## Loop for boss 0 in every build, the Null Pointer for boss 1 (Story 5.1), the Segfault for boss 2
 ## when `segfault_on` (Story 6.3, D-S63-4: FeatureFlags.segfault via Game.segfault_enabled), none
-## (placeholder header) for boss 2 when it is cut.
+## (placeholder header) for boss 2 when it is cut. Story 8.2 (A8): the tutorial dummy in TUTORIAL
+## (`tutorial`), checked before the boss index.
 ## Pure.
-static func boss_def_path_for(debug_test_boss: bool, boss_index: int, practice: bool = false, segfault_on: bool = true) -> String:
+static func boss_def_path_for(debug_test_boss: bool, boss_index: int, practice: bool = false, segfault_on: bool = true, tutorial: bool = false) -> String:
 	if debug_test_boss:
 		return Arena.TEST_BOSS_DEF_PATH
 	if practice:
 		return ""
+	if tutorial:
+		return Arena.TUTORIAL_DEF_PATH
 	if boss_index == 0:
 		return Arena.INFINITE_LOOP_DEF_PATH
 	if boss_index == 1: # Story 5.1 (AC 3)
@@ -425,7 +442,17 @@ func _make_screen(state: int, boss_index: int) -> Node:
 			var dead: DeadScreen = DeadScreenScript.new()
 			dead.name = &"DeadScreen"
 			return dead
+		GameFlow.FlowState.TUTORIAL:
+			return make_tutorial_screen() # Story 8.2 (E1)
 	return null
+
+
+## Story 8.2 (E1): the TUTORIAL screen, handed the arena (read only) and the checklist view.
+func make_tutorial_screen() -> TutorialScreen:
+	var screen: TutorialScreen = TutorialScreenScript.new()
+	screen.arena = arena
+	screen.view = tutorial_view
+	return screen
 
 
 ## Story 6.8 (AC 2, AD-12): the ENDING screen; the stretch summary card follows the cut-ladder flag

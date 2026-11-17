@@ -1,13 +1,17 @@
 extends Node
 ## Persistence to user://save.cfg with silent fallback (AD-10, Story 7.3, FR53, NFR12).
-## One ConfigFile, section `save`: version (1), highest_boss (1..3), assist (bool), muted (bool)
-## (D-S73-1). Read once at boot; written on a non-retry, non-debug FIGHT entry (Game._set_flow_state),
+## One ConfigFile, section `save`: version (2), highest_boss (1..3), assist (bool), muted (bool)
+## (D-S73-1), tutorial_done (bool, Story 8.2, D-S82-8: a version 1 file still loads, the flag false).
+## Story 8.2: also written when the tutorial is completed or skipped (set_tutorial_done). Read once at boot; written on a non-retry, non-debug FIGHT entry (Game._set_flow_state),
 ## on the title's [N] new run, on set_assist (7.4) and on set_muted (the pause screen's [M] toggle).
 ## Any storage failure keeps the in-memory values and logs one warn per session (D-S73-6).
 ## Presentation-side only: nothing in the sim tick calls this (AC 12).
 
 const PATH := "user://save.cfg"
-const VERSION := 1
+## Story 8.2 (D-S82-8): 2 adds tutorial_done. Every write is VERSION; parse also accepts the
+## versions in READ_VERSIONS (1: no flag, read as false), so existing saves are never wiped.
+const VERSION := 2
+const READ_VERSIONS: Array[int] = [1, 2]
 const SECTION := "save"
 const MIN_BOSS := 1
 ## Game.LAST_BOSS_INDEX + 1 (literal: test_save_service checks the two stay in step).
@@ -16,6 +20,8 @@ const MAX_BOSS := 3
 var highest_boss: int = MIN_BOSS
 var assist: bool = false
 var muted: bool = false
+## Story 8.2 (AC 13, D-S82-8): the guided tutorial was completed or skipped once. Never reset by a new run.
+var tutorial_done: bool = false
 ## True once a storage failure has been logged this session (AC 5).
 var storage_warned: bool = false
 ## The file this service reads and writes. Test seam: empty means in-memory only (no I/O at all).
@@ -63,39 +69,44 @@ static func clamp_highest(v: Variant) -> int:
 
 ## Pure: the fresh-save values.
 static func defaults() -> Dictionary:
-	return {"highest_boss": MIN_BOSS, "assist": false, "muted": false, "valid": true}
+	return {"highest_boss": MIN_BOSS, "assist": false, "muted": false, "tutorial_done": false, "valid": true}
 
 
-## Pure: the values held by `cfg`. A version other than VERSION, or a value of the wrong type,
-## gives the defaults with "valid" false (D-S73-8); the caller logs it once.
+## Pure: the values held by `cfg`. A version not in READ_VERSIONS, or a value of the wrong type,
+## gives the defaults with "valid" false (D-S73-8); the caller logs it once. Story 8.2 (D-S82-8): a
+## missing tutorial_done key (any version 1 file) reads as false.
 static func parse(cfg: ConfigFile) -> Dictionary:
 	var out := defaults()
 	if not cfg.has_section_key(SECTION, "version"):
 		out["valid"] = false
 		return out
 	var version: Variant = cfg.get_value(SECTION, "version", 0)
-	if typeof(version) != TYPE_INT or int(version) != VERSION:
+	if typeof(version) != TYPE_INT or not READ_VERSIONS.has(int(version)):
 		out["valid"] = false
 		return out
 	var hb: Variant = cfg.get_value(SECTION, "highest_boss", MIN_BOSS)
 	var a: Variant = cfg.get_value(SECTION, "assist", false)
 	var m: Variant = cfg.get_value(SECTION, "muted", false)
-	if (typeof(hb) != TYPE_INT and typeof(hb) != TYPE_FLOAT) or typeof(a) != TYPE_BOOL or typeof(m) != TYPE_BOOL:
+	var t: Variant = cfg.get_value(SECTION, "tutorial_done", false)
+	if (typeof(hb) != TYPE_INT and typeof(hb) != TYPE_FLOAT) or typeof(a) != TYPE_BOOL or typeof(m) != TYPE_BOOL \
+			or typeof(t) != TYPE_BOOL:
 		out["valid"] = false
 		return out
 	out["highest_boss"] = clamp_highest(hb)
 	out["assist"] = a
 	out["muted"] = m
+	out["tutorial_done"] = t
 	return out
 
 
 ## Pure: a ConfigFile holding these values (no I/O).
-static func to_config(p_highest_boss: int, p_assist: bool, p_muted: bool) -> ConfigFile:
+static func to_config(p_highest_boss: int, p_assist: bool, p_muted: bool, p_tutorial_done: bool = false) -> ConfigFile:
 	var cfg := ConfigFile.new()
 	cfg.set_value(SECTION, "version", VERSION)
 	cfg.set_value(SECTION, "highest_boss", clamp_highest(p_highest_boss))
 	cfg.set_value(SECTION, "assist", p_assist)
 	cfg.set_value(SECTION, "muted", p_muted)
+	cfg.set_value(SECTION, "tutorial_done", p_tutorial_done)
 	return cfg
 
 
@@ -124,7 +135,7 @@ func load_save() -> void:
 func save() -> bool:
 	if path.is_empty():
 		return false
-	var err: Error = to_config(highest_boss, assist, muted).save(path)
+	var err: Error = to_config(highest_boss, assist, muted, tutorial_done).save(path)
 	if err != OK:
 		_warn_once("write failed (%s), progress kept in memory only" % error_string(err))
 		return false
@@ -142,7 +153,8 @@ func note_fight_start(boss_index: int) -> void:
 	save()
 
 
-## The title's [N] new run (AC 9): the only path that lowers highest_boss.
+## The title's [N] new run (AC 9): the only path that lowers highest_boss. Story 8.2 (D-S82-9): it
+## never clears tutorial_done.
 func reset_run_progress() -> void:
 	highest_boss = MIN_BOSS
 	save()
@@ -160,6 +172,12 @@ func set_muted(on: bool) -> void:
 	save()
 
 
+## Story 8.2 (AC 13, B2): the tutorial was completed or skipped; saved at once.
+func set_tutorial_done() -> void:
+	tutorial_done = true
+	save()
+
+
 ## True when a run can resume past the first boss (the title shows [N] new run, AC 8).
 func has_progress() -> bool:
 	return highest_boss > MIN_BOSS
@@ -169,6 +187,7 @@ func _apply(values: Dictionary) -> void:
 	highest_boss = clamp_highest(values["highest_boss"])
 	assist = values["assist"]
 	muted = values["muted"]
+	tutorial_done = values["tutorial_done"]
 
 
 func _warn_once(msg: String) -> void:

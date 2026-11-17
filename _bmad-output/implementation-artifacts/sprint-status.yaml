@@ -174,5 +174,5 @@ development_status:
   # Source: first external playtest 2026-11-17. Design calls D-E8-1..7 in the story files.
   epic-8: in-progress
   8-1-semicolon-readability-and-hit-forgiveness: done
-  8-2-guided-tutorial-test-suite: backlog
+  8-2-guided-tutorial-test-suite: done
   epic-8-retrospective: optional

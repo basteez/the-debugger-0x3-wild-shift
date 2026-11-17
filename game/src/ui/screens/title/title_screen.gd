@@ -11,6 +11,9 @@ extends Node2D
 ## practice fight (Game.start_practice_from_title): no Intro, the `/* test */` dummy, no save write.
 ## Story 7.7 (FR55, AC 1-3, D-S77-1): `[F] fullscreen` / `[F] windowed` always shows; F, R3 or a click
 ## on it toggles fullscreen in the input handler (Fullscreen.toggle) and never starts the run.
+## Story 8.2 (AC 15, D-S82-13, D-S82-14): `[T] tutorial` always shows, on the practice row (practice
+## left, tutorial right, two glyph cells apart: the 360-px base has no sixth row). T or a click on it
+## replays the guided tutorial (Game.start_tutorial_from_title) whatever the save says; no pad button.
 
 enum Action { IGNORE, START, OPTION }
 
@@ -44,6 +47,10 @@ static var FULLSCREEN_TEXT: String:
 static var WINDOWED_TEXT: String:
 	get:
 		return SCREEN_TEXT.windowed_label
+## Story 8.2: the tutorial option label, audited game text.
+static var TUTORIAL_TEXT: String:
+	get:
+		return SCREEN_TEXT.tutorial_label
 ## Pixel font at 2x (16-px glyph cells, Story 1.5 DC2). Y values are the top of each glyph row,
 ## on the 8-px grid; x is centred on the 640-px base and snapped to the 8-px grid.
 const TEXT_SCALE := 2
@@ -57,12 +64,15 @@ const DEBUG_BUILD_TOP_Y := 272
 const PRACTICE_TOP_Y := 304
 ## Story 7.7 (D-S77-1): the [F] fullscreen label row, below the practice row (336 + 16 = 352 < 360).
 const FULLSCREEN_TOP_Y := 336
+## Story 8.2 (D-S82-14): glyph cells between the practice and tutorial labels on the shared row.
+const SHARED_ROW_GAP_CELLS := 2
 ## Option id -> InputMap action (DC7). The keys live only in project.godot [input].
 const OPTION_ACTIONS: Dictionary[StringName, StringName] = {
 	&"new_run": &"title_option_new_run",
 	&"practice": &"title_option_practice",
 	&"debug_build": &"title_option_debug_build",
 	&"fullscreen": &"title_option_fullscreen",
+	&"tutorial": &"title_option_tutorial", # Story 8.2 (F2): key T only (D-S82-13)
 }
 
 ## Which options exist yet (DC2). Hidden options behave as plain keys.
@@ -71,10 +81,12 @@ var available: Dictionary[StringName, bool] = {
 	&"practice": true, # Story 7.6 (AC 2): always shown, in every build
 	&"debug_build": true, # Story 7.4 (D-S74-2): always shown
 	&"fullscreen": true, # Story 7.7 (AC 3): always shown, in every build
+	&"tutorial": true, # Story 8.2 (AC 15): always shown, in every build
 }
 ## Clickable label rects of visible options, in canvas space. Story 7.6: practice is always there.
 var label_rects: Dictionary[StringName, Rect2] = {
 	&"practice": practice_label_rect(),
+	&"tutorial": tutorial_label_rect(),
 	&"fullscreen": fullscreen_label_rect(false),
 }
 var _started := false
@@ -191,9 +203,26 @@ static func debug_build_label_rect(on: bool) -> Rect2:
 	return label_rect_for(debug_build_text(on), DEBUG_BUILD_TOP_Y)
 
 
-## Pure (Story 7.6, D-S76-1): the clickable rect of the [P] practice label.
+## Pure (Story 7.6, D-S76-1): the clickable rect of the [P] practice label. Story 8.2 (D-S82-14): on
+## the left of the shared practice / tutorial row.
 static func practice_label_rect() -> Rect2:
-	return label_rect_for(PRACTICE_TEXT, PRACTICE_TOP_Y)
+	return label_rect_at(PRACTICE_TEXT, shared_row_x().x, PRACTICE_TOP_Y)
+
+
+## Pure (Story 8.2, D-S82-14): the clickable rect of the [T] tutorial label, right of practice.
+static func tutorial_label_rect() -> Rect2:
+	return label_rect_at(TUTORIAL_TEXT, shared_row_x().y, PRACTICE_TOP_Y)
+
+
+## Pure (Story 8.2, D-S82-14): the left x of the practice (x) and tutorial (y) labels: the pair is
+## centred as one line, SHARED_ROW_GAP_CELLS glyph cells apart, snapped to the 8-px grid.
+static func shared_row_x() -> Vector2i:
+	var cell: int = GlyphFont.CELL * TEXT_SCALE
+	var practice_w: int = GlyphFont.text_width(PRACTICE_TEXT, TEXT_SCALE)
+	var total: int = practice_w + SHARED_ROW_GAP_CELLS * cell + GlyphFont.text_width(TUTORIAL_TEXT, TEXT_SCALE)
+	var left: int = maxi((Const.BASE_RES.x - total) / 2, 0)
+	left -= left % GlyphFont.CELL
+	return Vector2i(left, left + practice_w + SHARED_ROW_GAP_CELLS * cell)
 
 
 ## Story 7.3 (AC 8): the [N] new run option exists only with a save past Boss 1; its label is
@@ -215,9 +244,14 @@ static func new_run_label_rect() -> Rect2:
 
 ## Pure: a centred label's glyph row at `top_y` plus a half-cell margin, canvas space.
 static func label_rect_for(text: String, top_y: int) -> Rect2:
+	return label_rect_at(text, centred_x(text), top_y)
+
+
+## Pure (Story 8.2): a label's glyph row with its left at `x`, plus a half-cell margin, canvas space.
+static func label_rect_at(text: String, x: int, top_y: int) -> Rect2:
 	var cell: int = GlyphFont.CELL * TEXT_SCALE
 	var margin: float = cell / 2.0
-	return Rect2(centred_x(text) - margin, top_y - margin,
+	return Rect2(x - margin, top_y - margin,
 			GlyphFont.text_width(text, TEXT_SCALE) + 2.0 * margin, cell + 2.0 * margin)
 
 
@@ -240,6 +274,8 @@ func handle_input(event: InputEvent) -> Action:
 			set_assist_shown(SaveService.assist)
 		elif option == &"practice": # Story 7.6 (AC 1): the practice fight, no Intro, no save write
 			_begin_practice()
+		elif option == &"tutorial": # Story 8.2 (AC 15): the tutorial replay, whatever the save says
+			_begin_tutorial()
 		elif option == &"fullscreen": # Story 7.7 (AC 1, 2): inside the input handler (user gesture)
 			Fullscreen.toggle() # the label follows the real mode in _process (the web request is async)
 	return action
@@ -268,6 +304,14 @@ func _begin_practice() -> void:
 	queue_free()
 
 
+## Story 8.2 (AC 15): leaves the title once into the tutorial replay (ends back at the title).
+func _begin_tutorial() -> void:
+	_started = true
+	Game.start_tutorial_from_title(SimClock.sim_frame)
+	AudioManager.play_test_sfx()
+	queue_free()
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	if handle_input(event) != Action.IGNORE:
 		get_viewport().set_input_as_handled()
@@ -281,8 +325,11 @@ func _draw() -> void:
 	if is_option_available(&"debug_build"):
 		var assist_text: String = debug_build_text(assist_shown)
 		GlyphFont.draw_at(self, Vector2(centred_x(assist_text), DEBUG_BUILD_TOP_Y), assist_text, Palette.INK, TEXT_SCALE)
+	var shared: Vector2i = shared_row_x()
 	if is_option_available(&"practice"):
-		GlyphFont.draw_at(self, Vector2(centred_x(PRACTICE_TEXT), PRACTICE_TOP_Y), PRACTICE_TEXT, Palette.INK, TEXT_SCALE)
+		GlyphFont.draw_at(self, Vector2(shared.x, PRACTICE_TOP_Y), PRACTICE_TEXT, Palette.INK, TEXT_SCALE)
+	if is_option_available(&"tutorial"):
+		GlyphFont.draw_at(self, Vector2(shared.y, PRACTICE_TOP_Y), TUTORIAL_TEXT, Palette.INK, TEXT_SCALE)
 	if is_option_available(&"fullscreen"):
 		var fs_text: String = fullscreen_text(fullscreen_shown)
 		GlyphFont.draw_at(self, Vector2(centred_x(fs_text), FULLSCREEN_TOP_Y), fs_text, Palette.INK, TEXT_SCALE)

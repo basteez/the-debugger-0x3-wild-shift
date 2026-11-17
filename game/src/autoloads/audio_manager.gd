@@ -193,11 +193,13 @@ func on_music_flow_changed(from: int, to: int, boss_index: int) -> void:
 
 
 ## Story 7.1 (AC 11, D-S71-7): pure. The track the context wants; null is silence. TITLE, INTRO and
-## ENDING want the title track; FIGHT wants the boss track (glitch at phase 3), or the muffled loop
+## ENDING want the title track; Story 8.2 (A2, [design call] coordinator): so does TUTORIAL (the calm
+## title loop carries on from the Intro; Boss 1's track starts at FIGHT 1 with the normal crossfade, no
+## new audio); FIGHT wants the boss track (glitch at phase 3), or the muffled loop
 ## during Breakpoint; DEAD keeps the fight track; HARVEST is silent.
 static func desired_track(flow: int, boss_index: int, glitch: bool, breakpoint_active: bool) -> AudioStream:
 	match flow:
-		GameFlow.FlowState.TITLE, GameFlow.FlowState.INTRO, GameFlow.FlowState.ENDING:
+		GameFlow.FlowState.TITLE, GameFlow.FlowState.INTRO, GameFlow.FlowState.ENDING, GameFlow.FlowState.TUTORIAL:
 			return TITLE_TRACK
 		GameFlow.FlowState.FIGHT, GameFlow.FlowState.DEAD:
 			if flow == GameFlow.FlowState.FIGHT and breakpoint_active:

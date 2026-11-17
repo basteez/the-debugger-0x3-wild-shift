@@ -6,7 +6,8 @@ extends Node
 ## Game is also the only writer of SimClock.paused (Story 1.7 DC2): Esc / P, focus loss and the
 ## resume click (D-FIX-FS-1).
 
-enum FlowState { TITLE, INTRO, FIGHT, DEAD, HARVEST, ENDING }
+## Story 8.2 (D-S82-1): TUTORIAL is appended, so the existing ints are unchanged.
+enum FlowState { TITLE, INTRO, FIGHT, DEAD, HARVEST, ENDING, TUTORIAL }
 
 ## Intro cap (D-040): 8 s at 60 Hz, counted in sim frames so it stops with pause (DC5).
 const INTRO_MAX_FRAMES := 480
@@ -27,7 +28,8 @@ const ENDING_HOLD_FRAMES := 900
 const ENDING_LEAVE_GATE_FRAMES := 60
 ## States where Esc and focus loss pause (Story 1.7 DC1): the 60 Hz clock drives the Intro cap and the fight.
 ## Story 6.8 (D-S68-6): the Ending too, so its timeline freezes on Esc.
-const PAUSABLE_STATES: Array[FlowState] = [FlowState.INTRO, FlowState.FIGHT, FlowState.ENDING]
+## Story 8.2 (D-S82-1): the tutorial too (P and focus loss; a bare Esc never pauses there, A6).
+const PAUSABLE_STATES: Array[FlowState] = [FlowState.INTRO, FlowState.FIGHT, FlowState.ENDING, FlowState.TUTORIAL]
 ## [design call] D-FIX-FS-1 (fullscreen Esc lock): in browser fullscreen Esc exits fullscreen and never
 ## reaches the canvas, and the blur pauses the game. So the `pause` action is Esc or P, and while
 ## paused a left click / tap resumes, unless it comes less than CLICK_RESUME_GUARD_MSEC (wall clock,
@@ -50,6 +52,8 @@ const PRACTICE_CYCLE_KEY := KEY_L
 const PRACTICE_CYCLE_BUTTON := JOY_BUTTON_BACK
 ## Story 7.6 [design call] D-S76-6: L3 leaves a practice fight on the pad (Esc on the keyboard).
 const PRACTICE_LEAVE_BUTTON := JOY_BUTTON_LEFT_STICK
+## Story 8.2: Game is registered before SaveService, so its static GUT check is read from the script.
+const SaveServiceScript := preload("res://src/autoloads/save_service.gd")
 const REFOCUS_ON_CLICK_JS := "window.focus(); var c=document.querySelector('canvas'); if (c) { c.focus(); }"
 
 var flow_state: FlowState = FlowState.TITLE
@@ -95,6 +99,13 @@ var practice_loadout_index: int = 0
 ## Story 7.6 (AC 5, D-S76-2): sim frame of the current practice FIGHT entry (each loadout change and
 ## retry restarts it); the practice frame counter reads it. -1 outside practice.
 var practice_start_frame: int = -1
+## Story 8.2 (AC 1, A3, D-S82-1): a fresh run goes INTRO -> TUTORIAL -> FIGHT 1 while this is on and
+## SaveService.tutorial_done is false. On in every build; off under GUT (the SaveService.track_fights
+## pattern), so the existing INTRO -> FIGHT tests keep their meaning; the tutorial flow test turns it on.
+var tutorial_routing_enabled: bool = not SaveServiceScript.running_under_gut()
+## Story 8.2 (AC 15, A4): true while the tutorial was started from the title (`[T] tutorial`): it ends
+## at TITLE, not in FIGHT 1. Not persisted.
+var tutorial_replay: bool = false
 
 
 func _ready() -> void:
@@ -150,8 +161,23 @@ func handle_pause_input(event: InputEvent) -> bool:
 		return true
 	if not is_pause_press(event):
 		return false
+	# Story 8.2 (AC 12, A6, D-S82-5): in the running tutorial a bare Esc is the skip hold (counted by
+	# the tutorial screen), never a pause; P and pad Start still pause, and Esc still resumes.
+	if esc_is_tutorial_skip(flow_state, SimClock.paused, event):
+		return false
 	_focus_lost = false # a key press proves the window has focus
 	return set_paused(not SimClock.paused, &"esc")
+
+
+## Pure (Story 8.2, A6): true for an Esc key press in an unpaused TUTORIAL (it never pauses there).
+static func esc_is_tutorial_skip(state: FlowState, paused: bool, event: InputEvent) -> bool:
+	if state != FlowState.TUTORIAL or paused:
+		return false
+	var key := event as InputEventKey
+	if key == null:
+		return false
+	var code: Key = key.physical_keycode if key.physical_keycode != KEY_NONE else key.keycode
+	return code == KEY_ESCAPE
 
 
 ## Story 7.6: the practice-only keys, live only in a practice FIGHT that is not paused. True when the
@@ -425,8 +451,61 @@ func finish_intro(frame: int, skip_requested: bool = false) -> bool:
 	if not ((skip_requested and can_skip_intro(frame)) or intro_timed_out(frame)):
 		return false
 	run.start_boss(0)
-	Log.info(&"flow", "intro -> fight 1 at f=%d" % frame)
+	run.assist = SaveService.assist # review: the tutorial arena reads the setting like FIGHT 1 will
+	var to: FlowState = route_after_intro(SaveService.tutorial_done, tutorial_routing_enabled)
+	Log.info(&"flow", "intro -> %s at f=%d" % ["tutorial" if to == FlowState.TUTORIAL else "fight 1", frame])
+	_set_flow_state(to)
+	return true
+
+
+## Pure (Story 8.2, AC 1, 14, A3): where the Intro goes. TUTORIAL on a run whose save has not done
+## the tutorial (and the routing is on), FIGHT 1 otherwise.
+static func route_after_intro(tutorial_done: bool, tutorial_on: bool) -> FlowState:
+	return FlowState.TUTORIAL if tutorial_on and not tutorial_done else FlowState.FIGHT
+
+
+## Story 8.2 (AC 15, A4, D-S82-9): the title's `[T] tutorial`. Valid only from TITLE, whatever
+## tutorial_done says. No Intro, no first-shift clock, a fresh RunState and RunStats, no save write on
+## entry. Ends at TITLE (finish_tutorial).
+func start_tutorial_from_title(frame: int) -> void:
+	if flow_state != FlowState.TITLE:
+		Log.warn(&"flow", "start_tutorial_from_title ignored outside TITLE")
+		return
+	tutorial_replay = true
+	first_input_frame = -1
+	intro_start_frame = -1
+	run = RunState.new()
+	run.start_boss(0)
+	run.assist = SaveService.assist # review: the tutorial arena reads the assist setting like a fight
+	stats = RunStats.new()
+	Log.info(&"flow", "title -> tutorial at f=%d" % frame)
+	_set_flow_state(FlowState.TUTORIAL)
+
+
+## Story 8.2 (AC 11-13, 15, A4): leaves TUTORIAL, completed or `skipped` (the Esc hold). Writes
+## tutorial_done (SaveService.set_tutorial_done, once). A run goes on to FIGHT 1 exactly like the
+## Intro used to (the press that ended it never fires there); a title replay goes back to TITLE with a
+## clean run. Refused (false, no log) outside TUTORIAL or while paused. True if it moved.
+func finish_tutorial(frame: int, skipped: bool) -> bool:
+	if SimClock.paused or flow_state != FlowState.TUTORIAL:
+		return false
+	if not SaveService.tutorial_done:
+		SaveService.set_tutorial_done()
+	var how: String = "skipped" if skipped else "passed"
+	if tutorial_replay:
+		Log.info(&"flow", "tutorial %s -> title at f=%d" % [how, frame])
+		tutorial_replay = false
+		run = RunState.new()
+		stats = RunStats.new()
+		first_input_frame = -1
+		intro_start_frame = -1
+		_set_flow_state(FlowState.TITLE)
+		return true
+	Log.info(&"flow", "tutorial %s -> fight 1 at f=%d" % [how, frame])
+	run.start_boss(0)
 	_set_flow_state(FlowState.FIGHT)
+	if not SimClock.paused:
+		SimClock.swallow_presses_next_poll()
 	return true
 
 
@@ -594,6 +673,7 @@ func debug_jump(target: FlowState, boss_index: int) -> void:
 		Log.warn(&"debug", "jump rejected: %s boss=%d" % [FlowState.keys()[target], boss_index])
 		return
 	_clear_practice() # Story 7.6: a debug jump leaves the title's practice (the save rules apply again)
+	tutorial_replay = false # Story 8.2: and the title's tutorial replay
 	if target == FlowState.TITLE:
 		run = RunState.new()
 		stats = RunStats.new() # Story 6.8: the next run starts clean
@@ -653,8 +733,12 @@ func _set_flow_state(to: FlowState) -> void:
 ## Story 7.8 (AC 5, 8, D-S78-4): the run's first player shift in FIGHT logs `first_shift_s`, measured
 ## from the first title input (Intro included). Boss rotations (source != &"player"), practice and runs
 ## without a title input (resume has one; a debug jump sets one) never log. Writes only Game.stats.
+## Story 8.2 (AC 16, A7, D-S82-11): a shift in TUTORIAL counts too (the test_shift step is the run's
+## first shift); a title replay has no title input (first_input_frame -1), so it never logs.
 func _on_register_shifted(_direction: int, _window: Vector2i, _ring: PackedInt32Array, source: StringName) -> void:
-	if source != &"player" or flow_state != FlowState.FIGHT or practice_run or first_input_frame < 0:
+	if source != &"player" or practice_run or first_input_frame < 0:
+		return
+	if flow_state != FlowState.FIGHT and flow_state != FlowState.TUTORIAL:
 		return
 	if stats.note_first_shift(SimClock.sim_frame):
 		Log.info(&"metrics", "first_shift_s=%.1f" % RunStats.seconds(SimClock.sim_frame - first_input_frame))

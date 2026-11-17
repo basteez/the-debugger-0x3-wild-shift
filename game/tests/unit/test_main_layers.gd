@@ -71,7 +71,8 @@ func test_arena_and_hud_visible_only_in_fight() -> void:
 	var main: Node2D = _main()
 	for state: int in GameScript.FlowState.values():
 		main.apply_flow_state(state, 0)
-		var in_fight: bool = state == GameScript.FlowState.FIGHT
+		# Story 8.2 (A8): TUTORIAL plays in the arena with the full HUD, like FIGHT.
+		var in_fight: bool = state == GameScript.FlowState.FIGHT or state == GameScript.FlowState.TUTORIAL
 		var harvest: bool = state == GameScript.FlowState.HARVEST
 		# Story 6.7 (D-S67-2, AC 3): INTRO shows the duck bubble only, like HARVEST; no arena.
 		# Story 6.8 (AC 3): so does ENDING (duck line 9).
@@ -116,6 +117,16 @@ func test_screen_for_each_state() -> void:
 	main.apply_flow_state(GameScript.FlowState.DEAD, 0)
 	assert_true(_screen_of(main) is DeadScreen, "DEAD shows the Process exited screen (2.9)")
 	assert_eq(_screen_of(main).get_parent(), main.get_node(^"Screens"))
+	# Story 8.2 (E1, A8): TUTORIAL shows the tutorial screen, wired to the arena, against the dummy.
+	main.apply_flow_state(GameScript.FlowState.TUTORIAL, 0)
+	var tutorial := _screen_of(main) as TutorialScreen
+	assert_not_null(tutorial, "TUTORIAL shows the tutorial screen")
+	assert_eq(tutorial.arena, main.arena)
+	assert_eq(tutorial.view, main.tutorial_view)
+	assert_true(main.arena.boss is TutorialDummyBody, "the tutorial dummy is the arena's boss")
+	assert_eq(main.arena.register.active_window(), Vector2i(Register.Bit.DASH, Register.Bit.ATTACK), "register starts [D, A]")
+	assert_false(main.hud.is_duck_only(), "the full HUD: the register panel shows")
+	assert_eq(main.tutorial_view.get_index(), 0, "drawn under the player and boss views")
 
 
 func test_flow_signal_swaps_screen_and_keeps_layers() -> void:

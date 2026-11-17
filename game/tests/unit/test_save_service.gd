@@ -26,7 +26,7 @@ func before_each() -> void:
 	_saved = {
 		"path": SaveService.path, "highest_boss": SaveService.highest_boss, "assist": SaveService.assist,
 		"muted": SaveService.muted, "storage_warned": SaveService.storage_warned,
-		"track_fights": SaveService.track_fights,
+		"track_fights": SaveService.track_fights, "tutorial_done": SaveService.tutorial_done,
 	}
 	_saved_enabled = Debug.enabled
 	_saved_frame = SimClock.sim_frame
@@ -120,13 +120,14 @@ func test_round_trip() -> void:
 	assert_true(other.muted)
 	var cfg := ConfigFile.new()
 	assert_eq(cfg.load(SCRATCH), OK)
-	assert_eq(cfg.get_value("save", "version"), 1)
+	assert_eq(cfg.get_value("save", "version"), 2, "Story 8.2 (D-S82-8): writes are version 2")
 	assert_eq(cfg.get_value("save", "highest_boss"), 2)
+	assert_eq(cfg.get_value("save", "tutorial_done"), false)
 
 
 func test_bad_version_resets_to_defaults_and_warns_once() -> void:
 	var cfg := SaveScript.to_config(3, true, true)
-	cfg.set_value("save", "version", 2)
+	cfg.set_value("save", "version", 3) # Story 8.2: 2 is the current version, 3 is unknown
 	assert_eq(cfg.save(SCRATCH), OK)
 	var svc: Node = _service()
 	svc.load_save()
@@ -150,6 +151,57 @@ func test_parse_rejects_bad_versions_and_values() -> void:
 	assert_true(good["valid"])
 	assert_eq(good["highest_boss"], 3)
 	assert_true(good["assist"])
+
+
+# --- Story 8.2 (AC 13, B3, D-S82-8): the tutorial_done flag and save version 2 ----------------
+
+
+func test_version_1_file_loads_with_the_flag_false() -> void:
+	var cfg := ConfigFile.new()
+	cfg.set_value("save", "version", 1)
+	cfg.set_value("save", "highest_boss", 2)
+	cfg.set_value("save", "assist", true)
+	cfg.set_value("save", "muted", false)
+	assert_eq(cfg.save(SCRATCH), OK)
+	var svc: Node = _service()
+	svc.tutorial_done = true
+	svc.load_save()
+	assert_eq(svc.highest_boss, 2, "a version 1 save is kept, never wiped")
+	assert_true(svc.assist)
+	assert_false(svc.tutorial_done, "no key in a version 1 file: false")
+	assert_false(svc.storage_warned)
+
+
+func test_version_2_round_trips_the_flag() -> void:
+	var svc: Node = _service()
+	svc.set_tutorial_done()
+	assert_true(svc.tutorial_done)
+	var other: Node = _service()
+	other.load_save()
+	assert_true(other.tutorial_done)
+	var cfg := ConfigFile.new()
+	assert_eq(cfg.load(SCRATCH), OK)
+	assert_eq(cfg.get_value("save", "version"), 2)
+	assert_eq(cfg.get_value("save", "tutorial_done"), true)
+
+
+func test_wrong_type_flag_is_invalid() -> void:
+	var cfg := SaveScript.to_config(2, false, false, true)
+	cfg.set_value("save", "tutorial_done", "yes")
+	var parsed: Dictionary = SaveScript.parse(cfg)
+	assert_false(parsed["valid"])
+	assert_false(parsed["tutorial_done"])
+	assert_true(SaveScript.parse(SaveScript.to_config(2, false, false, true))["tutorial_done"])
+	assert_false(SaveScript.defaults()["tutorial_done"])
+
+
+func test_new_run_never_clears_the_flag() -> void:
+	var svc: Node = _service()
+	svc.highest_boss = 3
+	svc.tutorial_done = true
+	svc.reset_run_progress()
+	assert_eq(svc.highest_boss, 1)
+	assert_true(svc.tutorial_done, "D-S82-9: [N] new run resets the boss progress only")
 
 
 func test_parse_clamps_highest_boss() -> void:
