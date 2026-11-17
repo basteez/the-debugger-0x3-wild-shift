@@ -40,7 +40,12 @@ const PAD_NAMES: Dictionary[StringName, String] = {
 ## Template placeholder -> key name id.
 const PLACEHOLDERS: Dictionary[String, StringName] = {
 	"{move}": &"move", "{j}": &"action_1", "{k}": &"action_2", "{shift}": &"shift", "{skip}": &"skip",
+	"{pause}": &"pause", # Story 9.1 (618a)
 }
+## Story 9.1 (AC 10, D-S91-7): the trigger axes, which count only on a positive press (some pads
+## report -1 at rest).
+const TRIGGER_AXES: Array[JoyAxis] = [JOY_AXIS_TRIGGER_LEFT, JOY_AXIS_TRIGGER_RIGHT]
+const MOTION_THRESHOLD := 0.5
 
 ## Main injects the arena (read only) and its checklist view.
 var arena: Arena
@@ -65,6 +70,7 @@ func _ready() -> void:
 	EventBus.hit_landed.connect(_on_hit_landed)
 	EventBus.patched_applied.connect(_on_patched_applied)
 	Log.info(&"flow", "tutorial opened%s" % (" (replay)" if Game.tutorial_replay else ""))
+	device = initial_device(Input.get_connected_joypads()) as Device # Story 9.1 (618c, D-S91-6)
 	_refresh_view()
 
 
@@ -163,7 +169,20 @@ func _refresh_view() -> void:
 		return
 	var current: int = -1 if steps.all_passed() else steps.current_step()
 	view.show_state(TutorialChecklistView.checklist_lines(steps), current, prompt_rows(steps.current_step(), device),
-			prompt_text(SCREEN_TEXT.tutorial_hint_skip, device), hold_fraction(hold_frames), steps.all_passed())
+			hint_rows(device), hold_fraction(hold_frames), steps.all_passed())
+
+
+## Pure (Story 9.1, AC 7, D-S91-4): the hint rows for `p_device`: the skip hold, then the pause key.
+## Two rows: one 1x row of both is wider than the gap beside the `[PASS] test_move` checklist row.
+static func hint_rows(p_device: int) -> PackedStringArray:
+	return PackedStringArray([prompt_text(SCREEN_TEXT.tutorial_hint_skip, p_device),
+			prompt_text(SCREEN_TEXT.tutorial_hint_pause, p_device)])
+
+
+## Pure (Story 9.1, AC 9, D-S91-6): the device the screen starts with: the pad when one is connected
+## (`pads` = Input.get_connected_joypads()), else the keyboard. The first input then corrects it.
+static func initial_device(pads: Array) -> int:
+	return Device.KEYBOARD if pads.is_empty() else Device.GAMEPAD
 
 
 ## Pure: the prompt rows of `step` for `device` (one or two; none once every test passed).
@@ -201,9 +220,11 @@ static func device_for(event: InputEvent, current: int) -> int:
 	if event is InputEventJoypadButton:
 		return Device.GAMEPAD
 	var motion := event as InputEventJoypadMotion
-	if motion != null and absf(motion.axis_value) >= 0.5:
-		return Device.GAMEPAD
-	return current
+	if motion == null:
+		return current
+	# Story 9.1 (D-S91-7): a trigger counts only when pressed (positive); a stick in any direction.
+	var value: float = motion.axis_value if TRIGGER_AXES.has(motion.axis) else absf(motion.axis_value)
+	return Device.GAMEPAD if value >= MOTION_THRESHOLD else current
 
 
 ## Pure (E3): the hold counter after one unpaused frame: +1 while held, 0 on release.

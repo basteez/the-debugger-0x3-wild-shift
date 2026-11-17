@@ -13,6 +13,8 @@ var _saved_warned: bool
 var _saved_paused: bool
 var _saved_flow: int
 var _saved_save: Dictionary = {}
+var _saved_title_entry: int = -1
+var _saved_frame: int = 0
 var _saved_unlocked: bool
 ## The fake window mode; `honour` false makes every request a no-op (a refused request).
 var _mode: DisplayServer.WindowMode = W
@@ -28,6 +30,9 @@ func before_each() -> void:
 	_saved_flow = Game.flow_state
 	_saved_save = {"path": SaveService.path, "highest_boss": SaveService.highest_boss, "assist": SaveService.assist, "muted": SaveService.muted}
 	_saved_unlocked = AudioManager.is_unlocked()
+	_saved_title_entry = Game.title_entry_frame
+	_saved_frame = SimClock.sim_frame
+	Game.title_entry_frame = -1 # Story 9.1: the boot title, outside the entry gate
 	SaveService.path = ""
 	_mode = W
 	_honour = true
@@ -45,6 +50,8 @@ func after_each() -> void:
 	Fullscreen.warned = _saved_warned
 	SimClock.paused = _saved_paused
 	Game.flow_state = _saved_flow as GameScript.FlowState
+	Game.title_entry_frame = _saved_title_entry
+	SimClock.sim_frame = _saved_frame
 	for key: String in _saved_save:
 		SaveService.set(key, _saved_save[key])
 	if not _saved_unlocked: # the title press unlocks audio; later suites expect it locked
@@ -142,6 +149,21 @@ func test_title_f_r3_and_click_toggle_without_leaving_title() -> void:
 	assert_eq(SimClock.paused, paused_before, "never touches the pause")
 	assert_eq(SaveService.highest_boss, hb_before, "never touches the save")
 	assert_eq(_set_calls, 5)
+
+
+## Story 9.1 (AC 2, 577, D-S91-1): an R3 (or F) press inside the title entry gate never toggles.
+func test_gated_r3_does_not_toggle() -> void:
+	Game.flow_state = Game.FlowState.TITLE
+	SimClock.sim_frame = 200
+	Game.title_entry_frame = 200
+	var title: TitleScreen = autofree(TitleScreenScript.new())
+	assert_eq(title.handle_input(_pad(JOY_BUTTON_RIGHT_STICK)), TitleScreenScript.Action.IGNORE)
+	assert_eq(title.handle_input(_key(KEY_F)), TitleScreenScript.Action.IGNORE)
+	assert_false(Fullscreen.is_on())
+	assert_eq(_set_calls, 0)
+	SimClock.sim_frame = 230
+	assert_eq(title.handle_input(_pad(JOY_BUTTON_RIGHT_STICK)), TitleScreenScript.Action.OPTION, "after the gate")
+	assert_true(Fullscreen.is_on())
 
 
 func test_title_label_follows_the_real_mode() -> void:

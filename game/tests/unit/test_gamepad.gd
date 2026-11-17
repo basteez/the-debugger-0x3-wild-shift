@@ -17,6 +17,8 @@ var _saved_assist: bool
 var _saved_muted: bool
 var _saved_highest: int
 var _saved_flow: int
+var _saved_title_entry: int = -1
+var _saved_frame: int = 0
 var _saved_unlocked: bool
 
 
@@ -27,6 +29,9 @@ func before_each() -> void:
 	_saved_highest = SaveService.highest_boss
 	_saved_flow = Game.flow_state
 	_saved_unlocked = AudioManager.is_unlocked()
+	_saved_title_entry = Game.title_entry_frame
+	_saved_frame = SimClock.sim_frame
+	Game.title_entry_frame = -1 # Story 9.1: these title tests run outside the entry gate
 	SimClock.paused = false
 
 
@@ -36,6 +41,8 @@ func after_each() -> void:
 	SaveService.highest_boss = _saved_highest
 	AudioManager.set_master_muted(_saved_muted)
 	Game.flow_state = _saved_flow as GameScript.FlowState
+	Game.title_entry_frame = _saved_title_entry
+	SimClock.sim_frame = _saved_frame
 	if not _saved_unlocked:
 		AudioManager.set("_unlocked", false)
 
@@ -129,6 +136,22 @@ func test_title_option_buttons() -> void:
 	assert_eq(title.resolve(_pad(JOY_BUTTON_B)), TitleScreenScript.Action.OPTION, "B never starts")
 	assert_eq(title.resolve(_pad(JOY_BUTTON_RIGHT_STICK)), TitleScreenScript.Action.OPTION, "Story 7.7: R3 is the fullscreen option")
 	assert_eq(title.resolve(_pad(JOY_BUTTON_LEFT_STICK)), TitleScreenScript.Action.OPTION, "L3 is practice (7.6)")
+
+
+## Story 9.1 (AC 2, D-S91-1): inside the title entry gate pad A never starts and a held R3 never
+## toggles fullscreen.
+func test_title_pad_buttons_inside_the_entry_gate() -> void:
+	var saved_set: Callable = Fullscreen.set_mode_fn
+	var calls: Array[int] = [0]
+	Fullscreen.set_mode_fn = func(_m: DisplayServer.WindowMode) -> void: calls[0] += 1
+	SimClock.sim_frame = 500
+	Game.title_entry_frame = 490
+	var title := _title()
+	assert_eq(title.handle_input(_pad(JOY_BUTTON_A)), TitleScreenScript.Action.IGNORE, "A is gated")
+	assert_eq(title.handle_input(_pad(JOY_BUTTON_RIGHT_STICK)), TitleScreenScript.Action.IGNORE, "R3 is gated")
+	Fullscreen.set_mode_fn = saved_set
+	assert_eq(calls[0], 0, "no fullscreen toggle")
+	assert_eq(Game.flow_state, S.TITLE)
 
 
 func test_title_select_follows_the_new_run_rule() -> void:

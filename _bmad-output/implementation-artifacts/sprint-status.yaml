@@ -172,7 +172,18 @@ development_status:
 
   # Epic 8: Playtest Response: Onboarding and Hit Readability — window Nov 17–25 (accepted 2026-11-17)
   # Source: first external playtest 2026-11-17. Design calls D-E8-1..7 in the story files.
-  epic-8: in-progress
+  epic-8: done # both stories merged (PRs #67, #68)
   8-1-semicolon-readability-and-hit-forgiveness: done
   8-2-guided-tutorial-test-suite: done
   epic-8-retrospective: optional
+
+  # Epic 9: Deferred Work Burn-down — after Epic 8; source: epic9-triage (deferred-work.md, 2026-11-17)
+  # Stacked PRs in key order. Design calls D-S9n-n in the story files; decision log D-052.
+  epic-9: in-progress
+  9-1-input-grace-and-tutorial-polish: done
+  9-2-miss-feedback-polish: backlog
+  9-3-run-and-assist-clarity: backlog
+  9-4-doc-consistency: backlog
+  9-5-test-isolation-hardening: backlog # optional, cut first
+  9-6-save-and-pad-robustness: backlog # optional
+  epic-9-retrospective: optional

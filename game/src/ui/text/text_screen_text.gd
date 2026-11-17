@@ -31,11 +31,13 @@ const TUTORIAL_STEP_COUNT := 6
 ## label; the checklist test names; per step, the prompt row and an optional second row (empty: none),
 ## templates whose {move} {j} {k} {shift} {skip} placeholders TutorialScreen.prompt_text fills with the
 ## last input device's key names; the skip hint template; the two completion rows.
+## Story 9.1 (618a, D-S91-4 fallback): the pause hint template, the second hint row under the hold bar.
 @export var tutorial_label: String = ""
 @export var tutorial_tests: PackedStringArray = []
 @export var tutorial_prompts: PackedStringArray = []
 @export var tutorial_prompts_2: PackedStringArray = []
 @export var tutorial_hint_skip: String = ""
+@export var tutorial_hint_pause: String = ""
 @export var tutorial_all_pass_1: String = ""
 @export var tutorial_all_pass_2: String = ""
 
@@ -62,7 +64,7 @@ func validate() -> PackedStringArray:
 		out.append("fullscreen_label must not be empty")
 	if windowed_label.is_empty():
 		out.append("windowed_label must not be empty")
-	for field: String in ["tutorial_label", "tutorial_hint_skip", "tutorial_all_pass_1", "tutorial_all_pass_2"]:
+	for field: String in ["tutorial_label", "tutorial_hint_skip", "tutorial_hint_pause", "tutorial_all_pass_1", "tutorial_all_pass_2"]:
 		if String(get(field)).is_empty():
 			out.append("%s must not be empty" % field)
 	for field: String in ["tutorial_tests", "tutorial_prompts", "tutorial_prompts_2"]:
@@ -98,7 +100,7 @@ func all_text() -> PackedStringArray:
 	var out := PackedStringArray([title, prompt, dead_line, new_run_label, debug_build_on_label, debug_build_off_label, practice_label, practice_hint, fullscreen_label, windowed_label])
 	for panel: PackedStringArray in intro_captions:
 		out.append_array(panel)
-	out.append_array([tutorial_label, tutorial_hint_skip, tutorial_all_pass_1, tutorial_all_pass_2])
+	out.append_array([tutorial_label, tutorial_hint_skip, tutorial_hint_pause, tutorial_all_pass_1, tutorial_all_pass_2])
 	out.append_array(tutorial_tests)
 	out.append_array(tutorial_prompts)
 	for row: String in tutorial_prompts_2:

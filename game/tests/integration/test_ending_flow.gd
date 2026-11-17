@@ -19,6 +19,8 @@ var _saved_run: RunState
 var _saved_first: int
 var _saved_intro: int
 var _saved_source: InputSource
+var _saved_title_entry: int = -1
+var _saved_unlocked: bool = false
 var _saved_stats: RunStats
 var _main: Node2D
 
@@ -37,6 +39,8 @@ func before_each() -> void:
 	_saved_intro = Game.intro_start_frame
 	_saved_source = SimClock.input_source
 	_saved_stats = Game.stats
+	_saved_title_entry = Game.title_entry_frame
+	_saved_unlocked = AudioManager.is_unlocked()
 	SimClock.input_source = null # headless: no presses
 	SimClock.paused = false
 	Game.run = RunState.new()
@@ -52,6 +56,9 @@ func after_each() -> void:
 	Game.stats = _saved_stats
 	Game.first_input_frame = _saved_first
 	Game.intro_start_frame = _saved_intro
+	Game.title_entry_frame = _saved_title_entry
+	if not _saved_unlocked: # Story 9.1: the gated title press unlocks audio; later suites expect it locked
+		AudioManager.set("_unlocked", false)
 	Game.ending_start_frame = -1
 	Game.ending_summary = {}
 	Game.harvest_start_frame = -1
@@ -145,6 +152,15 @@ func _play_and_leave(screen: EndingScreen) -> void:
 	assert_eq(Game.run.boss_index, 0)
 	assert_eq(Game.run.run_seed, 0, "a fresh RunState")
 	assert_eq(Game.ending_summary, {}, "AC 15: the snapshot is cleared")
+	# Story 9.1 (AC 1, D-S91-1): the ENDING -> TITLE return arms the title entry gate.
+	assert_eq(Game.title_entry_frame, SimClock.sim_frame, "the title gate starts on entry")
+	var title := _main.current_screen as TitleScreen
+	assert_eq(title.handle_input(_key(KEY_X)), TitleScreen.Action.IGNORE, "a key right after the leave never starts a run")
+	_tick(GameScript.TITLE_ENTRY_GATE_FRAMES - 1)
+	assert_eq(title.handle_input(_key(KEY_X)), TitleScreen.Action.IGNORE, "still gated one frame before the end")
+	_tick(1)
+	assert_true(Game.title_input_open(SimClock.sim_frame), "the gate opens after 30 sim frames")
+	assert_eq(Game.flow_state, S.TITLE)
 
 
 func test_segfault_defeat_plays_the_ending_and_returns_to_title() -> void:

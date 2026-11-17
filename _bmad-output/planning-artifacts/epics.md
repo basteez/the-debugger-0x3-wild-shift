@@ -1744,3 +1744,171 @@ So that I know what to do before Boss 1 starts, without a manual.
 **Given** the tutorial and its flow
 **When** the suite runs
 **Then** a flow test covers INTRO to TUTORIAL to FIGHT, skip, replay and the save flag, and `test_text_audit` still passes; no new duck line is added (budget 10, D-039)
+
+## Epic 9: Deferred Work Burn-down
+
+Burn-down of the deferred-work backlog after Epic 8, scoped by the triage of `deferred-work.md` (2026-11-17). Items are fixed only where they touch player experience, the submission docs or test reliability; the rest stay WONTFIX or HUMAN. Stories are stacked PRs in this order. Each story marks its covered items in `deferred-work.md` as "Resolved in Story 9.N". Design calls are marked `[design call]` with IDs D-S9n-n in the story files and recorded in the GDD decision log (D-052). Window: proposed Nov 25–28, before the internal target Nov 29 12:00 PST. Cut 9.4 and 9.5 first if the window overruns.
+
+### Story 9.1: Input Grace and Tutorial Polish
+
+As a player,
+I want stray presses and held buttons at screen changes to do nothing, and the tutorial's text and prompts to read right,
+So that a tutorial replay never drops me into a run by accident.
+
+**Requirements:** deferred 617 (8.2 review), 554a (7.5), 577 (7.7), 618a, 618b, 618c (8.2 review); triage 9-1 plus coordinator adjustments
+
+**Acceptance Criteria:**
+
+**Given** TITLE is entered from TUTORIAL, ENDING or a practice leave
+**When** a non-option key, a left click or a pad button arrives within the title entry gate
+**Then** it starts or resumes nothing, and the same press after the gate works (617, 577, 554a)
+
+**Given** the title entry gate is open
+**When** a pad option button (R3, L3, Select, B) or an option key arrives
+**Then** the option action is not taken, while audio unlock still runs on the press so the first click is not delayed
+
+**Given** first boot
+**When** any key starts the run
+**Then** behaviour is unchanged (the gate is never armed)
+
+**Given** a held pad button or key from combat
+**When** DEAD, INTRO or ENDING is entered
+**Then** the existing gates (DEAD retry 20 frames, Intro skip after the title input, ENDING 60 frames) hold, asserted by tests (554a)
+
+**Given** the tutorial hint
+**When** it is drawn for either device
+**Then** it names the pause key too (`{pause}`), fits 64 columns at 1x and does not overlap a checklist row (618a)
+
+**Given** the completion rows `ALL TESTS PASSED.` and `deploying to production...`
+**When** they are drawn
+**Then** their BG backing sits clear of the player `@` spawn and the tutorial dummy rectangles (618b)
+
+**Given** a game starts with a pad connected, or no input has yet arrived
+**When** the tutorial screen is built
+**Then** its device is gamepad when a joypad is connected, else keyboard; a trigger axis at rest (value at or below its press threshold) never flips it (618c)
+
+### Story 9.2: Miss Feedback Polish
+
+As a player,
+I want the `// miss` line to appear only when a swing really missed,
+So that the log does not blame me for hits I could not see or did not make.
+
+**Requirements:** deferred 609, 610 (8.1 review); coordinator adjustment; determinism unchanged
+
+**Acceptance Criteria:**
+
+**Given** the Nested Loop blink hides the ring
+**When** a swing overlaps the ring body
+**Then** no `// miss` line is logged (body_touch gate on visibility), and sim results and replays are unchanged (609)
+
+**Given** an Echo replay or a non-final combo step
+**When** the swing does not hit
+**Then** no `// miss` line is logged, and no miss is logged on the same frame as the Null Pointer whiff stun (610)
+
+**Given** the existing miss tests
+**When** the suite runs
+**Then** they pass, and replay tests are byte-identical
+
+### Story 9.3: Run and Assist Clarity
+
+As a returning player,
+I want the title to say what a resume or a new run will do, and the assist toggle to say when it applies,
+So that I do not lose progress or wonder why a change did nothing yet.
+
+**Requirements:** deferred 528, 533, 539, 544 (7.3, 7.4); SaveService v2, add a key, no new version (D-S73-1)
+
+**Acceptance Criteria:**
+
+**Given** a cleared run
+**When** the title is shown afterwards
+**Then** it offers a fresh run (a `completed` key in the save), or labels the resume clearly, and does not drop the player into the final boss (528)
+
+**Given** the `[N] new run` option
+**When** the player presses N once
+**Then** nothing is reset yet; a second N (or a click on the confirm text) resets the save (533)
+
+**Given** the assist toggle
+**When** it is changed on the title or the pause screen
+**Then** a short "next attempt" note shows, and the pause row reads as pending until the next attempt (539, 544)
+
+**Given** the new strings
+**When** the text audit runs
+**Then** they are ASCII, fit 64 columns, and the title and pause layouts still fit 640x360 (H-S76-2 stays a human check)
+
+### Story 9.4: Doc Consistency
+
+As a reader of the repo or the planning files,
+I want one submission deadline stated the same way everywhere,
+So that nobody plans against the wrong date.
+
+**Requirements:** deferred 9/39 (header, strict DO), 123, 500; triage 9-3
+
+**Acceptance Criteria:**
+
+**Given** README, epics, sprint status and the GDD
+**When** they state the deadline
+**Then** each says the internal target (Nov 29 12:00 PST) and the official cutoff (Dec 1 13:37 PST) in the same words (9/39)
+
+**Given** the story files with mute label and DC9 wording
+**When** they are corrected
+**Then** the wording matches the shipped text (123)
+
+**Given** the GDD HUD mock-up
+**When** it is synced
+**Then** it shows the current T1 wording (500)
+
+**Given** deferred-work.md
+**When** this story closes
+**Then** resolved items are ticked and no history is deleted
+
+### Story 9.5: Test Isolation Hardening
+
+As a developer,
+I want the GUT suite to pass in any order,
+So that a flaky test does not break CI again (#66).
+
+**Requirements:** deferred 91, 108, 299, 320; triage 9-4; optional, test-only apart from an optional `SimClock.reset_for_tests()` seam
+
+**Acceptance Criteria:**
+
+**Given** the audio manager and EventBus tests
+**When** they run in any order
+**Then** they restore shared autoload state before asserting (91, 108)
+
+**Given** suites that leak hit-stop
+**When** they run
+**Then** a shared reset helper clears it without touching private SimClock fields (299)
+
+**Given** `test_combo_def_validation_additions`
+**When** it runs
+**Then** it works on a copy and never mutates the shared `Defs.SLASH_1` (320)
+
+**Given** the full GUT suite
+**When** it runs in CI order and in a shuffled order
+**Then** both pass
+
+### Story 9.6: Save and Pad Robustness
+
+As a player,
+I want a save that cannot be cut short and a fight that pauses when my pad drops out,
+So that a closed tab or an unplugged pad does not cost progress.
+
+**Requirements:** deferred 531, 530, 554c (7.3, 7.5); triage 9-5; optional
+
+**Acceptance Criteria:**
+
+**Given** a save write
+**When** it runs
+**Then** it writes a temp file and renames it, and falls back to an in-place write if rename fails (531)
+
+**Given** a save with one wrong-typed key
+**When** it is parsed
+**Then** the other keys still load and the bad key takes its default (530)
+
+**Given** a pad disconnects during FIGHT
+**When** `Input.joy_connection_changed` reports it
+**Then** the game auto-pauses through the existing pause path; nothing pauses outside FIGHT (554c)
+
+**Given** web builds
+**When** the rename path ships
+**Then** a human check note is recorded for a real browser save (IndexedDB-backed `user://`)

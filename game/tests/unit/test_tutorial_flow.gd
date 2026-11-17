@@ -20,7 +20,7 @@ var _saved_paused: bool
 func before_each() -> void:
 	_saved_game = {}
 	for key: String in ["flow_state", "run", "stats", "first_input_frame", "intro_start_frame", "death_frame",
-			"tutorial_routing_enabled", "tutorial_replay", "practice_run", "segfault_enabled"]:
+			"tutorial_routing_enabled", "tutorial_replay", "practice_run", "segfault_enabled", "title_entry_frame"]:
 		_saved_game[key] = Game.get(key)
 	_saved_save = {
 		"path": SaveService.path, "highest_boss": SaveService.highest_boss,
@@ -212,9 +212,13 @@ func test_replay_from_title_ends_at_title() -> void:
 	assert_eq(Game.first_input_frame, -1, "no first-shift clock")
 	assert_eq(Game.intro_start_frame, -1, "no Intro")
 	var screen: TutorialScreen = autofree(TutorialScreen.new())
+	SimClock.sim_frame = 120
 	for i: int in TutorialScreen.SKIP_HOLD_FRAMES:
 		screen.poll(60 + i, true)
 	assert_eq(Game.flow_state, S.TITLE, "the replay's hold goes back to the title")
+	# Story 9.1 (AC 1, 617): the title that follows a replay ignores the press still held from it.
+	assert_eq(Game.title_entry_frame, SimClock.sim_frame, "the title entry gate is armed")
+	assert_false(Game.title_input_open(SimClock.sim_frame), "and closed right after the entry")
 	assert_false(Game.tutorial_replay)
 	assert_eq(Game.stats.fight_start_frame, -1, "no run stats")
 	assert_eq(Game.first_input_frame, -1)
