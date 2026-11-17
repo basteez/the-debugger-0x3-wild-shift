@@ -193,9 +193,9 @@ Claude Opus 5.5 (claude-opus-5-5), gds-dev-story, pipeline run 2026-11-14.
 
 ## Human Pending Checklist (Tiziano)
 
-- [ ] H-S79-1 Cover GIF of a shift into a Dash Strike crit (<= 15 s, <= 8 MB), replace the `[COVER GIF: to capture]` marker.
-- [ ] H-S79-2 3 to 5 screenshots from the release web build (`?debug` off): 1-bit glyph look, a shift moment, HUD with the register visible.
-- [ ] H-S79-3 Edit the itch page (game id 5332990): paste approved copy from `itch-page-copy.md`, upload GIF and screenshots, check controls and credits render; apply the iframe pad line if H-S75-4 shows the pad is blocked.
+- [x] H-S79-1 (done 2026-11-17 by the coordinator after Stories 9.7/9.8: crit GIF on the tutorial dummy, 7.8 s, 198 KB, plus new Breakpoint, Null Pointer Watch and Segfault GIFs; they live on itch only) Cover GIF of a shift into a Dash Strike crit (<= 15 s, <= 8 MB), replace the `[COVER GIF: to capture]` marker.
+- [x] H-S79-2 (done 2026-11-17 by the coordinator: 5 screenshots, title, Infinite Loop, Null Pointer, Segfault, tutorial console; captured from a debug web build with no debug overlay on screen) 3 to 5 screenshots from the release web build (`?debug` off): 1-bit glyph look, a shift moment, HUD with the register visible.
+- [x] H-S79-3 (done 2026-11-17 by the coordinator: the 4 description GIFs and the 5 screenshots replaced with the post-9.7/9.8 look; music line corrected, no BeepBox claim, final music still to come; pad line not added, H-S75-4 not run) Edit the itch page (game id 5332990): paste approved copy from `itch-page-copy.md`, upload GIF and screenshots, check controls and credits render; apply the iframe pad line if H-S75-4 shows the pad is blocked.
 - [ ] H-S79-4 Confirm the AI-use wording and the "no generative image or sound model" claim.
 - [x] H-S79-5 Submit to GitHub Game Off 2026 by 2026-11-29 12:00 PST. Done 2026-11-17, submitted by Tiziano on itch (jam game-off-2026).
 - [design call, revised] Design call 6: the repo is ALREADY public (verified 2026-11-14), so no visibility step; H-S79-5 is the jam submission only.
