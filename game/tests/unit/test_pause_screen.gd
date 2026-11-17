@@ -64,3 +64,86 @@ func test_mute_toggle_input() -> void:
 	assert_false(PauseScreen.is_mute_toggle(esc, false), "Esc belongs to Game")
 	assert_true(PauseScreen.is_mute_toggle(_click(PauseScreen.mute_label_rect(false).get_center()), false))
 	assert_false(PauseScreen.is_mute_toggle(_click(Vector2(8, 8)), false), "click elsewhere does nothing")
+
+
+# --- Story 9.3: the assist row's next-attempt suffix (539, 544, AC 8-10, D-S93-3) ---------------
+
+func test_assist_row_reads_next_attempt_when_pending() -> void:
+	assert_eq(PauseScreen.lines_for(false, true, false, true)[-2], "[B] DEBUG BUILD ON: NEXT ATTEMPT")
+	assert_eq(PauseScreen.lines_for(false, false, false, true)[-2], "[B] DEBUG BUILD OFF: NEXT ATTEMPT")
+	assert_eq(PauseScreen.lines_for(false, true, false, true).size(), PauseScreen.row_tops().size(), "same rows")
+
+
+func test_defaults_unchanged() -> void:
+	assert_eq(PauseScreen.lines_for(false, true)[-2], "[B] DEBUG BUILD ON")
+	assert_eq(PauseScreen.lines_for(false, false)[-2], "[B] DEBUG BUILD OFF")
+	assert_eq(PauseScreen.assist_text(true), "[B] DEBUG BUILD ON")
+
+
+func test_assist_pending_only_in_fight() -> void:
+	var S := Game.FlowState
+	assert_true(PauseScreen.assist_pending(S.FIGHT, false, true))
+	assert_true(PauseScreen.assist_pending(S.FIGHT, true, false))
+	assert_false(PauseScreen.assist_pending(S.FIGHT, true, true), "equal: nothing pending")
+	assert_false(PauseScreen.assist_pending(S.FIGHT, false, false))
+	for state: int in [S.TITLE, S.INTRO, S.DEAD, S.HARVEST, S.ENDING, S.TUTORIAL]:
+		assert_false(PauseScreen.assist_pending(state, false, true), "%s: the next FIGHT entry applies it" % S.keys()[state])
+
+
+func test_pending_rect_matches_the_drawn_row() -> void:
+	for assist: bool in [false, true]:
+		var text: String = PauseScreen.assist_text(assist, true)
+		var rect: Rect2 = PauseScreen.assist_label_rect(assist, true)
+		assert_eq(rect, PauseScreen.row_rect(text, PauseScreen.ASSIST_TOP_Y))
+		var left := Vector2(TitleScreen.centred_x(text) + 2, PauseScreen.ASSIST_TOP_Y + 4)
+		var right := Vector2(TitleScreen.centred_x(text) + GlyphFont.text_width(text, PauseScreen.TEXT_SCALE) - 2,
+				PauseScreen.ASSIST_TOP_Y + 4)
+		assert_true(rect.has_point(left))
+		assert_true(rect.has_point(right), "the suffix end is clickable")
+		assert_false(PauseScreen.assist_label_rect(assist).has_point(right), "the plain rect is narrower")
+		var click := InputEventMouseButton.new()
+		click.button_index = MOUSE_BUTTON_LEFT
+		click.pressed = true
+		click.position = right
+		assert_true(PauseScreen.is_assist_toggle(click, assist, true))
+		assert_false(rect.intersects(PauseScreen.mute_label_rect(false)), "does not overlap the mute row")
+		assert_false(rect.intersects(PauseScreen.fullscreen_label_rect(false)), "nor the fullscreen row")
+
+
+func test_pending_layout_fits_the_gutter() -> void:
+	var bounds := Rect2(16, 16, Const.BASE_RES.x - 32, Const.BASE_RES.y - 32)
+	for assist: bool in [false, true]:
+		var text: String = PauseScreen.assist_text(assist, true)
+		var r := Rect2(TitleScreen.centred_x(text), PauseScreen.ASSIST_TOP_Y,
+				GlyphFont.text_width(text, PauseScreen.TEXT_SCALE), GlyphFont.size_for(PauseScreen.TEXT_SCALE))
+		assert_true(bounds.encloses(r), "'%s' inside the 16-px gutter" % text)
+
+
+func test_live_pending_follows_the_attempt_copy() -> void:
+	var saved_flow: int = Game.flow_state
+	var saved_run: RunState = Game.run
+	var saved_assist: bool = SaveService.assist
+	var saved_path: String = SaveService.path
+	SaveService.path = ""
+	Game.run = RunState.new()
+	Game.flow_state = Game.FlowState.FIGHT
+	Game.run.assist = false
+	SaveService.assist = false
+	var pause: PauseScreen = PauseScreen.new()
+	add_child_autofree(pause)
+	assert_false(pause.live_assist_pending())
+	var b := InputEventKey.new()
+	b.keycode = KEY_B
+	b.physical_keycode = KEY_B
+	b.pressed = true
+	pause._input(b) # the mid-fight toggle: saved at once, applies from the next attempt
+	assert_true(SaveService.assist)
+	assert_false(Game.run.assist, "the attempt copy is untouched")
+	assert_true(pause.live_assist_pending())
+	Game.run.assist = true # the next attempt copies it (Game._begin_fight)
+	pause._process(0.0)
+	assert_false(pause.live_assist_pending(), "the suffix clears with no event")
+	Game.flow_state = saved_flow as Game.FlowState
+	Game.run = saved_run
+	SaveService.assist = saved_assist
+	SaveService.path = saved_path

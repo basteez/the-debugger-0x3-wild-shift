@@ -731,6 +731,10 @@ func _set_flow_state(to: FlowState) -> void:
 	ending_summary = stats.snapshot(SimClock.sim_frame) if to == FlowState.ENDING else {}
 	if to == FlowState.ENDING and not practice_run: # Story 7.8 (AC 7, D-S78-5): one line per run
 		Log.info(&"metrics", stats.metrics_summary(first_input_frame, SimClock.sim_frame, run.assist, stats.debug_jumped))
+	# Story 9.3 (AC 2, D-S93-1): presentation-side write, once at ENDING entry (a tab closed during the
+	# ending still counts); never for a debug-jumped run or practice. Nothing in the sim reads it.
+	if to == FlowState.ENDING and not practice_run and not stats.debug_jumped:
+		SaveService.note_run_cleared()
 	if to == FlowState.FIGHT and not _retrying and not practice_run:
 		stats.note_fight_entry(run.boss_index, SimClock.sim_frame) # Story 7.8 (AC 6, D-S78-3)
 	if to == FlowState.FIGHT and stats.fight_start_frame < 0:

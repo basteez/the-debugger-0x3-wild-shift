@@ -14,6 +14,11 @@ extends Node2D
 ## Story 8.2 (AC 15, D-S82-13, D-S82-14): `[T] tutorial` always shows, on the practice row (practice
 ## left, tutorial right, two glyph cells apart: the 360-px base has no sixth row). T or a click on it
 ## replays the guided tutorial (Game.start_tutorial_from_title) whatever the save says; no pad button.
+## Story 9.3 (D-S93-1, D-S93-2): with a cleared run in the save (SaveService.completed) `[N] new run` is
+## hidden and a plain start is a fresh run through the Intro (never a resume into the last fight).
+## `[N]` needs a second press: the first N (or click) arms the row (`PRESS N AGAIN: WIPE PROGRESS`)
+## for NEW_RUN_CONFIRM_FRAMES sim frames; a second N or a click on that row wipes and starts. Any
+## other counted press clears the arm and acts as before. The arm sits after the 9.1 entry gate.
 
 enum Action { IGNORE, START, OPTION }
 
@@ -29,6 +34,10 @@ static var PROMPT_TEXT: String:
 static var NEW_RUN_TEXT: String:
 	get:
 		return SCREEN_TEXT.new_run_label
+## Story 9.3 (D-S93-2, D-S93-4): the armed [N] row, audited game text.
+static var NEW_RUN_CONFIRM_TEXT: String:
+	get:
+		return SCREEN_TEXT.new_run_confirm_label
 ## Story 7.4 (D-S74-8): the debug build assist labels, audited game text.
 static var DEBUG_BUILD_ON_TEXT: String:
 	get:
@@ -64,6 +73,8 @@ const DEBUG_BUILD_TOP_Y := 272
 const PRACTICE_TOP_Y := 304
 ## Story 7.7 (D-S77-1): the [F] fullscreen label row, below the practice row (336 + 16 = 352 < 360).
 const FULLSCREEN_TOP_Y := 336
+## Story 9.3 (D-S93-2): sim frames the armed [N] row waits for its second press (1.5 s at 60 Hz).
+const NEW_RUN_CONFIRM_FRAMES := 90
 ## Story 8.2 (D-S82-14): glyph cells between the practice and tutorial labels on the shared row.
 const SHARED_ROW_GAP_CELLS := 2
 ## Option id -> InputMap action (DC7). The keys live only in project.godot [input].
@@ -92,6 +103,10 @@ var label_rects: Dictionary[StringName, Rect2] = {
 var _started := false
 ## Story 7.3: the saved highest boss read once per title show (_ready); resume when > 1.
 var saved_highest_boss: int = 1
+## Story 9.3 (D-S93-1): the save holds a cleared run (SaveService.completed, read once per title show).
+var saved_completed: bool = false
+## Story 9.3 (D-S93-2): the sim frame of the first [N] press, -1 when the row is not armed.
+var new_run_armed_frame: int = -1
 ## Story 7.4: the assist state the label shows (SaveService.assist, read in _ready, flipped by B).
 var assist_shown: bool = false
 ## Story 7.7: the window mode the fullscreen label shows (polled, so a browser Esc exit shows too).
@@ -158,16 +173,19 @@ func resolve(event: InputEvent) -> Action:
 
 
 func _ready() -> void:
-	set_saved_progress(SaveService.highest_boss)
+	set_saved_progress(SaveService.highest_boss, SaveService.completed)
 	set_assist_shown(SaveService.assist)
 	set_fullscreen_shown(Fullscreen.is_on())
 
 
 ## Story 7.7 (AC 3): the label follows the window mode; the browser can leave fullscreen on its own.
+## Story 9.3 (D-S93-2): the armed [N] row lapses by itself after NEW_RUN_CONFIRM_FRAMES.
 func _process(_delta: float) -> void:
 	var on: bool = Fullscreen.is_on()
 	if on != fullscreen_shown:
 		set_fullscreen_shown(on)
+	if new_run_armed_frame >= 0 and not new_run_armed(new_run_armed_frame, SimClock.sim_frame):
+		_set_new_run_armed(-1)
 
 
 ## Story 7.7 (AC 3): the label's state and its clickable rect (always present).
@@ -226,10 +244,13 @@ static func shared_row_x() -> Vector2i:
 
 
 ## Story 7.3 (AC 8): the [N] new run option exists only with a save past Boss 1; its label is
-## clickable only while it shows. Read once per title show.
-func set_saved_progress(highest_boss: int) -> void:
+## clickable only while it shows. Read once per title show. Story 9.3 (D-S93-1): a cleared run
+## (`completed`) hides it too: a plain start is then a fresh run.
+func set_saved_progress(highest_boss: int, completed: bool = false) -> void:
 	saved_highest_boss = highest_boss
-	available[&"new_run"] = highest_boss > 1
+	saved_completed = completed
+	new_run_armed_frame = -1
+	available[&"new_run"] = highest_boss > 1 and not completed
 	if available[&"new_run"]:
 		label_rects[&"new_run"] = new_run_label_rect()
 	else:
@@ -237,9 +258,28 @@ func set_saved_progress(highest_boss: int) -> void:
 	queue_redraw()
 
 
+## Pure (Story 9.3, D-S93-2): true while an [N] press at `armed_frame` waits for its second press.
+static func new_run_armed(armed_frame: int, frame: int) -> bool:
+	return armed_frame >= 0 and frame >= armed_frame and frame < armed_frame + NEW_RUN_CONFIRM_FRAMES
+
+
+## Story 9.3 (D-S93-2): the [N] row's text, the confirm prompt while armed.
+func new_run_text() -> String:
+	return NEW_RUN_CONFIRM_TEXT if new_run_armed(new_run_armed_frame, SimClock.sim_frame) else NEW_RUN_TEXT
+
+
+## Story 9.3 (D-S93-2): arms (`frame` >= 0) or clears (-1) the [N] row; its clickable rect follows the text.
+func _set_new_run_armed(frame: int) -> void:
+	new_run_armed_frame = frame
+	if available[&"new_run"]:
+		label_rects[&"new_run"] = new_run_label_rect(new_run_text())
+	queue_redraw()
+
+
 ## Pure: the clickable rect of the [N] new run label (the glyph row plus a half-cell margin), canvas space.
-static func new_run_label_rect() -> Rect2:
-	return label_rect_for(NEW_RUN_TEXT, NEW_RUN_TOP_Y)
+## Story 9.3: `text` is the shown row (empty: the plain NEW_RUN_TEXT label).
+static func new_run_label_rect(text: String = "") -> Rect2:
+	return label_rect_for(NEW_RUN_TEXT if text.is_empty() else text, NEW_RUN_TOP_Y)
 
 
 ## Pure: a centred label's glyph row at `top_y` plus a half-cell margin, canvas space.
@@ -267,13 +307,21 @@ func handle_input(event: InputEvent) -> Action:
 	AudioManager.unlock()
 	if not Game.title_input_open(SimClock.sim_frame): # Story 9.1 (D-S91-1): held from the last screen
 		return Action.IGNORE
+	if new_run_armed_frame >= 0 and not new_run_armed(new_run_armed_frame, SimClock.sim_frame):
+		_set_new_run_armed(-1) # lapsed since the last _process: the click rect is the plain one again
+	var option: StringName = option_of(event, label_rects) if action == Action.OPTION else &""
+	if option == &"new_run": # Story 7.3 (AC 9): reset, then the Intro. Story 9.3 (D-S93-2): two presses
+		if new_run_armed(new_run_armed_frame, SimClock.sim_frame):
+			_begin(true)
+		else:
+			_set_new_run_armed(SimClock.sim_frame) # nothing starts, nothing is wiped
+		return action
+	if new_run_armed_frame >= 0: # Story 9.3 (AC 6): any other press clears the arm, then acts as before
+		_set_new_run_armed(-1)
 	if action == Action.START:
 		_begin(false)
 	else:
-		var option: StringName = option_of(event, label_rects)
-		if option == &"new_run": # Story 7.3 (AC 9): reset, then the Intro
-			_begin(true)
-		elif option == &"debug_build": # Story 7.4 (AC 1, 3): toggle in place, saved at once
+		if option == &"debug_build": # Story 7.4 (AC 1, 3): toggle in place, saved at once
 			SaveService.set_assist(not assist_shown)
 			set_assist_shown(SaveService.assist)
 		elif option == &"practice": # Story 7.6 (AC 1): the practice fight, no Intro, no save write
@@ -286,12 +334,13 @@ func handle_input(event: InputEvent) -> Action:
 
 
 ## Story 7.3: leaves the title once. `new_run` resets the save and keeps the Intro; otherwise a save
-## past Boss 1 resumes (no Intro) and a fresh save starts from the Intro as before.
+## past Boss 1 resumes (no Intro) and a fresh save starts from the Intro as before. Story 9.3
+## (D-S93-1): a cleared run never resumes; it starts fresh through the Intro.
 func _begin(new_run: bool) -> void:
 	_started = true
 	if new_run:
 		Game.start_new_run_from_title(SimClock.sim_frame)
-	elif saved_highest_boss > 1:
+	elif saved_highest_boss > 1 and not saved_completed:
 		Game.resume_run_from_title(SimClock.sim_frame, saved_highest_boss)
 	else:
 		Game.start_run_from_title(SimClock.sim_frame)
@@ -325,7 +374,8 @@ func _draw() -> void:
 	GlyphFont.draw_at(self, Vector2(centred_x(TITLE_TEXT), TITLE_TOP_Y), TITLE_TEXT, Palette.INK, TEXT_SCALE)
 	GlyphFont.draw_at(self, Vector2(centred_x(PROMPT_TEXT), PROMPT_TOP_Y), PROMPT_TEXT, Palette.INK, TEXT_SCALE)
 	if is_option_available(&"new_run"):
-		GlyphFont.draw_at(self, Vector2(centred_x(NEW_RUN_TEXT), NEW_RUN_TOP_Y), NEW_RUN_TEXT, Palette.INK, TEXT_SCALE)
+		var nr_text: String = new_run_text() # Story 9.3: the confirm prompt while armed
+		GlyphFont.draw_at(self, Vector2(centred_x(nr_text), NEW_RUN_TOP_Y), nr_text, Palette.INK, TEXT_SCALE)
 	if is_option_available(&"debug_build"):
 		var assist_text: String = debug_build_text(assist_shown)
 		GlyphFont.draw_at(self, Vector2(centred_x(assist_text), DEBUG_BUILD_TOP_Y), assist_text, Palette.INK, TEXT_SCALE)

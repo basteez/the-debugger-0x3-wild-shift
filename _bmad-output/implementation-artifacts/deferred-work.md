@@ -525,23 +525,23 @@ Story 1.3 AC9 / I-6 ("mumble-speech web check, moved to 3.7") is UNBLOCKED. Tizi
 - Human checks pending: H-S73-1 Chrome and Firefox web build: play to Boss 2, reload, press a key: Boss 2, full HP, no Intro, `[N] new run` visible, `N` resets to the Intro; toggle `[M]` on the pause screen, reload: mute kept. H-S73-2 itch.io iframe or a private window: game runs, no visible error, at most one `save` warn in the console. H-S73-3 Safari: same as H-S73-1.
 
 ## Deferred from: code review of story-7.3 (2026-11-14)
-- A cleared run keeps `highest_boss` at the final boss (AC 11 says finish_ending never lowers it), so the next title resumes into the last fight until the player presses [N]. Spec-mandated; revisit with a "completed" flag if playtests show confusion.
+- A cleared run keeps `highest_boss` at the final boss (AC 11 says finish_ending never lowers it), so the next title resumes into the last fight until the player presses [N]. Spec-mandated; revisit with a "completed" flag if playtests show confusion. **Resolved in Story 9.3 (D-S93-1):** `SaveService.completed` (v2 key, missing = false) is written once at ENDING entry by a non-debug, non-practice run; the title then hides `[N]` and a plain start is a fresh run through the Intro; the fresh Fight 1 clears it and resets `highest_boss` to 1 in one write.
 - An unrecognised or future save version is overwritten by the next write (D-S73-8, intended); no backup is kept.
 - `parse` is all-or-nothing on a wrong-typed `assist`/`muted`; per-key fallback is a nicety.
 - `save()` writes in place (no temp+rename); a tab closed mid-write could truncate the file (falls back to a fresh save with one warn).
 - Web: no explicit IndexedDB flush and no mute indicator on the title when a persisted mute is restored.
-- [N] new run has no confirmation step.
+- [N] new run has no confirmation step. **Resolved in Story 9.3 (D-S93-2):** the first N (or click) arms the row (`PRESS N AGAIN: WIPE PROGRESS`, audited text) for 90 sim frames; a second N or a click on that row wipes and starts; any other press clears the arm and acts as before; the arm sits after the 9.1 entry gate.
 
 ## Story 7.4 ("Debug build" assist toggle)
 
 - Human checks pending: H-S74-1 Chrome and Firefox web build: press `B` on the title (label flips, run does not start), start a run, die once with assist on, check the HP readout shows 8 bits max and the Breakpoint cooldown counts from 6 s. H-S74-2 one full playtest run with assist on: the x1.5 tells read as fair, the run stays winnable (feeds 7.8 tuning). H-S74-3 reload the tab with assist on: the title shows `[B] debug build on` and the next run is assisted.
 - Replays (D-S74-9): the input recording format has no assist slot; every recording in `tests/replays/` and the integration replays run with assist off and pass unchanged. An assisted fight is not replayable yet (the recordings serve the GUT suite, not the player); add an `assist` header field if one is ever needed.
-- The assist applies from the next fight attempt (D-S74-1): a pause toggle mid-fight changes nothing until the retry / next boss / next run. No on-screen note says so; add one if H-S74-1 shows confusion.
+- The assist applies from the next fight attempt (D-S74-1): a pause toggle mid-fight changes nothing until the retry / next boss / next run. No on-screen note says so; add one if H-S74-1 shows confusion. **Resolved in Story 9.3 (D-S93-3):** while a FIGHT runs with `Game.run.assist` != `SaveService.assist`, the pause row reads `[B] DEBUG BUILD ON: NEXT ATTEMPT` (or `OFF`); the next FIGHT entry clears the suffix. The title row is unchanged (O1).
 - No marker on the clear card or stats for assisted runs (D-S74-10).
 
 ### Deferred from: code review of story-7.4 (2026-11-14)
 - Under assist the TELL lasts 1.5x; presentation that keys off `frames_left` alone (Infinite Loop `nested_flash_hidden`, boss_view tell marks) still runs in its own phase. Visual only; check in H-S74-2 and fix per boss if it reads wrong.
-- The pause row flips to ON at once although the assist applies from the next attempt (D-S74-1); add an on-screen "next attempt" note if playtests show confusion.
+- The pause row flips to ON at once although the assist applies from the next attempt (D-S74-1); add an on-screen "next attempt" note if playtests show confusion. **Resolved in Story 9.3 (D-S93-3):** the pause row adds `: NEXT ATTEMPT` while the toggle waits for the next attempt (the saved value still flips at once; the click rect follows the drawn text).
 - Pause row strings are code constants (uppercase), the title ones are audited `.tres` text; unify if the text audit grows to the pause screen.
 
 ## Story 7.5 (Gamepad support)
@@ -632,3 +632,9 @@ Story 1.3 AC9 / I-6 ("mumble-speech web check, moved to 3.7") is UNBLOCKED. Tizi
 - Deferred (low): `link.held` (D-S92-3) suppresses the opener's miss even when the K follow-up never starts (K on cooldown, Echo memory empty, or the hold expires after 8 frames); same shortcut as the D-S53-12 whiff rule. A tighter "held and startable now" gate would fix it.
 - Deferred (low): a swing that touches the ring on a drawn blink block and ends its last ACTIVE frame inside a hidden block still logs the miss (the touch is latched per serial; the blink gate only blocks touches recorded on hidden frames). Needs swings longer than 6 frames; no test.
 - Deferred (low): `test_a_whiff_stun_on_the_last_frame_logs_no_miss` was already green before the gate (`begin_stun` resets `action_frame`), so it does not fail if the `if not _check_whiff` gate is reverted; the gate is belt and braces. The open-ring Echo miss case has no test (the gate ignores openness).
+
+## Deferred from: code review of Story 9.3 (2026-11-17)
+
+- Deferred (low): the pause assist row shows no `: NEXT ATTEMPT` suffix in the TUTORIAL state (`assist_pending` is FIGHT-only) though the toggle is deferred there too (the tutorial arena reads `Game.run.assist`).
+- Deferred (low): `test_live_pending_follows_the_attempt_copy` (test_pause_screen.gd) restores `Game.run`, `flow_state` and `SaveService` inline; move to before_each/after_each. Related to the 9.5 central reset of autoload globals.
+- Deferred (low): no test drives the title `_process` arm lapse or the pause `_input` click on the suffixed row; only the pure helpers are covered.

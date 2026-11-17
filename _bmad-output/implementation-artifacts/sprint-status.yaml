@@ -182,7 +182,7 @@ development_status:
   epic-9: in-progress
   9-1-input-grace-and-tutorial-polish: done
   9-2-miss-feedback-polish: done
-  9-3-run-and-assist-clarity: backlog
+  9-3-run-and-assist-clarity: done
   9-4-doc-consistency: backlog
   9-5-test-isolation-hardening: backlog # optional, cut first
   9-6-save-and-pad-robustness: backlog # optional

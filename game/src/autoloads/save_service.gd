@@ -1,7 +1,9 @@
 extends Node
 ## Persistence to user://save.cfg with silent fallback (AD-10, Story 7.3, FR53, NFR12).
 ## One ConfigFile, section `save`: version (2), highest_boss (1..3), assist (bool), muted (bool)
-## (D-S73-1), tutorial_done (bool, Story 8.2, D-S82-8: a version 1 file still loads, the flag false).
+## (D-S73-1), tutorial_done (bool, Story 8.2, D-S82-8: a version 1 file still loads, the flag false),
+## completed (bool, Story 9.3, D-S93-1: the run was cleared; a missing key reads as false, no VERSION bump).
+## Story 9.3: also written on ENDING entry (note_run_cleared) and on the fresh Fight 1 after a clear.
 ## Story 8.2: also written when the tutorial is completed or skipped (set_tutorial_done). Read once at boot; written on a non-retry, non-debug FIGHT entry (Game._set_flow_state),
 ## on the title's [N] new run, on set_assist (7.4) and on set_muted (the pause screen's [M] toggle).
 ## Any storage failure keeps the in-memory values and logs one warn per session (D-S73-6).
@@ -22,6 +24,9 @@ var assist: bool = false
 var muted: bool = false
 ## Story 8.2 (AC 13, D-S82-8): the guided tutorial was completed or skipped once. Never reset by a new run.
 var tutorial_done: bool = false
+## Story 9.3 (AC 1-4, D-S93-1): the run was cleared (ENDING entered by a non-debug, non-practice run).
+## The title then offers a fresh run (no [N], no resume); the next fresh Fight 1 clears it. Never reset by N.
+var completed: bool = false
 ## True once a storage failure has been logged this session (AC 5).
 var storage_warned: bool = false
 ## The file this service reads and writes. Test seam: empty means in-memory only (no I/O at all).
@@ -69,12 +74,14 @@ static func clamp_highest(v: Variant) -> int:
 
 ## Pure: the fresh-save values.
 static func defaults() -> Dictionary:
-	return {"highest_boss": MIN_BOSS, "assist": false, "muted": false, "tutorial_done": false, "valid": true}
+	return {"highest_boss": MIN_BOSS, "assist": false, "muted": false, "tutorial_done": false, "completed": false,
+			"valid": true}
 
 
 ## Pure: the values held by `cfg`. A version not in READ_VERSIONS, or a value of the wrong type,
 ## gives the defaults with "valid" false (D-S73-8); the caller logs it once. Story 8.2 (D-S82-8): a
-## missing tutorial_done key (any version 1 file) reads as false.
+## missing tutorial_done key (any version 1 file) reads as false. Story 9.3 (D-S93-1): so does a
+## missing completed key (any version 1 or 2 file); a wrong-typed one reads as false (the rest of the file still loads).
 static func parse(cfg: ConfigFile) -> Dictionary:
 	var out := defaults()
 	if not cfg.has_section_key(SECTION, "version"):
@@ -88,6 +95,7 @@ static func parse(cfg: ConfigFile) -> Dictionary:
 	var a: Variant = cfg.get_value(SECTION, "assist", false)
 	var m: Variant = cfg.get_value(SECTION, "muted", false)
 	var t: Variant = cfg.get_value(SECTION, "tutorial_done", false)
+	var c: Variant = cfg.get_value(SECTION, "completed", false)
 	if (typeof(hb) != TYPE_INT and typeof(hb) != TYPE_FLOAT) or typeof(a) != TYPE_BOOL or typeof(m) != TYPE_BOOL \
 			or typeof(t) != TYPE_BOOL:
 		out["valid"] = false
@@ -96,17 +104,21 @@ static func parse(cfg: ConfigFile) -> Dictionary:
 	out["assist"] = a
 	out["muted"] = m
 	out["tutorial_done"] = t
+	out["completed"] = c if typeof(c) == TYPE_BOOL else false # 9.3 review: a bad flag never costs the rest of the save
 	return out
 
 
 ## Pure: a ConfigFile holding these values (no I/O).
-static func to_config(p_highest_boss: int, p_assist: bool, p_muted: bool, p_tutorial_done: bool = false) -> ConfigFile:
+## Story 9.3 (D-S93-1): p_completed trails with a default, so 3- and 4-arg callers keep working.
+static func to_config(p_highest_boss: int, p_assist: bool, p_muted: bool, p_tutorial_done: bool = false,
+		p_completed: bool = false) -> ConfigFile:
 	var cfg := ConfigFile.new()
 	cfg.set_value(SECTION, "version", VERSION)
 	cfg.set_value(SECTION, "highest_boss", clamp_highest(p_highest_boss))
 	cfg.set_value(SECTION, "assist", p_assist)
 	cfg.set_value(SECTION, "muted", p_muted)
 	cfg.set_value(SECTION, "tutorial_done", p_tutorial_done)
+	cfg.set_value(SECTION, "completed", p_completed)
 	return cfg
 
 
@@ -135,7 +147,7 @@ func load_save() -> void:
 func save() -> bool:
 	if path.is_empty():
 		return false
-	var err: Error = to_config(highest_boss, assist, muted, tutorial_done).save(path)
+	var err: Error = to_config(highest_boss, assist, muted, tutorial_done, completed).save(path)
 	if err != OK:
 		_warn_once("write failed (%s), progress kept in memory only" % error_string(err))
 		return false
@@ -143,9 +155,15 @@ func save() -> bool:
 
 
 ## A fight began (non-retry, non-debug FIGHT entry): the save only ever moves forward (AC 2, D-S73-9).
+## Story 9.3 (AC 3, D-S93-1): the fresh Fight 1 after a cleared run clears `completed` and resets
+## highest_boss in one write, so the new run's own progress is what the title later resumes.
 func note_fight_start(boss_index: int) -> void:
 	if not track_fights:
 		return
+	if boss_index == 0 and completed:
+		completed = false
+		highest_boss = MIN_BOSS
+		save()
 	var raised: int = maxi(highest_boss, clamp_highest(boss_index + 1))
 	if raised == highest_boss:
 		return # unchanged (a resume or a replayed boss): skip a pointless web storage write
@@ -157,6 +175,15 @@ func note_fight_start(boss_index: int) -> void:
 ## never clears tutorial_done.
 func reset_run_progress() -> void:
 	highest_boss = MIN_BOSS
+	save()
+
+
+## Story 9.3 (AC 2, D-S93-1): ENDING was entered by a non-debug, non-practice run (Game._set_flow_state).
+## Written once, at entry, so a tab closed during the ending still counts. No write when already set.
+func note_run_cleared() -> void:
+	if not track_fights or completed:
+		return
+	completed = true
 	save()
 
 
@@ -188,6 +215,7 @@ func _apply(values: Dictionary) -> void:
 	assist = values["assist"]
 	muted = values["muted"]
 	tutorial_done = values["tutorial_done"]
+	completed = values["completed"]
 
 
 func _warn_once(msg: String) -> void:

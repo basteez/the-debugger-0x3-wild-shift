@@ -8,6 +8,8 @@ extends Node2D
 ## Story 7.4 (AC 2-4, D-S74-3): B or a click on the `[B] DEBUG BUILD` row flips the assist (consumed
 ## here like M, so it never resumes) and saves it through SaveService.set_assist; it applies from the
 ## next fight attempt (D-S74-1).
+## Story 9.3 (D-S93-3): while a FIGHT runs with an attempt copy (Game.run.assist) that differs from the
+## saved value, the row adds ASSIST_PENDING_SUFFIX (`: NEXT ATTEMPT`); the next FIGHT entry clears it.
 ## Story 7.7 (FR55, AC 4, D-S77-1): F, pad R3 or a click on the `[F] FULLSCREEN` row toggles
 ## fullscreen inside this input handler (Fullscreen.toggle, a user gesture) and never resumes.
 
@@ -42,6 +44,9 @@ const MUTE_OFF_TEXT := "[M] MUTE OFF"
 const ASSIST_TOP_Y := 288
 const ASSIST_ON_TEXT := "[B] DEBUG BUILD ON"
 const ASSIST_OFF_TEXT := "[B] DEBUG BUILD OFF"
+## Story 9.3 (D-S93-3, D-S93-4): appended while the toggle waits for the next attempt (code constant
+## like the other pause rows; its width is asserted in tests).
+const ASSIST_PENDING_SUFFIX := ": NEXT ATTEMPT"
 ## The InputMap action of the assist key (the title's option action, key B).
 const ASSIST_ACTION := &"title_option_debug_build"
 ## Story 7.7 (D-S77-1): the fullscreen row, below the assist row.
@@ -54,31 +59,50 @@ const FULLSCREEN_ACTION := &"title_option_fullscreen"
 var _muted: bool = false
 var _assist: bool = false
 var _fullscreen: bool = false
+## Story 9.3 (D-S93-3): the assist row's pending suffix as last drawn.
+var _assist_pending: bool = false
 
 
 func _ready() -> void:
 	_muted = AudioManager.is_master_muted()
 	_assist = SaveService.assist
 	_fullscreen = Fullscreen.is_on()
+	_assist_pending = live_assist_pending()
 
 
 ## Story 7.7: the row follows the real window mode (the web request is async; Esc can exit it).
+## Story 9.3: the assist suffix follows the attempt copy (a retry or a new attempt clears it).
 func _process(_delta: float) -> void:
 	var on: bool = Fullscreen.is_on()
 	if on != _fullscreen:
 		_fullscreen = on
 		queue_redraw()
+	var pending: bool = live_assist_pending()
+	if pending != _assist_pending:
+		_assist_pending = pending
+		queue_redraw()
+
+
+## Pure (Story 9.3, D-S93-3): the toggle waits for the next attempt (a FIGHT whose copy differs).
+static func assist_pending(flow_state: int, attempt_assist: bool, saved_assist: bool) -> bool:
+	return flow_state == Game.FlowState.FIGHT and attempt_assist != saved_assist
+
+
+## Story 9.3: assist_pending with the live values (read only, presentation side).
+func live_assist_pending() -> bool:
+	return Game.run != null and assist_pending(Game.flow_state, Game.run.assist, SaveService.assist)
 
 
 ## Pure: every text row, top to bottom. The mute row reads ON when the Master bus is muted.
 ## Story 7.4: the assist row reads ON when `assist` is on. Story 7.7: the fullscreen row is last.
-static func lines_for(muted: bool, assist: bool = false, fullscreen: bool = false) -> PackedStringArray:
+## Story 9.3 (D-S93-3): `pending` adds the next-attempt suffix to the assist row (default: today's rows).
+static func lines_for(muted: bool, assist: bool = false, fullscreen: bool = false, pending: bool = false) -> PackedStringArray:
 	var lines := PackedStringArray([TITLE_TEXT])
 	lines.append_array(CONTROLS)
 	lines.append(PAD_HINT_TEXT)
 	lines.append(RESUME_TEXT)
 	lines.append(mute_text(muted))
-	lines.append(assist_text(assist))
+	lines.append(assist_text(assist, pending))
 	lines.append(fullscreen_text(fullscreen))
 	return lines
 
@@ -87,8 +111,8 @@ static func fullscreen_text(on: bool) -> String:
 	return FULLSCREEN_ON_TEXT if on else FULLSCREEN_OFF_TEXT
 
 
-static func assist_text(assist: bool) -> String:
-	return ASSIST_ON_TEXT if assist else ASSIST_OFF_TEXT
+static func assist_text(assist: bool, pending: bool = false) -> String:
+	return (ASSIST_ON_TEXT if assist else ASSIST_OFF_TEXT) + (ASSIST_PENDING_SUFFIX if pending else "")
 
 
 static func mute_text(muted: bool) -> String:
@@ -114,8 +138,8 @@ static func mute_label_rect(muted: bool) -> Rect2:
 
 
 ## Story 7.4: the clickable rect of the assist label, same shape as mute_label_rect. Pure.
-static func assist_label_rect(assist: bool) -> Rect2:
-	return row_rect(assist_text(assist), ASSIST_TOP_Y)
+static func assist_label_rect(assist: bool, pending: bool = false) -> Rect2:
+	return row_rect(assist_text(assist, pending), ASSIST_TOP_Y)
 
 
 ## Story 7.7: the clickable rect of the fullscreen label, same shape as mute_label_rect. Pure.
@@ -139,12 +163,12 @@ static func is_mute_toggle(event: InputEvent, muted: bool) -> bool:
 
 
 ## Story 7.4: true for a fresh B press or a left click inside the assist label. Pure.
-static func is_assist_toggle(event: InputEvent, assist: bool) -> bool:
+static func is_assist_toggle(event: InputEvent, assist: bool, pending: bool = false) -> bool:
 	if event is InputEventKey or event is InputEventJoypadButton: # Story 7.5: pad B
 		return InputMap.has_action(ASSIST_ACTION) and event.is_action_pressed(ASSIST_ACTION)
 	var mouse := event as InputEventMouseButton
 	return mouse != null and mouse.pressed and mouse.button_index == MOUSE_BUTTON_LEFT \
-			and assist_label_rect(assist).has_point(mouse.position)
+			and assist_label_rect(assist, pending).has_point(mouse.position)
 
 
 ## Story 7.7: true for a fresh F / R3 press or a left click inside the fullscreen label. Pure.
@@ -163,10 +187,11 @@ func _input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 		Fullscreen.toggle() # Story 7.7 (AC 4): never resumes; the row follows the mode in _process
 		return
-	if is_assist_toggle(event, _assist):
+	if is_assist_toggle(event, _assist, live_assist_pending()):
 		get_viewport().set_input_as_handled()
 		SaveService.set_assist(not _assist)
 		_assist = SaveService.assist
+		_assist_pending = live_assist_pending()
 		queue_redraw()
 		return
 	if not is_mute_toggle(event, _muted):
@@ -180,7 +205,7 @@ func _input(event: InputEvent) -> void:
 
 func _draw() -> void:
 	draw_rect(Rect2(Vector2.ZERO, Vector2(Const.BASE_RES)), Palette.BG)
-	var lines: PackedStringArray = lines_for(_muted, _assist, _fullscreen)
+	var lines: PackedStringArray = lines_for(_muted, _assist, _fullscreen, live_assist_pending())
 	var tops: PackedInt32Array = row_tops()
 	for i: int in lines.size():
 		GlyphFont.draw_at(self, Vector2(TitleScreen.centred_x(lines[i]), tops[i]), lines[i], Palette.INK, TEXT_SCALE)

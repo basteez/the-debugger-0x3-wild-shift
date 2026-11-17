@@ -9,6 +9,7 @@ prompt = "press any key"
 intro_captions = Array[PackedStringArray]([PackedStringArray("2 a.m.", "stuck on a bug"), PackedStringArray("squeeze", "QUACK"), PackedStringArray("The Clearing")])
 dead_line = "Process exited with code 1"
 new_run_label = "[N] new run"
+new_run_confirm_label = "PRESS N AGAIN: WIPE PROGRESS"
 debug_build_on_label = "[B] debug build on"
 debug_build_off_label = "[B] debug build off"
 practice_label = "[P] practice"

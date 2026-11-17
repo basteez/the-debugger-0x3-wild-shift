@@ -25,6 +25,7 @@ func before_each() -> void:
 	_saved_save = {
 		"path": SaveService.path, "highest_boss": SaveService.highest_boss,
 		"tutorial_done": SaveService.tutorial_done, "track_fights": SaveService.track_fights,
+		"completed": SaveService.completed, # Story 9.3
 	}
 	_saved_frame = SimClock.sim_frame
 	_saved_paused = SimClock.paused
