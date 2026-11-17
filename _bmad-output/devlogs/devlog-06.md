@@ -3,7 +3,7 @@ devlog: 6
 title: "Devlog #6: I couldn't find my own @ (turning the background down)"
 date: 2026-11-17
 covers: 5fe7041..2663f95   # Devlog #5 record (#76), Story 9.7 arena readability (#77)
-itch_url: TBD (filled on itch, not yet published)
+itch_url: https://basteez.itch.io/wild-shift/devlog/1786885/devlog-6-i-couldnt-find-my-own-turning-the-background-down
 blog_pr: https://github.com/basteez/basteez.github.io/pull/21
 blog_url: https://bstz.it/p/wild-shift-devlog-6/
 next_up: "Second playtest round, browser check (Chrome/Firefox/Safari), real music, jam submission (internal Nov 29 12:00 PST, official Dec 1 13:37 PST)"
