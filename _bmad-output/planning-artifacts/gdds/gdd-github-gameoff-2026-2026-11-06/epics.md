@@ -108,7 +108,7 @@ version: 1.0
 
 ## Epic 7 — Audio, Polish & Submission (Nov 26–29)
 
-**Goal:** a jam-ready release, submitted by **Nov 29 12:00 PST**.
+**Goal:** a jam-ready release, submitted by the internal target **Nov 29 12:00 PST** (official Game Off cutoff Dec 1 13:37 PST).
 **Pillars:** P2, P4.
 
 | ID | Story | Acceptance |
@@ -120,4 +120,4 @@ version: 1.0
 | 7.5 | *(Should)* Gamepad support per the GDD mapping; practice target reachable from the title screen | Full run completable on a gamepad in Chrome |
 | 7.6 | Full-run playtest (≥ 3 people) and final tuning | Gameplay Metrics checked |
 | 7.7 | Browser matrix test (Chrome, Firefox, Safari) and fullscreen button | Technical Metrics checked |
-| 7.8 | itch.io page that leads with action combat: cover GIF of a shift into a Dash Strike crit, the line "shift your weapon's bits mid-fight", controls, AI disclosure and asset credits. README with the same AI disclosure and credits. Public GitHub repo | Submitted to Game Off by Nov 29 12:00 PST |
+| 7.8 | itch.io page that leads with action combat: cover GIF of a shift into a Dash Strike crit, the line "shift your weapon's bits mid-fight", controls, AI disclosure and asset credits. README with the same AI disclosure and credits. Public GitHub repo | Submitted to Game Off by the internal target Nov 29 12:00 PST (official cutoff Dec 1 13:37 PST) |

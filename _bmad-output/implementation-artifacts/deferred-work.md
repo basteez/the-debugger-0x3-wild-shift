@@ -6,55 +6,55 @@ Tiziano decided on 2026-11-07 that everything involving the itch.io page, the fi
 
 **Epic 1 Definition of Done is BLOCKED on this section.** The DoD requires a release web build deployed with `butler` to the itch.io draft page and a Chrome/Firefox smoke test. Epic 1 stays `in-progress` in `sprint-status.yaml` until the checklist below is cleared.
 
-**Open question (needs Tiziano):** the submission deadline differs between files. `README.md` says 2026-12-01 13:37 PST; `epics.md` (NFR16, Epic 7) and the `sprint-status.yaml` header say 2026-11-29 12:00 PST. Confirm the right date, then fix whichever file is wrong.
+**Open question (needs Tiziano):** the submission deadline differs between files. `README.md` says 2026-12-01 13:37 PST; `epics.md` (NFR16, Epic 7) and the `sprint-status.yaml` header say 2026-11-29 12:00 PST. Confirm the right date, then fix whichever file is wrong. **Resolved in Story 9.4 (D-S94-1):** every doc now states the internal submission target Nov 29 12:00 PST and the official Game Off cutoff Dec 1 13:37 PST (README, GDD, epics, sprint-status, game-architecture, deferred items).
 
 ## Checklist
 
 ### itch.io setup and first deploy (HUMAN)
-- [x] [1.3 H1] Create the itch.io draft page (HTML, played in browser, 1280x720 viewport, fullscreen button on, SharedArrayBuffer off, Draft/Restricted). (Done 2026-11-10: https://basteez.itch.io/wild-shift, draft.)
-- [x] [1.3 H2] Add the `BUTLER_API_KEY` secret and the `ITCH_TARGET` variable (`<user>/<slug>`) in the repo settings. (Done 2026-11-10: `BUTLER_API_KEY` secret set, `ITCH_TARGET=basteez/wild-shift`.)
-- [x] [1.3 H3] First manual deploy: Actions, CI, Run workflow on `main` (or `butler push` by hand). Check the `butler version` and `butler push --help` output in the log (butler pin 15.32.0, flags and sha256 are verified only here). Decide the 48.5 MB stock-template size waiver first (CI still exports with the stock template). (Done 2026-11-10: manual run on `main` succeeded, butler 15.32.0, channel `html5`. Run 42786062282 = Epic 2 build, 27.24 MiB; run 42787839468 = Epic 3 build, 28.17 MiB; latest run 42841220490 after fixes #29/#30, 28.17 MiB.)
+- [x] [1.3 H1] Create the itch.io draft page (HTML, played in browser, 1280x720 viewport, fullscreen button on, SharedArrayBuffer off, Draft/Restricted). (Done 2026-11-10: https://basteez.itch.io/wild-shift, draft.) **Resolved (verified 2026-11-17 by Epic 9 triage: marked [x]; draft page live at basteez.itch.io/wild-shift (2026-11-10)).**
+- [x] [1.3 H2] Add the `BUTLER_API_KEY` secret and the `ITCH_TARGET` variable (`<user>/<slug>`) in the repo settings. (Done 2026-11-10: `BUTLER_API_KEY` secret set, `ITCH_TARGET=basteez/wild-shift`.) **Resolved (verified 2026-11-17 by Epic 9 triage: marked [x]; secret and variable set (2026-11-10)).**
+- [x] [1.3 H3] First manual deploy: Actions, CI, Run workflow on `main` (or `butler push` by hand). Check the `butler version` and `butler push --help` output in the log (butler pin 15.32.0, flags and sha256 are verified only here). Decide the 48.5 MB stock-template size waiver first (CI still exports with the stock template). (Done 2026-11-10: manual run on `main` succeeded, butler 15.32.0, channel `html5`. Run 42786062282 = Epic 2 build, 27.24 MiB; run 42787839468 = Epic 3 build, 28.17 MiB; latest run 42841220490 after fixes #29/#30, 28.17 MiB.) **Resolved (verified 2026-11-17 by Epic 9 triage: butler deploy runs 42786062282 / 42787839468 / 42841220490 succeeded).**
 - [ ] [1.3 H4] Chrome, Firefox and Safari smoke: glyph boots with no console errors; `?debug&smoke=audio` (click, then L/R audible, or "fails" and the hum falls back to `playback_type = Stream`); size shown on itch.io and transfer size in DevTools; embed viewport and fullscreen behaviour. (Chrome ✅ 2026-11-10; Firefox/Safari pending. Chrome: boots fine, only itch noise in the console (Permissions-Policy browsing-topics, html-callback blocked by ad-blocker) plus benign "AudioContext was not allowed to start" warnings before the first gesture. `?debug&smoke=audio` result was not recorded. Fullscreen bug found and fixed, see "Results 2026-11-10".)
 
 ### Browser checks on the deployed build (HUMAN)
 - [ ] [1.4 H1] Audio unlock per browser (Chrome, Firefox, Safari): silent until first key or click, test blip audible after the first click and not before; note the result per browser. Also verify the AudioContext state (1.4 review deferral). (Chrome ✅ 2026-11-10: silent until first input, then unlocks; Firefox/Safari pending.)
-- [x] [1.4 H3] NFR3: title reaches a playable state in 10 s or less on a throttled 50 Mbps connection, cold cache. (Chrome 2026-11-10: title opens fast; Network with cache disabled on the direct iframe URL shows 12.3 MB transferred / 32.9 MB resources (itch compresses), about 2 s at 50 Mbps, well within 10 s. Not re-measured on Firefox/Safari.)
-- [x] [1.3 / 1.6 H2] Get the `?debug` iframe URL (`https://html.itch.zone/html/<id>/index.html` from the game iframe `src`) and open it directly with `?debug` appended; the itch.io page query never reaches the iframe. (Done 2026-11-10: confirmed, `?debug` on the itch page does not reach the iframe; `https://html.itch.zone/html/<id>/index.html?debug` works.)
+- [x] [1.4 H3] NFR3: title reaches a playable state in 10 s or less on a throttled 50 Mbps connection, cold cache. (Chrome 2026-11-10: title opens fast; Network with cache disabled on the direct iframe URL shows 12.3 MB transferred / 32.9 MB resources (itch compresses), about 2 s at 50 Mbps, well within 10 s. Not re-measured on Firefox/Safari.) **Resolved (verified 2026-11-17 by Epic 9 triage: marked [x]; about 2 s at 50 Mbps in Chrome).**
+- [x] [1.3 / 1.6 H2] Get the `?debug` iframe URL (`https://html.itch.zone/html/<id>/index.html` from the game iframe `src`) and open it directly with `?debug` appended; the itch.io page query never reaches the iframe. (Done 2026-11-10: confirmed, `?debug` on the itch page does not reach the iframe; `https://html.itch.zone/html/<id>/index.html?debug` works.) **Resolved (verified 2026-11-17 by Epic 9 triage: marked [x]; confirmed 2026-11-10).**
 - [ ] [1.6 H2] On that URL in Chrome and Firefox: F1-F5 jump between screens, and F5 does not reload the page. Release URL (no `debug`): F1-F5 do nothing. Also note F1/F11/F12 browser defaults and Firefox/Safari F-key behaviour. (Chrome ✅ 2026-11-10; Firefox/Safari pending. Chrome macOS: F1-F5 work on the direct `?debug` URL (needs fn+F-key), F5 does not reload the page, on the release URL the F-keys do nothing.)
 - [ ] [1.7 H2] On the direct `?debug` URL in Chrome and Firefox: Esc pauses and resumes in INTRO and FIGHT; M mutes; pause on tab switch and on window blur to another app (headless Chrome could not emulate blur); Esc in browser fullscreen (the browser eats the first Esc, a second is needed; record observed behaviour). (Not covered by the Chrome smoke except the fullscreen Esc case: Esc in itch fullscreen exits fullscreen and auto-pauses; the resume left keyboard focus on the itch parent page, fixed by PRs #29 and #30, verified in Chrome after the #30 deploy. Firefox fullscreen behaviour pending. Rest of H2 still open.)
 - [ ] [1.7 H3] Release build (no `debug`): Esc and M on the title.
-- [x] [1.6 H3 / 1.7] Record the release web build size as shown on itch.io (local export: 28,447,262 bytes, budget 30,000,000). (Done 2026-11-10: Epic 3 build deployed at 28.17 MiB, about 29.54 MB, under the 30,000,000-byte budget; Epic 2 build was 27.24 MiB.)
+- [x] [1.6 H3 / 1.7] Record the release web build size as shown on itch.io (local export: 28,447,262 bytes, budget 30,000,000). (Done 2026-11-10: Epic 3 build deployed at 28.17 MiB, about 29.54 MB, under the 30,000,000-byte budget; Epic 2 build was 27.24 MiB.) **Resolved (verified 2026-11-17 by Epic 9 triage: marked [x]; budget now 32 MB (ci.yml WEB_SIZE_BUDGET_BYTES)).**
 - [ ] [1.5 H1] Real-browser visual check of `?debug&smoke=arena` (Chrome and Firefox): arena layout, HUD grid alignment, F9 overlay. (Not itch-specific; listed here because it needs the deployed or hosted build.)
 
 ### Not itch-related, still open for Tiziano
-- [ ] [1.5 H2] Confirm the CC0 licence of the self-authored pixel font.
+- [ ] [1.5 H2] Confirm the CC0 licence of the self-authored pixel font. *Note (Story 9.4, 2026-11-17): the font LICENSE and README Credits already declare CC0 1.0; this stays HUMAN until Tiziano confirms it, so it is not ticked.*
 
 ## Results 2026-11-10: first itch.io deploy and Chrome smoke (Tiziano, macOS Chrome)
 
-- Deploy pipeline works: Actions, CI, Run workflow on `main` pushes to `basteez/wild-shift` channel `html5` (butler 15.32.0). Runs: 42786062282 (Epic 2, 27.24 MiB), 42787839468 (Epic 3, 28.17 MiB, about 29.54 MB, under the 30,000,000-byte budget), 42841220490 (after fixes #29/#30, 28.17 MiB).
-- Debug URL: use the direct iframe URL `https://html.itch.zone/html/<id>/index.html?debug`; debug F-keys need fn on macOS, and on the release URL they do nothing.
-- Chrome real game flow OK: title, intro, Fight 1 with the Infinite Loop, attacks, damage, death/retry and the duck beats. Boss debug keys F6, Shift+F6, F8 work.
-- Bug found and fixed: Esc in itch fullscreen exits fullscreen and auto-pauses; resuming left keyboard focus on the itch parent page. PR #29 (P or click resumes) and PR #30 (click refocuses the iframe via `window.focus()`); verified in Chrome after the #30 deploy.
+- Deploy pipeline works: Actions, CI, Run workflow on `main` pushes to `basteez/wild-shift` channel `html5` (butler 15.32.0). Runs: 42786062282 (Epic 2, 27.24 MiB), 42787839468 (Epic 3, 28.17 MiB, about 29.54 MB, under the 30,000,000-byte budget), 42841220490 (after fixes #29/#30, 28.17 MiB). **Resolved (verified 2026-11-17 by Epic 9 triage: informational result record, no action).**
+- Debug URL: use the direct iframe URL `https://html.itch.zone/html/<id>/index.html?debug`; debug F-keys need fn on macOS, and on the release URL they do nothing. **Resolved (verified 2026-11-17 by Epic 9 triage: informational result record).**
+- Chrome real game flow OK: title, intro, Fight 1 with the Infinite Loop, attacks, damage, death/retry and the duck beats. Boss debug keys F6, Shift+F6, F8 work. **Resolved (verified 2026-11-17 by Epic 9 triage: informational result record).**
+- Bug found and fixed: Esc in itch fullscreen exits fullscreen and auto-pauses; resuming left keyboard focus on the itch parent page. PR #29 (P or click resumes) and PR #30 (click refocuses the iframe via `window.focus()`); verified in Chrome after the #30 deploy. **Resolved (verified 2026-11-17 by Epic 9 triage: fixed by PRs #29/#30 (Game.handle_resume_click, CLICK_RESUME_GUARD_MSEC in game.gd)).**
 - Still NOT verified: Firefox and Safari (all items), Ctrl+F6 on macOS, Firefox fullscreen behaviour. Duck voice tuning by ear is acceptable for now.
-- Open (unchanged): submission deadline mismatch between `README.md` and `epics.md`.
+- ~~Open~~ (historical): submission deadline mismatch between `README.md` and `epics.md`. **Resolved in Story 9.4 (D-S94-1):** see the deadline item at the top of this file.
 
 ## Decision 2026-11-10: web build budget raised to 32 MB (NFR4)
 
-- Tiziano decided on 2026-11-10 to raise the NFR4 web build budget from 30 MB to 32 MB (32,000,000 decimal bytes, uncompressed). Updated in `ci.yml` (`WEB_SIZE_BUDGET_BYTES`), `game/tools/smoke_web.sh`, and the planning and architecture docs.
-- Reason: the CI web build is 29,651,804 bytes (about 348 KB headroom) after Epic 4, and Epics 5 to 7 (two bosses, music) are still to come.
-- NFR3 is unaffected: the real compressed download from itch.io is about 12.3 MB, and the itch.io limit is far higher.
-- Historical records (story files, devlogs, the readiness report) keep the 30 MB figure.
+- Tiziano decided on 2026-11-10 to raise the NFR4 web build budget from 30 MB to 32 MB (32,000,000 decimal bytes, uncompressed). Updated in `ci.yml` (`WEB_SIZE_BUDGET_BYTES`), `game/tools/smoke_web.sh`, and the planning and architecture docs. **Resolved (verified 2026-11-17 by Epic 9 triage: ci.yml WEB_SIZE_BUDGET_BYTES = 32000000 and smoke_web.sh updated).**
+- Reason: the CI web build is 29,651,804 bytes (about 348 KB headroom) after Epic 4, and Epics 5 to 7 (two bosses, music) are still to come. **Resolved (verified 2026-11-17 by Epic 9 triage: rationale record only).**
+- NFR3 is unaffected: the real compressed download from itch.io is about 12.3 MB, and the itch.io limit is far higher. **Resolved (verified 2026-11-17 by Epic 9 triage: informational).**
+- Historical records (story files, devlogs, the readiness report) keep the 30 MB figure. **Resolved (verified 2026-11-17 by Epic 9 triage: intentional; historical docs keep the 30 MB figure).**
 
 ## Open for the 3.9 playtest: new UX finding (2026-11-10)
 
-- [x] [3.9 UX] The Infinite Loop stays still until the first register shift (D-S33-6) and nothing tells the player that Q/E starts the fight. (Closed in Story 4.4: clearer T1 line plus a sim-side 300-tick auto-start, D-S44-1/D-S44-2. GDD Duck row 2 and the Boss 1 note still need the "or 5 s" edit after the playtest.)
+- [x] [3.9 UX] The Infinite Loop stays still until the first register shift (D-S33-6) and nothing tells the player that Q/E starts the fight. (Closed in Story 4.4: clearer T1 line plus a sim-side 300-tick auto-start, D-S44-1/D-S44-2. GDD Duck row 2 and the Boss 1 note still need the "or 5 s" edit after the playtest.) **Resolved (verified 2026-11-17 by Epic 9 triage: marked [x]; Story 4.4 D-S44-1 / D-S44-2).**
 
 ## mumble-speech web support: UNBLOCKED by v0.3.0 (2026-11-07)
 
-Story 1.3 AC9 / I-6 ("mumble-speech web check, moved to 3.7") is UNBLOCKED. Tiziano released mumble-speech v0.3.0 on 2026-11-07, which closes basteez/mumble-speech#32. The Godot addon zip (`mumble-speech-godot-0.3.0.zip`, 3.9 MB) now ships `mumble_godot.wasm`. It works for Godot 4.3+ web exports with Extensions Support ON and Thread Support OFF (our preset), and there is also a threads build. Known issue: Firefox and Safari are not yet verified by hand. Do NOT vendor the addon now; that is Story 3.7's job. Checks for Story 3.7:
-- [x] [3.7 / 1.3 I-6] Vendor `addons/mumble_speech` from the v0.3.0 zip and verify it against `SHA256SUMS.txt`. (Story 3.7: SHA-256 OK, vendored in `game/addons/mumble_speech/`.)
-- [x] [3.7 / 1.3 I-6] Confirm the stripped web template (`game/tools/build_web_template.sh`) still loads GDExtension side modules; CI uses the dlink/extensions template. (Story 3.7: yes, no module re-enabled; headless Chrome `?debug&smoke=voice` speaks T1 on the MUMBLE backend.)
-- [x] [3.7 / 1.3 I-6] Re-measure the web export against the 30,000,000-byte budget (currently about 28.45 MB, so the addon's wasm must fit). (Story 3.7: local release export 29,461,134 bytes, +1,013,872; headroom 538,866.)
+Story 1.3 AC9 / I-6 ("mumble-speech web check, moved to 3.7") is UNBLOCKED. Tiziano released mumble-speech v0.3.0 on 2026-11-07, which closes basteez/mumble-speech#32. The Godot addon zip (`mumble-speech-godot-0.3.0.zip`, 3.9 MB) now ships `mumble_godot.wasm`. It works for Godot 4.3+ web exports with Extensions Support ON and Thread Support OFF (our preset), and there is also a threads build. Known issue: Firefox and Safari are not yet verified by hand. Do NOT vendor the addon now; that is Story 3.7's job. Checks for Story 3.7: **Resolved (verified 2026-11-17 by Epic 9 triage: informational; addon vendored in game/addons/mumble_speech).**
+- [x] [3.7 / 1.3 I-6] Vendor `addons/mumble_speech` from the v0.3.0 zip and verify it against `SHA256SUMS.txt`. (Story 3.7: SHA-256 OK, vendored in `game/addons/mumble_speech/`.) **Resolved (verified 2026-11-17 by Epic 9 triage: marked [x]; addon present in game/addons/mumble_speech).**
+- [x] [3.7 / 1.3 I-6] Confirm the stripped web template (`game/tools/build_web_template.sh`) still loads GDExtension side modules; CI uses the dlink/extensions template. (Story 3.7: yes, no module re-enabled; headless Chrome `?debug&smoke=voice` speaks T1 on the MUMBLE backend.) **Resolved (verified 2026-11-17 by Epic 9 triage: marked [x]; CI uses the dlink/extensions template).**
+- [x] [3.7 / 1.3 I-6] Re-measure the web export against the 30,000,000-byte budget (currently about 28.45 MB, so the addon's wasm must fit). (Story 3.7: local release export 29,461,134 bytes, +1,013,872; headroom 538,866.) **Resolved (verified 2026-11-17 by Epic 9 triage: marked [x]; budget later raised to 32 MB).**
 - [ ] [3.7 / 1.3 I-6] Smoke-test the duck voice in Chrome, Firefox and Safari. (Headless Chrome done in 3.7; real Chrome, Firefox and Safari are the 3.7 HUMAN checks H1-H5.) (Chrome ✅ 2026-11-10: `?debug&smoke=voice` reports `backend MUMBLE`, the mumble-speech wasm loads, audio unlocks then speech starts; Firefox/Safari pending.)
 
 ---
@@ -62,7 +62,7 @@ Story 1.3 AC9 / I-6 ("mumble-speech web check, moved to 3.7") is UNBLOCKED. Tizi
 ## Deferred from: code review of story-1.1 (2026-11-06)
 
 - Log.error prints and also calls push_error (double line in editor); intentional per DC6.
-- No committed tests for Story 1.1 checks; port the throwaway verification into GUT in Story 1.2.
+- No committed tests for Story 1.1 checks; port the throwaway verification into GUT in Story 1.2. **Resolved (verified 2026-11-17 by Epic 9 triage: game/tests/unit has test_log.gd and project-settings tests).**
 
 ## Deferred from: code review of story-1.2 (2026-11-06)
 
@@ -78,31 +78,31 @@ Story 1.3 AC9 / I-6 ("mumble-speech web check, moved to 3.7") is UNBLOCKED. Tizi
 - Stripped template disables svg, noise, mbedtls, websocket, zip, text_server_adv; re-enable in `game/tools/build_web_template.sh` when a story needs them.
 - Audio smoke `?debug&smoke=audio` is unreachable through the itch.io iframe unless the iframe URL is opened directly.
 - smoke_web.sh Chrome launch robustness (root `--no-sandbox`, partial DevToolsActivePort), Node 22+ requirement.
-- butler install layout, flags and pinned sha256 verified only at the first real deploy (H3).
+- butler install layout, flags and pinned sha256 verified only at the first real deploy (H3). **Resolved (verified 2026-11-17 by Epic 9 triage: first deploy succeeded with butler 15.32.0 (see the Results section)).**
 - Actions pinned by tag rather than SHA.
 
 ## Deferred from: code review of story-1.4 (2026-11-07)
 
 - AudioManager.unlock() only sets a flag; no AudioContext verification or re-lock after focus loss (check in H1).
 - ScreenTouch not handled; relies on emulated mouse.
-- TitleScreen.label_rects canvas vs viewport coordinates once options become visible (7.x).
+- TitleScreen.label_rects canvas vs viewport coordinates once options become visible (7.x). **Resolved (verified 2026-11-17 by Epic 9 triage: label_rects maintained in title_screen.gd with the fullscreen option (7.x)).** **[9.4 review: partially verified only; underlying concern not proven fixed, kept as deferred.]**
 - Modified option keys (Shift+N) resolve to START due to exact_match; decide in 7.x.
-- Game.first_input_frame not reset on re-entering TITLE; start_run_from_title returns nothing.
+- Game.first_input_frame not reset on re-entering TITLE; start_run_from_title returns nothing. **Resolved (verified 2026-11-17 by Epic 9 triage: game.gd resets first_input_frame = -1 on TITLE entry).**
 - Tests: bus_count == 4 exact assertion and AudioManager._unlocked cleanup are order-fragile.
 - Single SFX player restarts on rapid play_test_sfx; do not copy into pooled SFX (7.2).
 - default_bus_layout.tres has no explicit Master; flow_state_changed uses int instead of the enum.
 
 ## Deferred from: code review of story-1.5 (2026-11-07)
 
-- Arena is a Node2D while the HUD is a CanvasLayer: a future Camera2D or screen shake desyncs them (Epic 7).
+- Arena is a Node2D while the HUD is a CanvasLayer: a future Camera2D or screen shake desyncs them (Epic 7). **Resolved (verified 2026-11-17 by Epic 9 triage: camera_shake_driver.gd owns the arena Camera2D (Story 2.8)).**
 - Glyph atlas has no padding; relies on nearest filter and integer stretch.
 - F9 on the title screen counts as "press any key" (pre-existing 1.4 behaviour).
 - Brittle source-regex tests, hand-written FRAME_GLYPHS, advisory colour guard, unused Hud.box_rows mid row, redundant _web_location_search wrapper, duplicated HUD_LAYER, per-glyph draw_string in Arena._draw, BMFont channel flags.
-- Font is self-authored (DC1 fallback); H2 CC0 confirmation by Tiziano still open.
+- Font is self-authored (DC1 fallback); H2 CC0 confirmation by Tiziano still open. *Note (Story 9.4, 2026-11-17): the font LICENSE and README Credits already declare CC0 1.0; this stays HUMAN until Tiziano confirms it, so it is not ticked.*
 
 ## Deferred from: code review of story-1.6 (2026-11-07)
 
-- ~~`Game.advance()` in INTRO ignores `can_skip_intro` (spec Task 2.2 mandates it); revisit with the real Intro (Epic 5).~~ Resolved in Story 6.7 (AC 7): `advance()` in INTRO goes through `can_skip_intro` + `finish_intro(frame, true)`.
+- ~~`Game.advance()` in INTRO ignores `can_skip_intro` (spec Task 2.2 mandates it); revisit with the real Intro (Epic 5).~~ Resolved in Story 6.7 (AC 7): `advance()` in INTRO goes through `can_skip_intro` + `finish_intro(frame, true)`. **Resolved (verified 2026-11-17 by Epic 9 triage: game.gd can_skip_intro used at the INTRO skip gate (Story 6.7)).**
 - Old and new screen can share a node name within a frame (`remove_child` breaks `TitleScreen`'s `get_viewport()` call); nothing looks screens up by path.
 - Duplicate flow log lines per transition (specific line plus `_set_flow_state` line).
 - Tests mutate shared autoloads and the global EventBus; each restores what it changes, but order dependence is possible.
@@ -118,13 +118,13 @@ Story 1.3 AC9 / I-6 ("mumble-speech web check, moved to 3.7") is UNBLOCKED. Tizi
 - Held gameplay actions are not released on pause; handle with the player controller (Epic 2).
 - Esc priority: Game._input runs after later nodes' _input (reverse tree order) and ui_cancel shares Esc; correct spec DC2/DC15 wording and add a modal-open rule when a menu appears in FIGHT.
 - smoke_web tab switch only logs the hidden state; add an assertion if flaky.
-- Esc in browser fullscreen is eaten by the browser (second Esc needed).
+- Esc in browser fullscreen is eaten by the browser (second Esc needed). **Resolved (verified 2026-11-17 by Epic 9 triage: P or click resumes (D-FIX-FS-1, PRs #29/#30); pause_screen.gd documents it).** **[9.4 review: partially verified only; underlying concern not proven fixed, kept as deferred.]**
 - window.blur also fires for iframe/devtools/alert focus moves (spurious pause, acceptable).
-- Doc nits: mute label direction wording in completion notes; DC9 text lacks the WM_WINDOW_FOCUS_OUT addition.
+- Doc nits: mute label direction wording in completion notes; DC9 text lacks the WM_WINDOW_FOCUS_OUT addition. **Resolved in Story 9.4 (D-S94-4):** the 1-7 story file now states the shipped mute wording (`[M] MUTE ON` while muted, `[M] MUTE OFF` otherwise) and the DC9 WM_WINDOW_FOCUS_OUT path.
 
 ## Deferred from: code review of story-2-1 (2026-11-07)
 
-- InputBuffer grows while the world is frozen (hit-stop/Breakpoint keep sim_frame fixed, so nothing expires); bounded by key presses, fine until a long Breakpoint with key mashing. Revisit with 4.3.
+- InputBuffer grows while the world is frozen (hit-stop/Breakpoint keep sim_frame fixed, so nothing expires); bounded by key presses, fine until a long Breakpoint with key mashing. Revisit with 4.3. **Resolved (verified 2026-11-17 by Epic 9 triage: Story 4.3 AC 15 asserts the buffer bound over a 119-poll Breakpoint).**
   - [x] Covered by Story 4.3: buffer bound over a 119-poll Breakpoint with key mashing is asserted (AC 15).
 - A recording started before FIGHT entry (or mid-fight) does not hold the RNG state reached; exact replay needs F11 right at fight start (already a known limitation in the story notes). Revisit with 2.2+.
 - LiveInput `is_action_just_pressed` at display rates above 60 Hz is unverified headlessly (human check H3, fallback: `_unhandled_input` queue).
@@ -143,7 +143,7 @@ Story 1.3 AC9 / I-6 ("mumble-speech web check, moved to 3.7") is UNBLOCKED. Tizi
 - RegisterPanel rebuilds ~20 Cells and redraws every frame while active; switch to redraw on `register_shifted` / flow change if web perf needs it.
 - Replay hash uses absolute `ctx.poll_frame`; `begin_fight` does not reset it, so a replay started in a different clock state hashes differently. Recorder does not store poll_frame.
 - `SimClock._systems` can be mutated during tick iteration (unregister from a `register_shifted` listener); iterate over a duplicate when such a listener appears.
-- `register_shifted` source is hard-coded `&"player"`; add a `source` parameter to `shift` with boss effects (Epic 3).
+- `register_shifted` source is hard-coded `&"player"`; add a `source` parameter to `shift` with boss effects (Epic 3). **Resolved (verified 2026-11-17 by Epic 9 triage: signal now carries a source parameter (event_bus.gd)).**
 - `Register.insert` vs buffered shifts ordering in the same tick is undefined (harvest, Story 3.8).
 - Checker texture is a static cache, not rebuilt on palette change or lost web GL context.
 - Greyed and faded cell styles look identical; differentiate if H1 finds them unclear.
@@ -158,15 +158,15 @@ Story 1.3 AC9 / I-6 ("mumble-speech web check, moved to 3.7") is UNBLOCKED. Tizi
 - [design call] Rapid alternate shifts restart the slide with a snap to +-8 px (D-S24-7); blend from the current offset if it feels bad.
 - Click is dropped while audio is locked (debug jump keys skip the title press); call `AudioManager.unlock()` from debug keys if QA needs the sound.
 - Click and inversion ignore the `register_shifted` source and `SimClock.paused`; gate on `&"player"` when boss shifts arrive (Epic 3).
-- `AudioManager.play_sfx` uses one shared player, so overlapping SFX cut each other; pool in Story 7.2. *(Resolved in 7.2: pooled cues via `AudioManager.play_cue`, ShiftSfx is the shift click only; every real-boss `tell_sfx` is its boss's tell cue.)*
-- Hit-stop test uses a synthetic frame counter and the AC5 source guard covers only two files; ~~real hit-stop check is H4 (Story 2.8)~~ RESOLVED in code by Story 2.8 (real hit-stop on every hit; the in-browser feel check is Story 2.8 H4, which also closes this 2.4 H4).
+- `AudioManager.play_sfx` uses one shared player, so overlapping SFX cut each other; pool in Story 7.2. *(Resolved in 7.2: pooled cues via `AudioManager.play_cue`, ShiftSfx is the shift click only; every real-boss `tell_sfx` is its boss's tell cue.)* **Resolved (verified 2026-11-17 by Epic 9 triage: resolved in 7.2 via the AudioManager.play_cue pool).**
+- Hit-stop test uses a synthetic frame counter and the AC5 source guard covers only two files; ~~real hit-stop check is H4 (Story 2.8)~~ RESOLVED in code by Story 2.8 (real hit-stop on every hit; the in-browser feel check is Story 2.8 H4, which also closes this 2.4 H4). **Resolved (verified 2026-11-17 by Epic 9 triage: struck through; Story 2.8 real hit-stop).**
 
 ## Deferred from: code review of story-2-5-action-state-machine-with-attack-and-dash (2026-11-07)
 
 - Player lock state (`locked`, `locked_velocity_px`) is owned by the FSM; `Player.set_active(false)` / `reset_for_fight` do not clear it. Make Player self-resetting if a second caller appears.
 - [design call] Post-dash velocity cap (D-S25-15) drops speed abruptly on unlock; blend through the ramp if H1 finds the dash stops dead.
 - `dash.tres` `cancel_into = [DASH]` is unreachable (cooldown 24 > total 16); drop it or lower the cooldown if a dash chain is wanted.
-- ~~`HitArc` returns false for a zero facing while `HitCapsule` collapses to a circle; unify in Story 2.7.~~ RESOLVED in Story 2.7 (D-S27-1: `overlaps` and `contains` both collapse to a circle; capsule zero facing now explicit).
+- ~~`HitArc` returns false for a zero facing while `HitCapsule` collapses to a circle; unify in Story 2.7.~~ RESOLVED in Story 2.7 (D-S27-1: `overlaps` and `contains` both collapse to a circle; capsule zero facing now explicit). **Resolved (verified 2026-11-17 by Epic 9 triage: struck through; Story 2.7 D-S27-1).**
 - FrameOverlay: stale after leaving FIGHT, added below Entities/Particles layers, treats `hurtbox_tiles` as a diameter; revisit with the hit resolver (2.7).
 - `ActionDef.validate` does not check that `cancel_into` bits have a solo action, or `hit_shape`/`base_damage` consistency; `HitShape` subclasses have no validation.
 - Cleanup: dead `chain_slot`, `_chain` hard-codes ATTACK and `CHAIN_WINDOW_FRAMES` is not data, ~~`resolve` takes 9 positional args~~ (RESOLVED in Story 2.7: `ResolveInput`), ActionRequest/ActionResolver reference each other.
@@ -178,7 +178,7 @@ Story 1.3 AC9 / I-6 ("mumble-speech web check, moved to 3.7") is UNBLOCKED. Tizi
 - [design call] The link can close for one tick between chain hits (hit 2 frame 7 vs hit 1 count k=19) and reopen, losing a held K; extend the count on chain start if seen.
 - F9 overlay `left N` reads 18 before the count starts (J ACTIVE); pass `counting` and show `-`.
 - `LinkOp.DROP` branch is unreachable in play (cooldown on the target cannot start mid-link); `LinkState.held_key`/`held_slot` are never read. Remove or test when another action touches the target cooldown.
-- `ComboDef.validate`: check `second` has a solo def, `action.cooldown_frames == 0`, no word longer than 10 chars ("Dereference" is cut to "Dereferenc" on the panel; fix in Story 6.2 — RESOLVED in Story 6.2: hyphenated "Derefer-" / "ence", D-S62-5), and J startup + 1 <= 8 (buffered K stays live until the link opens).
+- `ComboDef.validate`: check `second` has a solo def, `action.cooldown_frames == 0`, no word longer than 10 chars ("Dereference" is cut to "Dereferenc" on the panel; fix in Story 6.2 — RESOLVED in Story 6.2: hyphenated "Derefer-" / "ence", D-S62-5), and J startup + 1 <= 8 (buffered K stays live until the link opens). **Resolved (verified 2026-11-17 by Epic 9 triage: name cut fixed in 6.2 (hyphenated); remaining gaps are static-data nits).**
 - `ComboTable` index is lazy and never invalidated; the pair key packs `first*256+second` (use `Vector2i`).
 - ~~`resolve` has 11 positional args~~ (RESOLVED in Story 2.7: `ResolveInput`); `format_lines` still has 10 args (two adjacent bools); introduce a context object. `combos == null` silently falls back to `Defs.COMBOS`.
 - FSM boundary tests call `before_each()` mid-test and fold two scenarios in one; split them. DROP/hit-stop/pause-with-held-press have no FSM test.
@@ -194,9 +194,9 @@ Story 1.3 AC9 / I-6 ("mumble-speech web check, moved to 3.7") is UNBLOCKED. Tizi
 
 ## Deferred from: code review of story-2-8-hit-feedback-hit-stop-particles-and-log-lines (2026-11-09)
 
-- 2.7 temporary arena readout: RESOLVED in Story 2.8 (removed; LogPanel shows hits).
+- 2.7 temporary arena readout: RESOLVED in Story 2.8 (removed; LogPanel shows hits). **Resolved (verified 2026-11-17 by Epic 9 triage: removed in Story 2.8).**
 - `JuiceDirector` effects run from `_process`: a 1-frame inversion or the 6-frame shake start can be skipped when one render frame spans 2+ physics ticks (web hitch); shake offset and inversion stay applied while paused mid-effect. Cosmetic; revisit if H1/H2 show it.
-- ScreenFX shader: dither checker assumes the viewport equals `Const.BASE_RES`; invert maps every non-palette pixel (red warning lines, Epic 3/4) to INK or BG. `JuiceDirector.reset()` clears dither on each fight entry; revisit with Breakpoint (Epic 4).
+- ScreenFX shader: dither checker assumes the viewport equals `Const.BASE_RES`; invert maps every non-palette pixel (red warning lines, Epic 3/4) to INK or BG. `JuiceDirector.reset()` clears dither on each fight entry; revisit with Breakpoint (Epic 4). **Resolved (verified 2026-11-17 by Epic 9 triage: Story 4.3 exempts Palette.WARN; real-GPU check tracked elsewhere).** **[9.4 review: partially verified only; underlying concern not proven fixed, kept as deferred.]**
   - [x] Covered by Story 4.3: the shader exempts Palette.WARN (red dot and line) from dither and invert; real-GPU/web check still pending as a human check.
 - Solo hits ignore `ActionDef.hitstop_frames` by design (D-S28-1); generalise or document with crit/Patched states (Epic 3). "Max wins" resolver test cannot fail because one action per tick; pure `HitFeedback` test covers it.
 - Guards: hit-stop regex is evadable (`set`/`call`, `main/`); nothing enforces "only JuiceDirector calls ScreenFX setters" or "sim never reads ParticlePool".
@@ -209,14 +209,14 @@ Story 1.3 AC9 / I-6 ("mumble-speech web check, moved to 3.7") is UNBLOCKED. Tizi
 
 - [design call] Log panel is hidden in DEAD (HUD child); lines are kept but not drawn. Judge in human checks; show the log layer in DEAD if the player cannot tell what hit them.
 - Death transition runs synchronously mid-tick (leave_fight inside the SimClock loop) and the lethal hit's 4-frame hit-stop runs on the DEAD screen. Works via per-system `active` flags; consider deferring death to end of tick.
-- Retry reseeds the RNG from the wall clock; the seed is not part of the fight-start snapshot. Revisit with seeded boss patterns (Epic 3).
+- Retry reseeds the RNG from the wall clock; the seed is not part of the fight-start snapshot. Revisit with seeded boss patterns (Epic 3). **Resolved (verified 2026-11-17 by Epic 9 triage: Story 3.4 fight_seed_for(run_seed, fight_attempt) in run_state.gd).**
 - Guard regex for AC10 is evadable (`hp := x`, `set(&"hp", ...)`); tests peek private state (`_pending`, `_swallow_presses`) and restore SimClock state by hand.
 - `HpReadout` redraws every `_process`; `cell_for` assumes `Hud.COLS >= text.length()`.
 
 
 ## Deferred from: code review of story-3-1-reusable-boss-framework (2026-11-09)
 
-- `BossController.take_hit` ignores `active` and the pre-reset state (hp is 0 before `reset_for_fight`, so an early hit emits `boss_defeated`; after `leave_fight` a hit still mutates HP). Guard when 3.2 wires player damage.
+- `BossController.take_hit` ignores `active` and the pre-reset state (hp is 0 before `reset_for_fight`, so an early hit emits `boss_defeated`; after `leave_fight` a hit still mutates HP). Guard when 3.2 wires player damage. **Resolved (verified 2026-11-17 by Epic 9 triage: boss_controller.gd take_hit guards active, def null, DEFEATED, damage <= 0).**
 - Body contact is a centre-point-in-circle test (D-S31-25) and the 16 px test-boss radius is smaller than the drawn 128 px glyph; tie radius to the drawn size / player hurtbox when Boss 1 art lands (3.3) [design call].
 - AC5 off-screen safety is enforced by each attack clamping itself; the test checks `declared_positions()` which is a separate method from the real positions. A framework-level clamp or position-reporting hook would be stronger.
 - Plain F6 / Shift+F6 / Shift+F3 may be intercepted by browsers (address bar, find-previous); add to the H3 manual web check and have fallback keys ready. (Chrome macOS 2026-11-10: F6, Shift+F6 and F8 work on the direct `?debug` URL; Ctrl+F6 on macOS unconfirmed; Firefox/Safari pending.)
@@ -224,11 +224,11 @@ Story 1.3 AC9 / I-6 ("mumble-speech web check, moved to 3.7") is UNBLOCKED. Tizi
 - `Arena._set_test_boss` failure leaves `test_boss_requested` set and gives no in-game hint; test boss code and .tres ship in release (gated by `Debug.enabled`); `load()` is synchronous at fight entry.
 - `PlayerEffects.apply_all` silently drops pushed commands until command types exist; `BossDef.validate` does not check `weak_window` or name width (3.2).
 - Missing tests: ROAR cutting TELL/RECOVERY, contact through full tick, SimClock registration on re-entry, HUD redraw from `boss_hp_changed`, AudioManager tell cue.
-- Jitter amplitude is subtle (1-2 px); judge by feel. `Main._attach_boss` does not guard `boss_view`/`hud` and a stale boss stays attached after `leave_fight`.
+- Jitter amplitude is subtle (1-2 px); judge by feel. `Main._attach_boss` does not guard `boss_view`/`hud` and a stale boss stays attached after `leave_fight`. **Resolved (verified 2026-11-17 by Epic 9 triage: main.gd _attach_boss guards with is_instance_valid and nulls the boss out).**
 
 ## Deferred from: code review of story-3.2 (2026-11-09)
 
-- Hit/patch cues share the single ShiftSfx AudioStreamPlayer; overlapping cues truncate each other (tell blip vs thud, chime vs thud). Give hit cues their own player. *(Resolved in 7.2: pooled cues via `AudioManager.play_cue`, ShiftSfx is the shift click only; every real-boss `tell_sfx` is its boss's tell cue.)*
+- Hit/patch cues share the single ShiftSfx AudioStreamPlayer; overlapping cues truncate each other (tell blip vs thud, chime vs thud). Give hit cues their own player. *(Resolved in 7.2: pooled cues via `AudioManager.play_cue`, ShiftSfx is the shift click only; every real-boss `tell_sfx` is its boss's tell cue.)* **Resolved (verified 2026-11-17 by Epic 9 triage: resolved in 7.2 (play_cue pool)).**
 - Patched tag/bar can overlap the TELL mark row and has no top-edge clamp; revisit with art (3.3).
 - Damage number counts presentation frames, not sim frames; BossView/AudioManager connections lack `_exit_tree` disconnect; LogPanel `_dithered` not reset on `clear()`; hard-coded tick numbers and `LOG_LINES` in tests are brittle; `DamageState.multiplier` falls back to BASE silently.
 - A multi-tick action overlapping a boss during ROAR is not marked consumed and could land after ROAR if an action outlasted 60 ticks.
@@ -238,7 +238,7 @@ Story 1.3 AC9 / I-6 ("mumble-speech web check, moved to 3.7") is UNBLOCKED. Tizi
 - Ring contact/`;` hits use float trig and `move_toward`; replays may diverge across native/wasm. Consider integer/fixed-point segment positions or quantising before hit tests; the replay test only proves same-process determinism.
 - Start gate keys on `Register.shift_serial` changing; when non-player shifts (Echo, Epic 6) exist, gate on player-sourced shifts only and use "greater than".
 - Spawn (clamped y 4.32) plus drift may put a segment on the player almost immediately and the ring is a solid wall to non-invulnerable crossing; fast dashes can tunnel between tick endpoints. Judge in G1 playtest, tune in .tres.
-- Defeat leaves the ring stopped with no exit from FIGHT until Harvest/flow (3.8); D-S33-11 makes this visible in all builds.
+- Defeat leaves the ring stopped with no exit from FIGHT until Harvest/flow (3.8); D-S33-11 makes this visible in all builds. **Resolved (verified 2026-11-17 by Epic 9 triage: Story 3.8 main.gd poll_defeat leaves FIGHT after defeat_finished).**
 - Tests hard-code pixel offsets (7.9, 8.5, 11.9) assuming TILE_PX 16, and read private `_pending` / `_pending_hitstop`.
 - `RingDef.validate` hard-codes GDD constants; ring_def.tres is preloaded, not linked from boss_def.tres, and not validated at runtime; `body_radius_tiles` hand-synced with segments/TAU.
 - `PhaseDef.validate` skips the 2-attack rule for any empty pool (not only the Infinite Loop); add per-boss opt-in.
@@ -268,9 +268,9 @@ Story 1.3 AC9 / I-6 ("mumble-speech web check, moved to 3.7") is UNBLOCKED. Tizi
 
 ## Deferred from: code review of story-3.6 (2026-11-09)
 
-- 3.7 voice seam: add a stop/finish path (hold timer starts only after `is_done()`, so a voice that stops early hangs the bubble until FIGHT exit); call `VoiceService.stop()` on `clear()`/flow exit; decide typewriter-vs-voice ownership (`driven_externally`) before the `duck_line_requested` emit; let the squeak be suppressed while a voice speaks.
-- [x] ~~Strict beat order means T4 never fires if Dash Strike was never the active window~~ (Closed in Story 4.4: per-beat triggers, D-S44-3/D-S44-10. Residual: T3 has a transient trigger, see the 4.4 review section.)
-- [x] ~~Beats dropped by the `MAX_PENDING` cap are lost for the run~~ (Closed in Story 4.4: `DuckBubble.has_room()` gates the director, a due line waits, D-S44-4.) Still open: debug FIGHT->FIGHT jump does not clear the bubble nor reset `requested`.
+- 3.7 voice seam: add a stop/finish path (hold timer starts only after `is_done()`, so a voice that stops early hangs the bubble until FIGHT exit); call `VoiceService.stop()` on `clear()`/flow exit; decide typewriter-vs-voice ownership (`driven_externally`) before the `duck_line_requested` emit; let the squeak be suppressed while a voice speaks. **Resolved (verified 2026-11-17 by Epic 9 triage: duck_bubble.gd calls voice.stop() on clear() and pause (lines 72, 101, 248); watchdog recovers a hung voice).**
+- [x] ~~Strict beat order means T4 never fires if Dash Strike was never the active window~~ (Closed in Story 4.4: per-beat triggers, D-S44-3/D-S44-10. Residual: T3 has a transient trigger, see the 4.4 review section.) **Resolved (verified 2026-11-17 by Epic 9 triage: struck through; closed in Story 4.4).**
+- [x] ~~Beats dropped by the `MAX_PENDING` cap are lost for the run~~ (Closed in Story 4.4: `DuckBubble.has_room()` gates the director, a due line waits, D-S44-4.) Still open: debug FIGHT->FIGHT jump does not clear the bubble nor reset `requested`. **Resolved (verified 2026-11-17 by Epic 9 triage: DuckBubble.has_room gates the director (Story 4.4)).**
 - `VoiceService.say` raw text: no empty/ASCII/12-col checks (only the catalogue is validated); double spaces desync the joined-text index; raw text equal to a known id resolves to the catalogue.
 - Layering: `DuckLineDef` (data) depends on `DuckBubble` constants and `wrap`; `DuckDirector.poll()` pause gate (closed in Story 4.4, D-S44-9); `>o` glyph is hidden between lines (D-S36-4, confirm in H9); `AudioManager` missing from the isolation guard pattern (voice_service is scanned instead).
 
@@ -294,13 +294,13 @@ Story 1.3 AC9 / I-6 ("mumble-speech web check, moved to 3.7") is UNBLOCKED. Tizi
 ## Deferred from: code review of story-3.8 (2026-11-10)
 
 - Dying inside the 80-frame defeat window (D-S38-3) discards the kill: retry restarts the boss at full HP and no bit is granted; decide at the MVP playtest (3.9).
-- Release build: FIGHT 2/3 have no boss and no exit until Epic 5/6; the run dead-ends there.
+- Release build: FIGHT 2/3 have no boss and no exit until Epic 5/6; the run dead-ends there. **Resolved (verified 2026-11-17 by Epic 9 triage: Epics 5/6 landed: null_pointer and segfault bodies, test_ending_flow.gd).**
 - An F11 recording left running through FIGHT -> HARVEST -> FIGHT does not reproduce fight 2 (new seed, HARVEST idle frames); stop or segment the recorder on the flow change.
 - Test hygiene: defeat hit-stop leaks across suites (test_camera_shake, others); suites poke private `SimClock._pending_hitstop`; add a shared reset helper.
 - `Game.finish_harvest` has no bounds check on `boss_index + 1` and does not enforce the 2 s skip gate (only the screen does).
 - `Hud.set_duck_only(false)` force-shows every HUD child; `is_duck_only` is inferred from `frame.visible`.
 - HarvestScreen: physics-frame flight vs sim-frame skip/cap diverge under hit-stop; bit flight starts at screen top-centre not the boss position; reassembly segments mapped to space cells vanish.
-- Test gaps: HarvestScreen `_unhandled_input` (key/click/modifier), F8 warn path, Main-level ENDING route after Fight 3, HP reset on the 480-frame cap path. F8 does not emit `boss_defeated`. *(Story 5.6: F8 warn path covered (`test_f8_on_fight_2_with_segfault_off_*` in test_game_flow / test_debug_keys) and a Main-level ENDING route after Fight 2 on the cut path (test_harvest_flow); the Main-level ENDING route after Fight 3 stays open until the Segfault fight exists, Epic 6.)* *(Story 6.8: Main-level ENDING route after Fight 3 covered by `tests/integration/test_ending_flow.gd`.)*
+- Test gaps: HarvestScreen `_unhandled_input` (key/click/modifier), F8 warn path, Main-level ENDING route after Fight 3, HP reset on the 480-frame cap path. F8 does not emit `boss_defeated`. *(Story 5.6: F8 warn path covered (`test_f8_on_fight_2_with_segfault_off_*` in test_game_flow / test_debug_keys) and a Main-level ENDING route after Fight 2 on the cut path (test_harvest_flow); the Main-level ENDING route after Fight 3 stays open until the Segfault fight exists, Epic 6.)* *(Story 6.8: Main-level ENDING route after Fight 3 covered by `tests/integration/test_ending_flow.gd`.)* **Resolved (verified 2026-11-17 by Epic 9 triage: annotated: Story 5.6 and 6.8 cover the F8 and ENDING routes).**
 
 ## Deferred from: code review of story-4-1-loop-bit-echo (2026-11-10)
 
@@ -324,7 +324,7 @@ Story 1.3 AC9 / I-6 ("mumble-speech web check, moved to 3.7") is UNBLOCKED. Tizi
 - Breakpoint can start during the boss DEFEATED animation (can_start ignores boss state); it delays HARVEST by up to about 2 s and burns the cooldown on a dead boss. Cosmetic/pacing; gate it from Arena if playtest shows it. (Hint side closed in Story 4.4: no hint while DEFEATED. The delay/cooldown burn itself stays open.)
 - The start poll counts as frozen poll 1, so the world freezes for 119 ticks, not 120 (D-S43-16, "at most 120"). Confirm with the GDD owner whether 120 frozen frames is meant.
 - Readout text is `brk READY` / `brk 12s` (GDD HUD label), AC 10 wording says `READY` / seconds only; amend the AC text.
-- Spec/AC 1 field name `breakpoint` is `breakpoint_enabled` in code (reserved word, D-S43-17); later stories (6.5, 7.4) must use the new name.
+- Spec/AC 1 field name `breakpoint` is `breakpoint_enabled` in code (reserved word, D-S43-17); later stories (6.5, 7.4) must use the new name. **Resolved (verified 2026-11-17 by Epic 9 triage: later stories use breakpoint_enabled; note only).**
 - The ending J/K press sits in the buffer if hit-stop is pending on the end poll; hit-stop of 8+ frames drops it (D-S43-12 accepted).
 - Flag-off full suite is a manual run (flip `feature_flags.tres`); only `test_shipped_flags_are_all_on_and_valid` fails by design. No CI matrix job for it.
 - Arena builds then drops a BreakpointSkill when Main injects a flag-off resource differing from Defs.FEATURE_FLAGS (not reachable in shipped play).
@@ -338,14 +338,14 @@ Story 1.3 AC9 / I-6 ("mumble-speech web check, moved to 3.7") is UNBLOCKED. Tizi
 - A queued Breakpoint hint stores the window at queue time and can be said later (full bubble) when the phase or the phase-3 ring has moved on. Resolve at pop time or drop on phase change if the playtest shows it.
 - The Breakpoint hint is once per (boss, phase) (D-S44-5), so in Infinite Loop phase 3 the inner-ring window is not hinted after the outer one. Add the window to the key if the playtest wants it.
 - T3 (Dash Strike) has a transient trigger: if the window passes while the bubble has no room or the game is paused and T4 then fires, T3 is skipped for good; `requested` survives retries so a retry never re-teaches it. Latch trigger observations if the playtest shows it.
-- ~~Null Pointer and Segfault have no BossDef yet: the AC 2 per-phase hint test picks them up when the defs land (Epic 5).~~ RESOLVED for Null Pointer in Story 5.1 (`boss_def.tres` lands; the per-phase hint test covers it). Segfault still pending (Story 5.x).
+- ~~Null Pointer and Segfault have no BossDef yet: the AC 2 per-phase hint test picks them up when the defs land (Epic 5).~~ RESOLVED for Null Pointer in Story 5.1 (`boss_def.tres` lands; the per-phase hint test covers it). Segfault still pending (Story 5.x). **Resolved (verified 2026-11-17 by Epic 9 triage: boss_def.tres exist for null_pointer and segfault).**
 - Hit-stop is not covered by a nudge test (pause and Breakpoint are, in `test_start_nudge.gd`); the `test_a_shift_at_tick_10_starts_at_10` tail assertion (`iteration >= 1`) is near-vacuous; `test_third_death_through_the_real_game_flow` sets the flow state by hand after the retry.
 - The `→` in hint text is sent to the mumble voice (letters only, probed silent in 4.4); confirm by ear in the browser (human check).
 - Pending hints are dropped when the flow leaves FIGHT (D-S44-12) and the Breakpoint record is marked at queue time, a recorded departure from the AC 9 wording.
 
 ## Deferred from: code review of story-5.1 (2026-11-11)
 
-- Fight 2 (Null Pointer) ships as an unattackable, mostly invisible damage sponge in release builds until Stories 5.2 (attacks) and 5.4 (Watch) land.
+- Fight 2 (Null Pointer) ships as an unattackable, mostly invisible damage sponge in release builds until Stories 5.2 (attacks) and 5.4 (Watch) land. **Resolved (verified 2026-11-17 by Epic 9 triage: Stories 5.2 (attacks), 5.4 (Watch), 5.3 (dispel) landed; null_pointer_body.gd).**
 - ROAR (phase 1 to 2) keeps the ghost hidden; decide in the playtest whether the roar should show the body.
 - `reset_for_fight` clears `watch_held` although the key may still be held across a retry; Story 5.4 should re-sync Watch state from input.
 - Drift continues while Watch is held (AC 10 wording vs D-S51-7); revisit with 5.4.
@@ -363,7 +363,7 @@ Story 1.3 AC9 / I-6 ("mumble-speech web check, moved to 3.7") is UNBLOCKED. Tizi
 - Phase-2 `gap_frames` (60) assertion was dropped from the rewritten Story 5.1 body test.
 - With `invuln_frames` 0 the attacks could queue a hit per ACTIVE tick; add a one-hit latch if invulnerability is retuned.
 - AC 13 covers `declared_positions` on 4 facings only; `BossView` glyph/outline drawing has no test.
-- `tell_pointer_grab` / `tell_null_rain` sfx ids are not registered with audio (silent cue). *(Resolved in 7.2: pooled cues via `AudioManager.play_cue`, ShiftSfx is the shift click only; every real-boss `tell_sfx` is its boss's tell cue.)*
+- `tell_pointer_grab` / `tell_null_rain` sfx ids are not registered with audio (silent cue). *(Resolved in 7.2: pooled cues via `AudioManager.play_cue`, ShiftSfx is the shift click only; every real-boss `tell_sfx` is its boss's tell cue.)* **Resolved (verified 2026-11-17 by Epic 9 triage: resolved in 7.2 (AudioManager.play_cue)).**
 - Phase 1 and phase 2 share the same attack pool (D-S52-6); phase escalation is thin.
 
 ## Deferred from: code review of story-5.3 (2026-11-11)
@@ -399,7 +399,7 @@ Story 1.3 AC9 / I-6 ("mumble-speech web check, moved to 3.7") is UNBLOCKED. Tizi
 - `DuckDirector.watch_enabled` is a startup copy of `arena.watch_enabled`; a later `set_watch_enabled` would not reach it.
 - Director excludes only the DEFEATED state; N1/N2 can queue during defeat hit-stop and fire back to back at fight start. Tune in playtest.
 - No cut-path guard in `HarvestScreen`, `Main.make_harvest_screen(1)` or `Game.finish_harvest` (only the flow routing keeps HARVEST away from index 1 when the Segfault is cut).
-- Brittle tests: hard-coded wrapped-line counts `[.., 7, 4]`, regex over `## Cut #N` comments, PlaceholderScreen assertion (breaks in Story 6.8); `N2_BIT == DUCK_IDS.size() + 1` is not asserted. *(Story 6.8: the PlaceholderScreen ENDING assertions now expect EndingScreen (test_main_layers, test_harvest_flow); the wrapped-line counts were updated again for the ending line.)*
+- Brittle tests: hard-coded wrapped-line counts `[.., 7, 4]`, regex over `## Cut #N` comments, PlaceholderScreen assertion (breaks in Story 6.8); `N2_BIT == DUCK_IDS.size() + 1` is not asserted. *(Story 6.8: the PlaceholderScreen ENDING assertions now expect EndingScreen (test_main_layers, test_harvest_flow); the wrapped-line counts were updated again for the ending line.)* **Resolved (verified 2026-11-17 by Epic 9 triage: annotated: Story 6.8 updated the ending expectations; rest are test-style nits).**
 - `game/data/duck/duck_clips.tres` sub-resource ids were regenerated by an editor resave and `load_steps` is stale.
 - Web build size (NFR4, 32 MB): the two WAVs add 571,290 bytes raw; verified only by the CI gate.
 
@@ -442,11 +442,11 @@ Story 1.3 AC9 / I-6 ("mumble-speech web check, moved to 3.7") is UNBLOCKED. Tizi
 - `boss_def_path_for` defaults `segfault_on` to true (matches the shipped flag; consider a required argument).
 - Hurtbox/contact circle (2 tiles) is narrower than the drawn 6x4 body (design).
 - First drift tick draws from the shared fight RNG (per spec); reflection remainder and exact bounce x are untested; `check_guards.sh` leaf rule does not cover `AccessViolation` / segfault data paths.
-- `test_arena_player.gd` has 2 pre-existing headless failures (shader `return` in fragment processor), present on the stacked parent too.
+- `test_arena_player.gd` has 2 pre-existing headless failures (shader `return` in fragment processor), present on the stacked parent too. **Resolved (verified 2026-11-17 by Epic 9 triage: fixed by PR #66 (screen FX shader compile error fix)).**
 
 ## Deferred from: code review of story 6.4 (Corrupted tiles, Corrupt Memory and Core Dump)
 
-- [design call, coordinator] Core Dump checkerboard amended from 144/144 to 288/288 (one-tile checkerboard over the full 32x18 grid); story AC text updated.
+- [design call, coordinator] Core Dump checkerboard amended from 144/144 to 288/288 (one-tile checkerboard over the full 32x18 grid); story AC text updated. **Resolved (verified 2026-11-17 by Epic 9 triage: design call recorded; story AC updated).**
 - Entry latch (D-S64-5) is a boolean "on any attack tile": a hazard-to-hazard hop (adjacent Corrupt Memory tiles, or a diagonal step between Core Dump parity tiles) never re-hits; standing on a marked tile during TELL is immune until leaving; an entry swallowed by invulnerability is latched and not retried. Consider a last-hazard-cell latch and a hit-landed feedback in the 7.8 playtest.
 - `touches_player` mutates the latch (query-named method); latch is stale if contact checks are skipped (paused boss, null arena). `mark_random_tiles` returns 0 silently when `_rng` is null; `_rng` is not cleared in `reset_for_fight`.
 - `hazard_hit` on the tile attacks is unused in production except via CombatResolver's Ghost Echo decoy strike (about half the grid is hazard in Core Dump, so Patched triggers easily); `_clear`/`_in_state`/`on_cancel` helpers duplicated across the two attacks and one shared grid can be wiped by a non-current attack's `reset()`.
@@ -482,46 +482,46 @@ Story 1.3 AC9 / I-6 ("mumble-speech web check, moved to 3.7") is UNBLOCKED. Tizi
 
 ## Story 6.8 (Ending sequence)
 
-- Fixed in 6.8 (C1, AC 7): `Game.advance()` in ENDING reset the run unconditionally; it now goes through `can_leave_ending` + `finish_ending(frame, true)` (same pattern as the INTRO fix in 6.7). 3.7 "call `VoiceService.stop()` on flow exit" is now done for the ENDING exit too (`EndingScreen._exit_tree`).
+- Fixed in 6.8 (C1, AC 7): `Game.advance()` in ENDING reset the run unconditionally; it now goes through `can_leave_ending` + `finish_ending(frame, true)` (same pattern as the INTRO fix in 6.7). 3.7 "call `VoiceService.stop()` on flow exit" is now done for the ENDING exit too (`EndingScreen._exit_tree`). **Resolved (verified 2026-11-17 by Epic 9 triage: Game.can_leave_ending (game.gd), EndingScreen._exit_tree).**
 - `render_duck_lines.gd` re-saves `duck_clips.tres` with renumbered sub-resource ids; in 6.8 the generated `ending` clip was spliced in by hand so the diff is only the new entry. A stable-id writer in the tool would remove the manual step.
 - Clear time counts `SimClock.sim_frame`, which also stops during hit-stop and the Breakpoint freeze (not only pause): the card under-reports wall time by those frames (D-S68-4 "counts whatever the sim counts").
-- Audio credit line is the placeholder `audio: TBD` in `data/ending/ending_text.tres`; 7.1/7.2 choose the sources and 7.9 must replace it before submission.
+- Audio credit line is the placeholder `audio: TBD` in `data/ending/ending_text.tres`; 7.1/7.2 choose the sources and 7.9 must replace it before submission. **Resolved (verified 2026-11-17 by Epic 9 triage: ending_text.tres reads 'audio: SFX, placeholder music, made in-repo (CC0)'; a music licence change stays HUMAN).**
 - Human check pending: E1 Chrome check of the ending (desk panel, nibble to 0xFF, commit typing, duck voice at frame 300, ≤ 30 s, credits legible at 640×360, Esc freeze, leave after 1 s).
-- Review 6.8 (fixed): `DuckBubble._on_flow_state_changed` now also clears on `from == ENDING` (debug jump ENDING -> FIGHT no longer leaks line 9 into the fight).
+- Review 6.8 (fixed): `DuckBubble._on_flow_state_changed` now also clears on `from == ENDING` (debug jump ENDING -> FIGHT no longer leaks line 9 into the fight). **Resolved (verified 2026-11-17 by Epic 9 triage: marked fixed in text).**
 - Review 6.8 (deferred): the 60-frame leave gate lets a player who keeps mashing skip the whole ending (spec D-S68-7); consider a longer gate or an earlier prompt after the 7.8 playtest.
 - Review 6.8 (deferred): `format_clear` is not capped at 59:59 (runs over 1 hour show 60:00+); `test_draw_is_ink_only` greps source only; `EndingScreen._physics_process` and `_unhandled_input` with a real Viewport are not exercised (tests drive `poll`); the clear-time integration assertion recomputes the same subtraction; ENDING entry while focus is lost is untested; the run reset is repeated in three `Game` places.
-- Review 6.8 (accepted): summary card stays on screen after frame 540 (D-S68-12); the owned nibble is always drawn full (D-S68-9); clear time excludes hit-stop and Breakpoint frames (D-S68-14, sim-frame clock).
+- Review 6.8 (accepted): summary card stays on screen after frame 540 (D-S68-12); the owned nibble is always drawn full (D-S68-9); clear time excludes hit-stop and Breakpoint frames (D-S68-14, sim-frame clock). **Resolved (verified 2026-11-17 by Epic 9 triage: accepted design decisions D-S68-9 / 12 / 14).**
 
 ## Story 6.9 (Game text audit)
 
-- Review 6.9 (fixed): `TextFixedLines.validate` now requires the three boss ids as keys; typed-array construction in the validation test; stale sky-comment doc comment.
+- Review 6.9 (fixed): `TextFixedLines.validate` now requires the three boss ids as keys; typed-array construction in the validation test; stale sky-comment doc comment. **Resolved (verified 2026-11-17 by Epic 9 triage: marked fixed in review).**
 - Review 6.9 (deferred): `fixed_lines.tres` entries are audited only (BossDef.fixed_line stays the runtime source, D-S69-2); `HarvestScreen` could read `FIXED_LINES.line_for` in a later cleanup.
 - Review 6.9 (deferred): `static var` getters replacing legacy `const` names cannot be used in const initializers or `match` patterns (accepted design call); sky comment fields are per-boss named, not an id map; `MAX_CHARS := 80` is not tied to `Hud.COLS`; no pixel-width check on intro captions, title and dead line; hint windows in the audit test come from three hard-coded boss paths, not `Defs`.
-- Review 6.9 (deferred): `MOVED_LITERALS` only matches exact quoted strings (a tripwire, not exhaustive); `press any key` still lives in `screen_text.tres`, `ending_text.tres` and the `EndingText` default; GDD HUD mock-up still shows the old truncated T1 wording; font-coverage appends are not asserted non-empty.
+- Review 6.9 (deferred): `MOVED_LITERALS` only matches exact quoted strings (a tripwire, not exhaustive); `press any key` still lives in `screen_text.tres`, `ending_text.tres` and the `EndingText` default; GDD HUD mock-up still shows the old truncated T1 wording; font-coverage appends are not asserted non-empty. **Resolved in Story 9.4 (D-S94-2) for the GDD HUD mock-up:** the duck bubble now shows the shipped T1 text. The MOVED_LITERALS tripwire note itself stays WONTFIX.
 
 ## Story 7.1 (Music and crossfades)
 
 - PLACEHOLDER music: all eight files in `game/assets/audio/music/` (`title.ogg`, `boss_1..3.ogg`, `boss_1..3_glitch.ogg`, `breakpoint_muffled.ogg`) are generated loops from `game/tools/generate_placeholder_music.py` (120 BPM, 4 bars, 8.0 s, mono 22050 Hz). Tiziano replaces them with the real BeepBox tracks under the same names (same length/BPM per family, keep `loop=true`); rule in `game/assets/audio/music/README.md`. No code change needed.
 - Encoder note: the generator needs `numpy` + `soundfile` (the soundfile wheel bundles libsndfile with Vorbis) in a throwaway venv; no ffmpeg/oggenc on the dev machine. Byte-identical output relies on the same libsndfile version (the script fixes the Ogg serial).
 - Human checks pending: H1 Chrome (title after the first press, boss 1–3 tracks, glitch at phase 3 in step, Breakpoint muffles and returns in step, no click at crossfades); H2 Firefox and Safari (same checks, Sample-mode path); H3 Tiziano drops one real `.ogg` over a placeholder, re-imports, confirms it plays with no code change.
-- Audio credit line stays `audio: TBD` until 7.9.
+- Audio credit line stays `audio: TBD` until 7.9. **Resolved (verified 2026-11-17 by Epic 9 triage: ending_text.tres credit_lines no longer TBD (Story 7.9)).**
 - Review 7.1 (deferred): rapid A-B-A switches (e.g. Breakpoint start/end within 12 frames, phase 3 next to Breakpoint) reuse a still-audible fading-out player and cut it; two players cannot hold three layers (fix: fade up from current volume, debounce, or a third player). Check in H1.
 - Review 7.1 (deferred): crossfade sync uses `get_playback_position()`, which may be coarse or stale in web Sample mode; if H2 shows drift, track start time per player instead. Placeholder generator nits (constant naming, no read-back verification of the rewritten Ogg serial).
 
 ## Story 7.2 (Final SFX pass)
 
-- SFX placeholders resolved: every one-shot is a file in `game/assets/audio/sfx/` generated by `game/tools/gen_sfx.py` (stdlib only, deterministic, CC0 by construction); list and status in `game/assets/audio/sfx/README.md`. The code-built thud, chime and tell blip are gone; `make_blip` stays only for the title start press (`play_test_sfx`, Story 1.4).
+- SFX placeholders resolved: every one-shot is a file in `game/assets/audio/sfx/` generated by `game/tools/gen_sfx.py` (stdlib only, deterministic, CC0 by construction); list and status in `game/assets/audio/sfx/README.md`. The code-built thud, chime and tell blip are gone; `make_blip` stays only for the title start press (`play_test_sfx`, Story 1.4). **Resolved (verified 2026-11-17 by Epic 9 triage: every one-shot is a file in game/assets/audio/sfx/ (gen_sfx.py); status note only).**
 - Human checks pending: H-S72-1 Chrome and Firefox: `<<` / `>>` click on the input frame (F9 overlay / `Log` line `shift` on the same frame), no delay on a second press within 6 frames; H-S72-2 Tiziano listens to the 15 files and approves or asks for a regenerate (edit the recipe in `gen_sfx.py`); H-S72-3 web build balance: tells audible over the boss music, no clipping on hit + chime + squeak overlap.
 - Determinism check (AC 10, not in GUT/CI): `python3 game/tools/gen_sfx.py --out /tmp/sfx && for f in game/assets/audio/sfx/*.wav; do cmp "$f" /tmp/sfx/$(basename "$f"); done` prints nothing when the committed files match the generator.
-- Audio credit line stays `audio: TBD` until 7.9.
+- Audio credit line stays `audio: TBD` until 7.9. **Resolved (verified 2026-11-17 by Epic 9 triage: ending_text.tres audio line filled in 7.9; no TBD remains).**
 - Review 7.2 (deferred): the SFX pool steals the oldest player with no same-id retrigger guard or priority, so a burst (hit + chime + player_hit) can cut the 0.7 s roar or defeat stinger; add a per-id guard if H-S72-3 shows it.
 - Review 7.2 (deferred): clips are peak-normalised (0.6 to 0.75), not loudness-matched; noise-heavy clips may sound louder and the SFX bus has no limiter. Consider RMS normalisation or a bus gain in H-S72-3.
 - Review 7.2 (deferred): the `cmp` determinism check may differ by 1 LSB on another platform (libm); run it on the same OS as the committed files. Also consider `edit/loop_mode=1` (Disabled) in the SFX `.import` files, and tracking pool end times instead of `playing` if web Sample mode lags.
 
 ## Story 7.3 (Save and resume)
 
-- Save format (D-S73-1): `ConfigFile` at `user://save.cfg`, section `save`, keys `version` (int, 1), `highest_boss` (int, 1..3), `assist` (bool, written `false` until 7.4 calls `SaveService.set_assist`), `muted` (bool, written by the pause screen's `[M]` toggle through `SaveService.set_muted`). A different version or a bad value resets to defaults with one `save` warn and is overwritten on the next write; no migration code. 7.4 / 7.6 add keys, not a new version, unless a key changes meaning.
-- Test seam: under GUT the `SaveService` autoload runs with `path = ""` (in-memory only, no file I/O) and `track_fights = false` (fights played by other tests never raise `highest_boss`). Tests of the write rules set a scratch path / turn tracking on and restore both in `after_each` (`test_save_service.gd`).
+- Save format (D-S73-1): `ConfigFile` at `user://save.cfg`, section `save`, keys `version` (int, 1), `highest_boss` (int, 1..3), `assist` (bool, written `false` until 7.4 calls `SaveService.set_assist`), `muted` (bool, written by the pause screen's `[M]` toggle through `SaveService.set_muted`). A different version or a bad value resets to defaults with one `save` warn and is overwritten on the next write; no migration code. 7.4 / 7.6 add keys, not a new version, unless a key changes meaning. **Resolved (verified 2026-11-17 by Epic 9 triage: design note, implemented in SaveService; nothing to do).**
+- Test seam: under GUT the `SaveService` autoload runs with `path = ""` (in-memory only, no file I/O) and `track_fights = false` (fights played by other tests never raise `highest_boss`). Tests of the write rules set a scratch path / turn tracking on and restore both in `after_each` (`test_save_service.gd`). **Resolved (verified 2026-11-17 by Epic 9 triage: informational; implemented).**
 - Human checks pending: H-S73-1 Chrome and Firefox web build: play to Boss 2, reload, press a key: Boss 2, full HP, no Intro, `[N] new run` visible, `N` resets to the Intro; toggle `[M]` on the pause screen, reload: mute kept. H-S73-2 itch.io iframe or a private window: game runs, no visible error, at most one `save` warn in the console. H-S73-3 Safari: same as H-S73-1.
 
 ## Deferred from: code review of story-7.3 (2026-11-14)
@@ -556,15 +556,15 @@ Story 1.3 AC9 / I-6 ("mumble-speech web check, moved to 3.7") is UNBLOCKED. Tizi
 ## Story 7.6 (Practice target from the title screen)
 
 - Human checks pending: H-S76-1 release web build (no `?debug`) in Chrome: `[P]` on the title (and click, and L3 on a pad) starts the dummy fight, hit log and `frames N` show, `L` / Select cycle loadouts, Esc / L3 return to the title with the save unchanged; H-S76-2 title row spacing (`[P] practice` at y 304) at phone width.
-- Open question: `PlaceholderScreen` ("FIGHT n" / "boss index n", Story 1.6) draws over the arena in every normal fight in release builds too. It is hidden in practice only; decide whether to remove it for all fights (needs the 7.8/7.7 visual pass).
+- Open question: `PlaceholderScreen` ("FIGHT n" / "boss index n", Story 1.6) draws over the arena in every normal fight in release builds too. It is hidden in practice only; decide whether to remove it for all fights (needs the 7.8/7.7 visual pass). **Resolved (verified 2026-11-17 by Epic 9 triage: Story 7.7 gated the label on Debug.enabled; PR #65 then retired it, so placeholder_screen.gd draws no text).**
 - In practice, music follows the chosen loadout's boss index (boss track for that index, not the title track); acceptable, revisit if playtests find it odd.
 - Test gaps (auditor): no explicit test of the per-hit log line in practice, of `saved_highest_boss` re-read after leaving practice, or of the pause rows in practice.
 - Pad L3 / Select are matched by raw button index (not remappable); fine while there is no remapping (out of scope).
 
 ## Story 7.7 (Fullscreen, browser matrix and performance)
 
-- Resolves the 7.6 open question above: the `PlaceholderScreen` text (`FIGHT n` / `boss index n`) now shows only with `Debug.enabled` (debug builds and `?debug`) and never in practice (`Main.shows_fight_placeholder`).
-- Build size: `game/tools/check_build_size.sh [dir]` (default `build/web`) is the single size check; CI's "Web build size" step now calls it on the shipped export (stripped template). Budget = `WEB_SIZE_BUDGET_BYTES` (CI env 32000000, decimal 32 MB, Story 1.3 DC4), not 32 MiB. A local export with the stock template measures ~51 MB (44 MB `index.side.wasm`, 2.9 MB js, 1.95 MB pck on 2026-11-14) and fails the check: expected, see "1.3 H3"; the CI artifact is the reference.
+- Resolves the 7.6 open question above: the `PlaceholderScreen` text (`FIGHT n` / `boss index n`) now shows only with `Debug.enabled` (debug builds and `?debug`) and never in practice (`Main.shows_fight_placeholder`). **Resolved (verified 2026-11-17 by Epic 9 triage: Story 7.7 gated the text on Debug.enabled; PR #65 retired the label, placeholder_screen.gd is text-free).**
+- Build size: `game/tools/check_build_size.sh [dir]` (default `build/web`) is the single size check; CI's "Web build size" step now calls it on the shipped export (stripped template). Budget = `WEB_SIZE_BUDGET_BYTES` (CI env 32000000, decimal 32 MB, Story 1.3 DC4), not 32 MiB. A local export with the stock template measures ~51 MB (44 MB `index.side.wasm`, 2.9 MB js, 1.95 MB pck on 2026-11-14) and fails the check: expected, see "1.3 H3"; the CI artifact is the reference. **Resolved (verified 2026-11-17 by Epic 9 triage: check_build_size.sh is used in CI; informational).**
 - No new telemetry (D-S77-2): the human perf run reads the F10 overlay (FPS, frame ms, particles n/300, draw calls), which needs `?debug`.
 - Human checks pending (story 7.7 stays reviewable; these ACs 20-21 are open):
   - [ ] H-S77-1 Chrome and Firefox, release web build (no `?debug`): title `F`, click on `[F] fullscreen` and pad R3 toggle fullscreen and the label switches to `[F] windowed`; a second press returns; pause `F` / R3 / click on `[F] FULLSCREEN OFF` toggles without resuming; a full run with no crash; a refused request (e.g. browser setting blocks it) leaves the game windowed with no player-visible error (one `[WARN][display]` in the console).
@@ -579,7 +579,7 @@ Story 1.3 AC9 / I-6 ("mumble-speech web check, moved to 3.7") is UNBLOCKED. Tizi
 
 ## Story 7.8 (Full-run playtest and final tuning)
 
-- Scope delivered: the harness only. `playtest-full.md` (protocol, metric table, per-tester sections, aggregate, tuning log, final runs) and the `[metrics]` console lines (`first_shift_s`, per-boss `cleared_s` / `deaths` / `assist`, the ENDING `run full_run_s=... bosses=[...]` summary). No gameplay value was changed.
+- Scope delivered: the harness only. `playtest-full.md` (protocol, metric table, per-tester sections, aggregate, tuning log, final runs) and the `[metrics]` console lines (`first_shift_s`, per-boss `cleared_s` / `deaths` / `assist`, the ENDING `run full_run_s=... bosses=[...]` summary). No gameplay value was changed. **Resolved (verified 2026-11-17 by Epic 9 triage: informational; playtest-full.md and the [metrics] lines exist).**
 - Human checks pending (story 7.8 stays reviewable; ACs 1-4 are open):
   - [ ] H-S78-1 >= 3 first-time playtesters (by Nov 27): each plays a full run from the title on the release web build; fill their sections in `playtest-full.md` and paste the `[metrics]` lines.
   - [ ] H-S78-2 Null Pointer locatable by sound alone and by sight alone, asked per tester (D-S78-7).
@@ -590,13 +590,13 @@ Story 1.3 AC9 / I-6 ("mumble-speech web check, moved to 3.7") is UNBLOCKED. Tizi
 
 ## Story 7.9 (itch.io page, README and submission)
 
-- Scope delivered: README (controls from the input map, run and build, AI use, credits with licences), the itch copy draft `itch-page-copy.md`, the in-game credit lines (`audio:` no longer TBD, `voice:` credits mumble-speech as Tiziano's own library).
+- Scope delivered: README (controls from the input map, run and build, AI use, credits with licences), the itch copy draft `itch-page-copy.md`, the in-game credit lines (`audio:` no longer TBD, `voice:` credits mumble-speech as Tiziano's own library). **Resolved (verified 2026-11-17 by Epic 9 triage: README Credits table; ending_text.tres credit_lines no TBD).**
 - Human checks pending (story 7.9 stays reviewable):
   - [ ] H-S79-1 Cover GIF of a shift into a Dash Strike crit (<= 15 s, <= 8 MB); replace the `[COVER GIF: to capture]` marker.
   - [ ] H-S79-2 3 to 5 screenshots from the release web build (`?debug` off).
   - [ ] H-S79-3 Edit the itch page (game id 5332990) with the approved copy; add the html.itch.zone pad line if H-S75-4 shows the iframe blocks the pad.
   - [ ] H-S79-4 Confirm the AI-use wording and the "no generative image, music or voice model" claim (the font bitmaps, SFX recipes and copy were written in AI-assisted sessions; the wording does not claim otherwise).
-  - [ ] H-S79-5 Submit to GitHub Game Off 2026 by 2026-11-29 12:00 PST.
+  - [ ] H-S79-5 Submit to GitHub Game Off 2026 by the internal target Nov 29 12:00 PST (official Game Off cutoff Dec 1 13:37 PST).
 - Deferred: the licence of the final BeepBox tracks is not chosen; when they land, fill the music README licence line and update the README / itch Music row and the in-game `audio:` line (56-column limit).
 
 ## Code review of Story 7.9 (2026-11-14)
@@ -605,19 +605,19 @@ Story 1.3 AC9 / I-6 ("mumble-speech web check, moved to 3.7") is UNBLOCKED. Tizi
 - Deferred (info): the final music tracks have no licence chosen yet (settle before submission).
 
 ## Code review of Story 8.1 (2026-11-17)
-- Patched in review: the open `;` cue collided with the `i = N` counter (marker base 21 -> 18 px) and collapsed on the small phase-3 inner ring (cue now scales with the ring radius, bar kept off the `;` cell); test added.
+- Patched in review: the open `;` cue collided with the `i = N` counter (marker base 21 -> 18 px) and collapsed on the small phase-3 inner ring (cue now scales with the ring radius, bar kept off the `;` cell); test added. **Resolved (verified 2026-11-17 by Epic 9 triage: already patched in 8.1 (PR #67)).**
 - Deferred (low): a swing at the ring while the Nested Loop blink hides it still logs a miss (no visible target); consider gating `body_touch_px` on visibility. **Resolved in Story 9.2 (D-S92-1):** `InfiniteLoopBody.ring_blinked_out()` (sim side, pure, BossView delegates) gates `body_touch_px`; the `;` hurtbox is not gated.
 - Deferred (low): a miss and the NPE whiff stun can fire on the same last active frame; Echo replay / non-final combo steps also log a miss (no `echoing` filter). Watch for log spam in playtests. **Resolved in Story 9.2 (D-S92-2, D-S92-3, D-S92-4):** `_check_miss` skips Echo replays (`actions.echoing`) and combo openers with a held K (`actions.link.held`); `_check_whiff` returns true when it stuns and the miss is skipped on that frame. Playtest log-spam watch stays a human check.
 - Deferred (low): the open `;` countdown bar saturates at full for windows longer than `ring.open_frames` (Spit / phase-3 timers); `hurt_radius > contact_radius` is relied on for hit/miss exclusivity but not enforced by `RingDef.validate()`.
 - Human check: the open-`;` cue and the `i = N` counter overlap, and the Constrict radius, in a running build.
 
 ## Code review of Story 8.2 (2026-11-17)
-- Patched in review: hold counter resets across a pause; replay/first-run entries copy `SaveService.assist`; checklist view cleared on finish; copy says "reg panel" (the HUD box title); GDD hotkeys and `[N]` wording synced.
-- Applied coordinator calls: a Dash Strike that lands and applies Patched passes test_combo and test_patch on one event (crit still needs a later hit); Backspace held 60 frames also skips (Esc is eaten by the browser in itch fullscreen), hint `hold Esc or Bksp: skip`.
+- Patched in review: hold counter resets across a pause; replay/first-run entries copy `SaveService.assist`; checklist view cleared on finish; copy says "reg panel" (the HUD box title); GDD hotkeys and `[N]` wording synced. **Resolved (verified 2026-11-17 by Epic 9 triage: patched in Story 8.2 (PR #68)).**
+- Applied coordinator calls: a Dash Strike that lands and applies Patched passes test_combo and test_patch on one event (crit still needs a later hit); Backspace held 60 frames also skips (Esc is eaten by the browser in itch fullscreen), hint `hold Esc or Bksp: skip`. **Resolved (verified 2026-11-17 by Epic 9 triage: applied in 8.2; informational).**
 - Deferred (medium): after a title replay ends (outro 90 frames then TITLE) a stray non-option key or click starts or resumes a run; add a short input gate on the title entered from TUTORIAL. **Resolved in Story 9.1 (D-S91-1, D-S91-2):** `Game.TITLE_ENTRY_GATE_FRAMES` (30 sim frames) after every non-TITLE to TITLE entry; gated presses only unlock audio.
 - Deferred (low): no pad binding to replay the tutorial (D-S82-13); the hint does not say `P` pauses in TUTORIAL (dead `pause` name entries); the 2x completion rows' BG backing sits under the `@` and the dummy damage number (move DONE_TOP); device defaults to keyboard when the screen is built (a pad player who skipped the Intro sees keyboard names until the first pad event; trigger axes at rest can flip it to pad). **Resolved in Story 9.1:** (618a, D-S91-4) the hint names `P` / `START` on a second 1x row under the hold bar (`P: pause`, `START: pause`); (618b, D-S91-5) the completion rows are bottom-anchored at y 240 and 264, clear of the `@` and the dummy; (618c, D-S91-6, D-S91-7) the screen starts on the pad when one is connected, and a trigger counts only at +0.5 or more. The pad tutorial binding (D-S82-13) is unchanged.
 - Deferred (low): two actions started in one tick, or one that ends before the poll, are missed by test_actions (only delays the step); the dummy's `hit_landed` damage is not clamped when HP is floored at 1; SaveService v2 means a rolled-back pre-8.2 build treats the save as invalid (accepted, D-S82-8); NFR10 test is a budget check on injected frame counts, not a driven player sim; no test that duck beats T1-T4 fire after TUTORIAL (director polls only in FIGHT); a comment in combat_resolver on the patched_applied-before-hit_landed order would protect the crit rule.
-- Dismissed: test_shift passing when the register already reads [A, D] (AC 5 gates on the window; no shift is needed then); a v1 player with progress who picks `[N]` sees the tutorial once (AC 14 as written).
+- Dismissed: test_shift passing when the register already reads [A, D] (AC 5 gates on the window; no shift is needed then); a v1 player with progress who picks `[N]` sees the tutorial once (AC 14 as written). **Resolved (verified 2026-11-17 by Epic 9 triage: dismissed in review).**
 - Human check: title row, checklist readability, dummy look and cue, fullscreen skip (Backspace), music handoff.
 
 ## Code review of Story 9.1 (2026-11-17)
