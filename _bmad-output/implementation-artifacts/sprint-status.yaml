@@ -185,5 +185,5 @@ development_status:
   9-3-run-and-assist-clarity: done
   9-4-doc-consistency: done
   9-5-test-isolation-hardening: done # optional, cut first
-  9-6-save-and-pad-robustness: backlog # optional
+  9-6-save-and-pad-robustness: done # optional
   epic-9-retrospective: optional

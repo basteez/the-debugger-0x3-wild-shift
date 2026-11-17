@@ -121,6 +121,8 @@ func _ready() -> void:
 	EventBus.player_damaged.connect(on_player_damaged)
 	# Story 7.8 (AC 5): first-shift metric; CONNECT_DEFERRED keeps the handler out of the sim tick (the emit comes from Register.shift inside a tick).
 	EventBus.register_shifted.connect(_on_register_shifted, CONNECT_DEFERRED)
+	# Story 9.6 (AC 5, D-S96-3): a pad unplugged mid-fight pauses.
+	Input.joy_connection_changed.connect(on_joy_connection_changed)
 
 
 func _input(event: InputEvent) -> void:
@@ -135,6 +137,8 @@ func _exit_tree() -> void:
 		EventBus.player_damaged.disconnect(on_player_damaged)
 	if EventBus.register_shifted.is_connected(_on_register_shifted):
 		EventBus.register_shifted.disconnect(_on_register_shifted)
+	if Input.joy_connection_changed.is_connected(on_joy_connection_changed):
+		Input.joy_connection_changed.disconnect(on_joy_connection_changed)
 
 
 func _notification(what: int) -> void:
@@ -292,6 +296,16 @@ func on_focus_lost() -> void:
 	_focus_lost = true
 	if set_paused(true, &"focus"):
 		_web_eval.call(_FOCUS_CANVAS_JS)
+
+
+## Story 9.6 (AC 5, 6, D-S96-3): any pad disconnecting in a PAUSABLE state pauses through set_paused
+## (refused elsewhere, a no-op when already paused). A connect never changes the pause: like focus
+## return, a reconnect never resumes (DC3). Not a focus loss, so _focus_lost is untouched.
+## True when the pause was accepted.
+func on_joy_connection_changed(_device: int, connected: bool) -> bool:
+	if connected:
+		return false
+	return set_paused(true, &"pad")
 
 
 ## Title press-to-start (FR47). Valid only from TITLE.

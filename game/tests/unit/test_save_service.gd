@@ -45,6 +45,8 @@ func before_each() -> void:
 
 
 func after_each() -> void:
+	_delete(SaveScript.temp_path(SCRATCH))
+	_remove_dir(SaveScript.temp_path(SCRATCH))
 	for key: String in _saved:
 		SaveService.set(key, _saved[key])
 	Debug.enabled = _saved_enabled
@@ -61,6 +63,11 @@ func after_each() -> void:
 
 func _delete(p: String) -> void:
 	if FileAccess.file_exists(p):
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(p))
+
+
+func _remove_dir(p: String) -> void:
+	if DirAccess.dir_exists_absolute(p):
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(p))
 
 
@@ -141,15 +148,17 @@ func test_bad_version_resets_to_defaults_and_warns_once() -> void:
 	assert_true(svc.storage_warned, "still one warn for the session")
 
 
-func test_parse_rejects_bad_versions_and_values() -> void:
+func test_parse_rejects_bad_versions_and_defaults_bad_values() -> void:
 	var no_version := ConfigFile.new()
 	no_version.set_value("save", "highest_boss", 3)
 	assert_false(SaveScript.parse(no_version)["valid"])
 	var bad_value := SaveScript.to_config(2, false, false)
 	bad_value.set_value("save", "assist", "yes")
 	var parsed: Dictionary = SaveScript.parse(bad_value)
-	assert_false(parsed["valid"])
-	assert_eq(parsed["highest_boss"], 1)
+	assert_true(parsed["valid"], "Story 9.6 (D-S96-2): a bad value no longer invalidates the file")
+	assert_false(parsed["assist"], "the bad key takes its default")
+	assert_eq(parsed["highest_boss"], 2, "the other keys still load")
+	assert_eq(parsed["bad_keys"], PackedStringArray(["assist"]))
 	var good: Dictionary = SaveScript.parse(SaveScript.to_config(3, true, false))
 	assert_true(good["valid"])
 	assert_eq(good["highest_boss"], 3)
@@ -188,12 +197,14 @@ func test_version_2_round_trips_the_flag() -> void:
 	assert_eq(cfg.get_value("save", "tutorial_done"), true)
 
 
-func test_wrong_type_flag_is_invalid() -> void:
+func test_wrong_type_flag_defaults_to_false() -> void:
 	var cfg := SaveScript.to_config(2, false, false, true)
 	cfg.set_value("save", "tutorial_done", "yes")
 	var parsed: Dictionary = SaveScript.parse(cfg)
-	assert_false(parsed["valid"])
-	assert_false(parsed["tutorial_done"])
+	assert_true(parsed["valid"], "Story 9.6 (D-S96-2): the rest of the save survives")
+	assert_false(parsed["tutorial_done"], "the 8.2 default: tutorial not done")
+	assert_eq(parsed["highest_boss"], 2)
+	assert_eq(parsed["bad_keys"], PackedStringArray(["tutorial_done"]))
 	assert_true(SaveScript.parse(SaveScript.to_config(2, false, false, true))["tutorial_done"])
 	assert_false(SaveScript.defaults()["tutorial_done"])
 
@@ -222,6 +233,11 @@ func test_clamp_highest() -> void:
 	assert_eq(SaveScript.clamp_highest(null), 1)
 	assert_eq(SaveScript.clamp_highest(2), 2)
 	assert_eq(SaveScript.clamp_highest(2.0), 2)
+	# 9.6 review: non-finite and huge floats never reach int() unclamped.
+	assert_eq(SaveScript.clamp_highest(NAN), 1)
+	assert_eq(SaveScript.clamp_highest(INF), 1)
+	assert_eq(SaveScript.clamp_highest(-INF), 1)
+	assert_eq(SaveScript.clamp_highest(1e30), 3)
 
 
 func test_set_assist_writes_assist() -> void:
@@ -545,6 +561,7 @@ func test_completed_wrong_type_reads_false_and_keeps_the_save() -> void:
 	var parsed: Dictionary = SaveScript.parse(cfg)
 	assert_true(parsed["valid"], "a bad completed flag does not invalidate the file")
 	assert_false(parsed["completed"])
+	assert_eq(parsed["bad_keys"], PackedStringArray(["completed"]), "Story 9.6: named in bad_keys")
 	assert_eq(parsed["highest_boss"], 3, "the rest of the save survives")
 	assert_true(parsed["assist"])
 
@@ -780,3 +797,160 @@ func test_arm_ignored_inside_the_title_gate() -> void:
 	assert_eq(title.new_run_armed_frame, -1)
 	assert_eq(Game.flow_state, S.TITLE)
 	assert_eq(SaveService.highest_boss, 3)
+
+
+# --- Story 9.6 (AC 1-4, D-S96-1, D-S96-2): atomic save and per-key parse ------------------------
+
+
+func _handle_engine_errors() -> void:
+	for err: Variant in get_errors(): # a refused write is not a test failure (AC 5, 7.3)
+		err.handled = true
+
+
+func test_temp_path_is_a_sibling() -> void:
+	assert_eq(SaveScript.temp_path("user://save.cfg"), "user://save.cfg.tmp")
+
+
+func test_atomic_write_is_on_off_the_web() -> void:
+	assert_eq(_service().atomic_writes, not OS.has_feature("web"),
+			"[design call] coordinator: web keeps the in-place write")
+
+
+func test_atomic_write_leaves_no_temp_and_parses() -> void:
+	var svc: Node = _service()
+	svc.atomic_writes = true
+	svc.highest_boss = 3
+	svc.assist = true
+	svc.tutorial_done = true
+	assert_true(svc.save())
+	assert_false(FileAccess.file_exists(SaveScript.temp_path(SCRATCH)), "the temp file was renamed away")
+	var cfg := ConfigFile.new()
+	assert_eq(cfg.load(SCRATCH), OK)
+	var parsed: Dictionary = SaveScript.parse(cfg)
+	assert_true(parsed["valid"])
+	assert_eq(parsed["highest_boss"], 3)
+	assert_true(parsed["assist"])
+	assert_true(parsed["tutorial_done"])
+	assert_false(svc.storage_warned)
+
+
+func test_atomic_write_replaces_an_existing_save_and_a_stale_temp() -> void:
+	assert_eq(SaveScript.to_config(1, false, false).save(SCRATCH), OK)
+	var stale := FileAccess.open(SaveScript.temp_path(SCRATCH), FileAccess.WRITE)
+	stale.store_string("garbage [[[ not a config")
+	stale.close()
+	var svc: Node = _service()
+	svc.atomic_writes = true
+	svc.highest_boss = 2
+	svc.muted = true
+	assert_true(svc.save())
+	assert_false(FileAccess.file_exists(SaveScript.temp_path(SCRATCH)), "the stale temp was overwritten, then renamed")
+	var other: Node = _service()
+	other.load_save()
+	assert_eq(other.highest_boss, 2, "rename overwrote the old save")
+	assert_true(other.muted)
+	assert_false(other.storage_warned)
+
+
+func test_atomic_failure_falls_back_to_the_in_place_write() -> void:
+	# The temp path is a directory: the temp write fails, the in-place write still lands, no warn.
+	assert_eq(DirAccess.make_dir_absolute(ProjectSettings.globalize_path(SaveScript.temp_path(SCRATCH))), OK)
+	var svc: Node = _service()
+	svc.atomic_writes = true
+	svc.highest_boss = 3
+	assert_true(svc.save())
+	assert_false(svc.storage_warned, "warn only when the in-place write also fails")
+	var cfg := ConfigFile.new()
+	assert_eq(cfg.load(SCRATCH), OK)
+	assert_eq(SaveScript.parse(cfg)["highest_boss"], 3)
+	assert_true(DirAccess.dir_exists_absolute(SaveScript.temp_path(SCRATCH)), "a directory is never removed")
+	_handle_engine_errors()
+
+
+func test_in_place_write_when_atomic_is_off() -> void:
+	var svc: Node = _service()
+	svc.atomic_writes = false # the web path
+	svc.highest_boss = 2
+	assert_true(svc.save())
+	assert_false(FileAccess.file_exists(SaveScript.temp_path(SCRATCH)))
+	var cfg := ConfigFile.new()
+	assert_eq(cfg.load(SCRATCH), OK)
+	assert_eq(SaveScript.parse(cfg)["highest_boss"], 2)
+
+
+func test_unwritable_path_with_atomic_still_warns_once() -> void:
+	var svc: Node = _service(UNWRITABLE)
+	svc.atomic_writes = true
+	assert_false(svc.save())
+	assert_true(svc.storage_warned)
+	assert_false(FileAccess.file_exists(SaveScript.temp_path(UNWRITABLE)))
+	_handle_engine_errors()
+
+
+func test_read_back_rejects_a_mismatch() -> void:
+	assert_eq(SaveScript.to_config(2, true, false).save(SCRATCH), OK)
+	assert_true(SaveScript._read_back_matches(SCRATCH, SaveScript.parse(SaveScript.to_config(2, true, false))))
+	assert_false(SaveScript._read_back_matches(SCRATCH, SaveScript.parse(SaveScript.to_config(3, true, false))))
+	assert_false(SaveScript._read_back_matches("user://no_such_file_9_6.cfg", SaveScript.defaults()))
+
+
+func test_bad_assist_keeps_highest_boss() -> void:
+	var cfg := SaveScript.to_config(3, false, true, true, false)
+	cfg.set_value("save", "assist", "yes")
+	assert_eq(cfg.save(SCRATCH), OK)
+	var svc: Node = _service()
+	svc.load_save()
+	assert_eq(svc.highest_boss, 3, "D-S96-2: progress is kept")
+	assert_false(svc.assist)
+	assert_true(svc.muted)
+	assert_true(svc.tutorial_done)
+	assert_true(svc.storage_warned, "the bad key is logged")
+
+
+func test_bad_highest_boss_gives_min_and_keeps_flags() -> void:
+	var cfg := SaveScript.to_config(3, true, false, true, true)
+	cfg.set_value("save", "highest_boss", "three")
+	assert_eq(cfg.save(SCRATCH), OK)
+	var svc: Node = _service()
+	svc.load_save()
+	assert_eq(svc.highest_boss, SaveScript.MIN_BOSS, "a non-number falls back to the minimum")
+	assert_true(svc.assist)
+	assert_true(svc.tutorial_done)
+	assert_true(svc.completed)
+	assert_true(svc.storage_warned, "the fallback is logged")
+
+
+func test_several_bad_keys_are_named_and_warn_once() -> void:
+	var cfg := SaveScript.to_config(2, false, false)
+	cfg.set_value("save", "highest_boss", [1])
+	cfg.set_value("save", "muted", 0)
+	cfg.set_value("save", "completed", "no")
+	var parsed: Dictionary = SaveScript.parse(cfg)
+	assert_true(parsed["valid"])
+	assert_eq(parsed["bad_keys"], PackedStringArray(["highest_boss", "muted", "completed"]))
+	assert_eq(cfg.save(SCRATCH), OK)
+	var svc: Node = _service()
+	svc.load_save()
+	assert_true(svc.storage_warned)
+	svc.load_save()
+	assert_true(svc.storage_warned, "one warn for the session")
+
+
+func test_good_save_has_no_bad_keys() -> void:
+	var parsed: Dictionary = SaveScript.parse(SaveScript.to_config(2, true, true, true, true))
+	assert_true(parsed["valid"])
+	assert_true((parsed["bad_keys"] as PackedStringArray).is_empty())
+	assert_true((SaveScript.defaults()["bad_keys"] as PackedStringArray).is_empty())
+
+
+func test_unknown_version_is_still_a_fresh_save() -> void:
+	var cfg := SaveScript.to_config(3, true, true, true, true)
+	cfg.set_value("save", "version", 99)
+	assert_eq(cfg.save(SCRATCH), OK)
+	var svc: Node = _service()
+	svc.load_save()
+	assert_eq(svc.highest_boss, 1, "D-S73-8 unchanged")
+	assert_false(svc.assist)
+	assert_false(svc.tutorial_done)
+	assert_false(svc.completed)
+	assert_true(svc.storage_warned)
