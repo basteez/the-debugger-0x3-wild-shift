@@ -23,6 +23,9 @@ var _saved_source: InputSource
 func before_each() -> void:
 	_saved_source = SimClock.input_source
 	SimClock.paused = false
+	# A retry in an earlier script arms the swallow; without a physics frame since, the first tick
+	# here would drop the Space press (flaky in CI).
+	SimClock.set(&"_swallow_presses", false)
 
 
 func after_each() -> void:
