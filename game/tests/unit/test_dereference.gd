@@ -45,15 +45,13 @@ func before_each() -> void:
 	_health.set_active(true)
 	_combat = CombatResolver.new(_fsm, _player)
 	_t = 0
-	SimClock._pending_hitstop = 0
-	SimClock.hitstop_frames = 0
+	TestIsolation.clear_hitstop()
 	watch_signals(EventBus)
 
 
 func after_each() -> void:
 	Game.flow_state = _saved_state as GameScript.FlowState
-	SimClock._pending_hitstop = 0
-	SimClock.hitstop_frames = 0
+	TestIsolation.clear_hitstop()
 
 
 func _ring(bits: Array) -> void:
@@ -134,7 +132,7 @@ func _run_dereference() -> int:
 	while _fsm.action == Defs.DEREFERENCE and guard < 40:
 		_tick()
 		max_stop = maxi(max_stop, SimClock._pending_hitstop)
-		SimClock._pending_hitstop = 0
+		TestIsolation.clear_hitstop()
 		guard += 1
 	return max_stop
 

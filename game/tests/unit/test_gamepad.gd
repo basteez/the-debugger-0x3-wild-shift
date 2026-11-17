@@ -17,7 +17,6 @@ var _saved_assist: bool
 var _saved_muted: bool
 var _saved_highest: int
 var _saved_flow: int
-var _saved_title_entry: int = -1
 var _saved_frame: int = 0
 var _saved_unlocked: bool
 
@@ -29,7 +28,6 @@ func before_each() -> void:
 	_saved_highest = SaveService.highest_boss
 	_saved_flow = Game.flow_state
 	_saved_unlocked = AudioManager.is_unlocked()
-	_saved_title_entry = Game.title_entry_frame
 	_saved_frame = SimClock.sim_frame
 	Game.title_entry_frame = -1 # Story 9.1: these title tests run outside the entry gate
 	SimClock.paused = false
@@ -41,7 +39,6 @@ func after_each() -> void:
 	SaveService.highest_boss = _saved_highest
 	AudioManager.set_master_muted(_saved_muted)
 	Game.flow_state = _saved_flow as GameScript.FlowState
-	Game.title_entry_frame = _saved_title_entry
 	SimClock.sim_frame = _saved_frame
 	if not _saved_unlocked:
 		AudioManager.set("_unlocked", false)

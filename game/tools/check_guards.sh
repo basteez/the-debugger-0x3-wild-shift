@@ -80,6 +80,10 @@ report "data/bosses/segfault named outside the Arena wiring or the module (leaf 
 report "direct output call outside Log (use Log.info/debug/warn/error)" \
 	< <(grep -rnE --include='*.gd' '(^|[^.[:alnum:]_])(print|prints|printt|printraw|printerr|print_rich|print_debug|print_verbose|push_error|push_warning)[[:space:]]*\(' game/src | grep -v '^game/src/autoloads/log\.gd:' | grep -vE '^[^:]+:[0-9]+:[[:space:]]*#' || true)
 
+# Story 9.5 (D-S95-9): SimClock.reset_for_tests() is a test seam; shipped code never calls it.
+report "SimClock.reset_for_tests called from src (test-only seam)" \
+	< <(grep -rnE --include='*.gd' 'reset_for_tests' game/src | grep -vE 'func reset_for_tests' | grep -vE '^[^:]+:[0-9]+:[[:space:]]*#' || true)
+
 if [ "$violations" -gt 0 ]; then
 	echo "check_guards: $violations violation(s)" >&2
 	exit 1

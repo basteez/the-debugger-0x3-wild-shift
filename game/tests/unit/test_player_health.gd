@@ -30,12 +30,12 @@ func before_each() -> void:
 	_health.reset_for_fight()
 	_health.set_active(true)
 	_ctx = SimContext.new()
-	SimClock.set(&"_pending_hitstop", 0)
+	TestIsolation.clear_hitstop()
 
 
 func after_each() -> void:
 	Game.flow_state = _saved_state as GameScript.FlowState
-	SimClock.set(&"_pending_hitstop", 0)
+	TestIsolation.clear_hitstop()
 
 
 func _tick(times: int = 1) -> void:
@@ -88,7 +88,7 @@ func test_invulnerability_blocks_at_59_frames_and_admits_at_60() -> void:
 
 func test_blocked_hit_has_no_feedback() -> void:
 	_hit()
-	SimClock.set(&"_pending_hitstop", 0)
+	TestIsolation.clear_hitstop()
 	watch_signals(EventBus)
 	_hit()
 	assert_signal_not_emitted(EventBus, "player_damaged")
@@ -119,7 +119,7 @@ func test_real_fsm_dash_frames_block() -> void:
 	assert_false(fsm.invulnerable())
 	assert_true(health.apply_hit(), "after the invulnerable range it counts")
 	assert_eq(health.hp, 4)
-	SimClock.set(&"_pending_hitstop", 0)
+	TestIsolation.clear_hitstop()
 
 
 func test_dead_ignores_hits() -> void:

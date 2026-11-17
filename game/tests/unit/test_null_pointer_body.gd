@@ -27,13 +27,11 @@ class IdleBody:
 func before_each() -> void:
 	_ctx = SimContext.new()
 	_ctx.reseed(5151)
-	SimClock._pending_hitstop = 0
-	SimClock.hitstop_frames = 0
+	TestIsolation.clear_hitstop()
 
 
 func after_each() -> void:
-	SimClock._pending_hitstop = 0
-	SimClock.hitstop_frames = 0
+	TestIsolation.clear_hitstop()
 
 
 func _body() -> NullPointerBody:
@@ -176,7 +174,7 @@ func test_defeated_ghost_is_shown_and_the_column_stops() -> void:
 	assert_eq(b.state, BossController.BossState.DEFEATED)
 	assert_true(b.visible_now(), "D-S51-6")
 	assert_false(b.alive())
-	SimClock._pending_hitstop = 0
+	TestIsolation.clear_hitstop()
 
 
 func test_patched_stack_is_drawn_while_the_ghost_is_hidden() -> void:
@@ -356,7 +354,7 @@ func test_hum_plays_only_during_a_live_fight() -> void:
 	assert_false(NullPointerHum.should_play(b, true, false), "boss inactive (leave_fight)")
 	b.set_active(true)
 	b.take_hit(700)
-	SimClock._pending_hitstop = 0
+	TestIsolation.clear_hitstop()
 	assert_false(NullPointerHum.should_play(b, true, false), "defeated")
 
 

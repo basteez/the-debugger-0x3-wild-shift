@@ -31,13 +31,11 @@ class FakeSkill:
 func before_each() -> void:
 	_ctx = SimContext.new()
 	_ctx.reseed(5455)
-	SimClock._pending_hitstop = 0
-	SimClock.hitstop_frames = 0
+	TestIsolation.clear_hitstop()
 
 
 func after_each() -> void:
-	SimClock._pending_hitstop = 0
-	SimClock.hitstop_frames = 0
+	TestIsolation.clear_hitstop()
 
 
 func _overlay_script() -> GDScript:
@@ -87,7 +85,7 @@ func test_label_reading_draws_no_rng() -> void:
 func test_defeated_shows_nothing() -> void:
 	var b := _np()
 	b.take_hit(NP_DEF.max_hp)
-	SimClock._pending_hitstop = 0
+	TestIsolation.clear_hitstop()
 	assert_eq(b.state, BossController.BossState.DEFEATED)
 	assert_eq(_overlay_script().next_attack_label(b), "")
 	assert_eq(_overlay_script().lines_for(b), PackedStringArray())
@@ -124,7 +122,7 @@ func test_bit_label_is_drop_bit_and_weak_window() -> void:
 	assert_eq(_overlay_script().bit_label(b), want)
 	assert_eq(Register.glyph_of(NP_DEF.drop_bit), "N", "the Null Pointer drops NULL")
 	b.take_hit(int(NP_DEF.max_hp * 0.5))
-	SimClock._pending_hitstop = 0
+	TestIsolation.clear_hitstop()
 	var w2: Vector2i = b.current_weak_window()
 	assert_true(_overlay_script().bit_label(b).ends_with("weak %s %s" % [Register.glyph_of(w2.x), Register.glyph_of(w2.y)]),
 			"follows the current phase")

@@ -55,15 +55,13 @@ func before_each() -> void:
 	_health.set_active(true)
 	_combat = CombatResolver.new(_fsm, _player)
 	_t = 0
-	SimClock._pending_hitstop = 0
-	SimClock.hitstop_frames = 0
+	TestIsolation.clear_hitstop()
 	watch_signals(EventBus)
 
 
 func after_each() -> void:
 	Game.flow_state = _saved_state as GameScript.FlowState
-	SimClock._pending_hitstop = 0
-	SimClock.hitstop_frames = 0
+	TestIsolation.clear_hitstop()
 
 
 func _ring(bits: Array) -> void:
@@ -137,7 +135,7 @@ func _dodge_through_a_hit() -> void:
 func _slash_k() -> void:
 	_buf.push(K, _t)
 	_run(22)
-	SimClock._pending_hitstop = 0
+	TestIsolation.clear_hitstop()
 
 
 # --- AC 3, 5: arming ---
@@ -262,7 +260,7 @@ func test_a_pass_through_keeps_it() -> void:
 	_run(3)
 	_buf.push(K, _t)
 	_run(20)
-	SimClock._pending_hitstop = 0
+	TestIsolation.clear_hitstop()
 	assert_true(boss.weak_window.is_patched(), "Echo Dash passed through")
 	assert_signal_emit_count(EventBus, "hit_landed", 0)
 	assert_true(_fsm.clean_catch_armed)
@@ -279,7 +277,7 @@ func test_a_zero_damage_hit_keeps_it() -> void:
 	var target: PracticeTarget = _target(SPAWN + Vector2(16, 0))
 	_buf.push(J, _t)
 	_run(22)
-	SimClock._pending_hitstop = 0
+	TestIsolation.clear_hitstop()
 	assert_eq(target.records().size(), 1, "the 0-damage echo landed")
 	assert_eq(_last_hit_damage(), 0)
 	assert_true(_fsm.clean_catch_armed, "damage 0 does not consume")

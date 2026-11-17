@@ -45,12 +45,12 @@ func before_each() -> void:
 	_arena.target_source = func() -> Vector2: return Vector2(256, 200)
 	_arena.contact_source = func() -> Vector2: return _player_px
 	_arena.player_effects.bind(Register.new(), LinkState.new()) # Story 6.5: SIGSEGV's rotation lands
-	SimClock.set(&"_pending_hitstop", 0)
+	TestIsolation.clear_hitstop()
 
 
 func after_each() -> void:
 	Game.flow_state = _saved_state as GameScript.FlowState
-	SimClock.set(&"_pending_hitstop", 0)
+	TestIsolation.clear_hitstop()
 
 
 ## A DumpBody in phase 3 (HP 320).
@@ -204,7 +204,7 @@ func test_defeat_clears_the_board() -> void:
 	b.debug_kill()
 	assert_eq(b.state, S.DEFEATED)
 	assert_true(b.tiles.is_empty())
-	SimClock.set(&"_pending_hitstop", 0)
+	TestIsolation.clear_hitstop()
 
 
 func test_cancel_hook_clears_the_board() -> void:

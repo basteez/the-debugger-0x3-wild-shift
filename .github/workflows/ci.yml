@@ -113,6 +113,39 @@ jobs:
           fi
           exit "$failed"
 
+      # Story 9.5 (D-S95-5): the same suite in a fixed shuffled suite order, so an order-dependent test
+      # fails here. The pre-run hook (game/.gutconfig.json) reads WILDSHIFT_GUT_ORDER and prints the
+      # order. Replay locally with the same env var: ci, reverse or shuffle:<seed>.
+      - name: Unit tests (GUT, shuffled suite order)
+        env:
+          WILDSHIFT_GUT_ORDER: shuffle:20261129
+        run: |
+          set -o pipefail
+          mkdir -p build/ci
+          status=0
+          "$GODOT_BIN" --headless --path game -s addons/gut/gut_cmdln.gd -gdir=res://tests -ginclude_subdirs -gexit 2>&1 | tee build/ci/gut-shuffle.log || status=$?
+          sed -E 's/\x1b\[[0-9;]*m//g' build/ci/gut-shuffle.log > build/ci/gut-shuffle.plain.log
+          failed=0
+          for marker in 'SCRIPT ERROR' 'Parse Error' 'Failed to load script' 'does not extend GutTest' '[Failed]' 'failing tests'; do
+            if grep -nF -- "$marker" build/ci/gut-shuffle.plain.log; then
+              echo "::error::Shuffled GUT log contains failure marker: $marker"
+              failed=1
+            fi
+          done
+          if ! grep -qF -- 'GUT order: shuffle seed 20261129' build/ci/gut-shuffle.plain.log; then
+            echo "::error::The isolation hook did not run the shuffled order"
+            failed=1
+          fi
+          if ! grep -qF -- '---- All tests passed! ----' build/ci/gut-shuffle.plain.log; then
+            echo "::error::Shuffled GUT run did not report 'All tests passed!'"
+            failed=1
+          fi
+          if [ "$status" -ne 0 ]; then
+            echo "::error::Shuffled GUT run exited with code $status"
+            failed=1
+          fi
+          exit "$failed"
+
       - name: Static guards
         run: bash game/tools/check_guards.sh
 

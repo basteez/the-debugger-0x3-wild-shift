@@ -46,7 +46,7 @@ func _dead_boss() -> BossController:
 	assert_true(c.setup(TEST_BOSS, null, ArenaContext.new()))
 	c.reset_for_fight()
 	c.debug_kill()
-	SimClock.set(&"_pending_hitstop", 0)
+	TestIsolation.clear_hitstop()
 	var ctx := SimContext.new()
 	for i: int in BossController.DEFEAT_FRAMES:
 		c.tick(ctx)

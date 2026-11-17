@@ -50,14 +50,12 @@ func before_each() -> void:
 	_combat = CombatResolver.new(_fsm, _player)
 	_combat.ghost = _ghost.decoy
 	_t = 0
-	SimClock._pending_hitstop = 0
-	SimClock.hitstop_frames = 0
+	TestIsolation.clear_hitstop()
 	watch_signals(EventBus)
 
 
 func after_each() -> void:
-	SimClock._pending_hitstop = 0
-	SimClock.hitstop_frames = 0
+	TestIsolation.clear_hitstop()
 	_combat = null
 	_ghost = null
 	_fsm = null

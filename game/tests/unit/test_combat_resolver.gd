@@ -32,16 +32,14 @@ func before_each() -> void:
 	_fsm.set_active(true)
 	_combat = CombatResolver.new(_fsm, _player)
 	_t = 0
-	SimClock._pending_hitstop = 0
-	SimClock.hitstop_frames = 0
+	TestIsolation.clear_hitstop()
 	watch_signals(EventBus)
 
 
 func after_each() -> void:
 	for system: SimSystem in [_reg, _fsm, _player, _combat]:
 		SimClock.unregister_system(system)
-	SimClock._pending_hitstop = 0
-	SimClock.hitstop_frames = 0
+	TestIsolation.clear_hitstop()
 	_combat = null
 	_fsm = null
 	_player = null
@@ -258,7 +256,7 @@ func test_dash_strike_hit_requests_its_own_6() -> void:
 	_run_to(3)
 	_buf.push(K, _t)
 	_run_to(11)
-	SimClock._pending_hitstop = 0 # nothing earlier hit (the arc does not reach 4 tiles)
+	TestIsolation.clear_hitstop() # nothing earlier hit (the arc does not reach 4 tiles)
 	_tick()
 	assert_eq(_fsm.action, Defs.DASH_STRIKE)
 	assert_eq(Defs.DASH_STRIKE.hitstop_frames, 6)
@@ -354,7 +352,7 @@ func _dash_strike() -> void:
 	_run_to(3)
 	_buf.push(K, _t)
 	_run_to(11)
-	SimClock._pending_hitstop = 0
+	TestIsolation.clear_hitstop()
 	_tick()
 	assert_eq(_fsm.action, Defs.DASH_STRIKE)
 
@@ -422,7 +420,7 @@ func test_link_second_slash_on_d_a_patches_and_deals_15() -> void:
 	_buf.push(K, _t)
 	var guard: int = 0
 	while _boss_hits().is_empty() and guard < 20:
-		SimClock._pending_hitstop = 0
+		TestIsolation.clear_hitstop()
 		_tick()
 		guard += 1
 	assert_true(_fsm.link_second)
@@ -438,7 +436,7 @@ func test_solo_slash_on_the_right_bits_never_patches() -> void:
 	var boss: BossController = _boss(Vector2i(A, D), SPAWN + Vector2(32, 0))
 	_buf.push(J, 0)
 	_run_to(6)
-	SimClock._pending_hitstop = 0
+	TestIsolation.clear_hitstop()
 	_tick()
 	assert_signal_emit_count(EventBus, "patched_applied", 0)
 	assert_eq(boss.hp, 95, "slash 10 x 0.5 = 5")
@@ -452,7 +450,7 @@ func test_a_patched_boss_takes_crits_with_8_frames_of_hitstop() -> void:
 	boss.weak_window.apply_patched(100)
 	_buf.push(J, 0)
 	_run_to(6)
-	SimClock._pending_hitstop = 0
+	TestIsolation.clear_hitstop()
 	_tick()
 	assert_signal_emit_count(EventBus, "patched_applied", 0, "a plain hit does not refresh")
 	assert_eq(boss.weak_window.frames_left, 100)
@@ -499,7 +497,7 @@ func _assert_never_hit(mode: String) -> void:
 	_run_to(3)
 	_buf.push(K, _t)
 	_run_to(11)
-	SimClock._pending_hitstop = 0
+	TestIsolation.clear_hitstop()
 	_run_to(30)
 	assert_false(boss.is_hittable(), mode)
 	assert_eq(boss.hp, hp, mode)
@@ -601,7 +599,7 @@ func test_link_second_slash_on_d_a_patches_the_loop_in_phase_2() -> void:
 	_buf.push(K, _t)
 	var guard: int = 0
 	while _boss_hits().is_empty() and guard < 20:
-		SimClock._pending_hitstop = 0
+		TestIsolation.clear_hitstop()
 		_tick()
 		guard += 1
 	assert_true(_fsm.link_second)
@@ -644,7 +642,7 @@ func test_a_dash_through_the_closed_semicolon_lands_when_it_opens_mid_action() -
 	_run_to(3)
 	_buf.push(K, _t)
 	_run_to(11)
-	SimClock._pending_hitstop = 0
+	TestIsolation.clear_hitstop()
 	_tick() # first strike frame on the closed `;`
 	assert_eq(_boss_hits().size(), 0)
 	var seg0: Vector2 = b.segment_px(0)

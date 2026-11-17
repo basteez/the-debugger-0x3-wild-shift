@@ -52,6 +52,8 @@ class BreakpointScript:
 
 var _saved_source: InputSource
 var _saved_state: int
+# Story 9.5 (item 108): EventBus links made in a test, dropped in after_each.
+var _bus_links: Array = []
 
 
 func before_each() -> void:
@@ -62,6 +64,7 @@ func before_each() -> void:
 
 
 func after_each() -> void:
+	TestIsolation.disconnect_bus(_bus_links)
 	SimClock.input_source = _saved_source
 	SimClock.recorder = null
 	SimClock.breakpoint_gate_active = false
@@ -101,9 +104,9 @@ func _session(source: InputSource, seed_value: int) -> Dictionary:
 	var on_shift: Callable = func(_d: int, _w: Vector2i, _r: PackedInt32Array, _s: StringName) -> void:
 		if SimClock.breakpoint_gate_active:
 			counts[&"frozen_shifts"] += 1
-	EventBus.breakpoint_started.connect(on_start)
-	EventBus.breakpoint_ended.connect(on_end)
-	EventBus.register_shifted.connect(on_shift)
+	TestIsolation.connect_bus(_bus_links, EventBus.breakpoint_started, on_start)
+	TestIsolation.connect_bus(_bus_links, EventBus.breakpoint_ended, on_end)
+	TestIsolation.connect_bus(_bus_links, EventBus.register_shifted, on_shift)
 	var start_frame: int = SimClock.sim_frame
 	var hashes := PackedInt64Array()
 	var h: int = 17

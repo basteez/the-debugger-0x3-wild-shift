@@ -3,6 +3,18 @@ extends GutTest
 
 const TitleScreenScript := preload("res://src/ui/screens/title/title_screen.gd")
 
+# Story 9.5 (item 91): audio starts locked for every test and is restored after it, never inline.
+var _saved_unlocked: bool
+
+
+func before_each() -> void:
+	_saved_unlocked = AudioManager.is_unlocked()
+	AudioManager.set("_unlocked", false)
+
+
+func after_each() -> void:
+	AudioManager.set("_unlocked", _saved_unlocked)
+
 
 func _key(code: Key, pressed: bool = true, echo: bool = false) -> InputEventKey:
 	var ev := InputEventKey.new()
@@ -94,7 +106,6 @@ func test_available_option_does_not_start() -> void:
 
 
 func test_available_option_input_keeps_title_and_unlocks_audio() -> void:
-	var was_unlocked: bool = AudioManager.is_unlocked()
 	var screen: Node = autofree(TitleScreenScript.new())
 	# Story 7.7: F is the last title option that keeps TITLE (B too; practice and N leave). A fake
 	# display keeps the headless DisplayServer out of it.
@@ -108,8 +119,6 @@ func test_available_option_input_keeps_title_and_unlocks_audio() -> void:
 	Fullscreen.set_mode_fn = saved_set
 	assert_eq(Game.flow_state, Game.FlowState.TITLE, "an option that acts in place must not leave TITLE")
 	assert_true(AudioManager.is_unlocked())
-	if not was_unlocked:
-		AudioManager.set("_unlocked", false)
 
 
 func test_modifier_and_escape_keys_are_ignored() -> void:

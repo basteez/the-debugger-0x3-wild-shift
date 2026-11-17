@@ -26,7 +26,22 @@ func _playing_players(node: Node) -> int:
 func test_buses_exist() -> void:
 	for bus: StringName in [&"Master", &"Music", &"SFX", &"Voice"]:
 		assert_gte(AudioServer.get_bus_index(bus), 0, "bus %s missing" % bus)
-	assert_eq(AudioServer.bus_count, 4)
+	# Story 9.5 (item 91): the live layout matches the project's bus layout, whatever its size.
+	assert_eq(AudioServer.bus_count, _layout_bus_count(load("res://default_bus_layout.tres")))
+
+
+## AudioBusLayout exposes its buses only as `bus/<i>/...` properties (no bus_count in Godot 4).
+func _layout_bus_count(layout: AudioBusLayout) -> int:
+	var count: int = 0
+	for prop: Dictionary in layout.get_property_list():
+		var parts: PackedStringArray = String(prop["name"]).split("/")
+		if parts.size() == 3 and parts[0] == "bus" and parts[2] == "name":
+			count += 1
+	return count
+
+
+func test_layout_bus_count_reads_the_resource() -> void:
+	assert_eq(_layout_bus_count(load("res://default_bus_layout.tres")), 4, "Master, Music, SFX, Voice")
 
 
 func test_non_master_buses_send_to_master() -> void:

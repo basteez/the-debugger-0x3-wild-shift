@@ -125,6 +125,15 @@ func swallow_presses_next_poll() -> void:
 	_swallow_presses = true
 
 
+## Test seam (Story 9.5): called only by tests/support, never by shipped code.
+## Clears the hit-stop (pending and running) and the swallow flag, the private state no public call
+## can clear (D-S95-2). Frame counters, gates, systems, buffer, ctx and recorder are left alone.
+func reset_for_tests() -> void:
+	_pending_hitstop = 0
+	_swallow_presses = false
+	hitstop_frames = 0
+
+
 ## Fight start / retry: reseed the RNG, drop buffered presses and any hit-stop.
 ## sim_frame is not reset (monotonic per session).
 func begin_fight(seed_value: int) -> void:

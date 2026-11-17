@@ -45,12 +45,12 @@ func before_each() -> void:
 	_arena.target_source = func() -> Vector2: return _target_px
 	_arena.contact_source = func() -> Vector2: return _player_px
 	_arena.shift_count = func() -> int: return _shifts
-	SimClock.set(&"_pending_hitstop", 0)
+	TestIsolation.clear_hitstop()
 
 
 func after_each() -> void:
 	Game.flow_state = _saved_state as GameScript.FlowState
-	SimClock.set(&"_pending_hitstop", 0)
+	TestIsolation.clear_hitstop()
 
 
 func _health(invuln: bool = false) -> PlayerHealth:

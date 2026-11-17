@@ -88,7 +88,7 @@ Story 1.3 AC9 / I-6 ("mumble-speech web check, moved to 3.7") is UNBLOCKED. Tizi
 - TitleScreen.label_rects canvas vs viewport coordinates once options become visible (7.x). **Resolved (verified 2026-11-17 by Epic 9 triage: label_rects maintained in title_screen.gd with the fullscreen option (7.x)).** **[9.4 review: partially verified only; underlying concern not proven fixed, kept as deferred.]**
 - Modified option keys (Shift+N) resolve to START due to exact_match; decide in 7.x.
 - Game.first_input_frame not reset on re-entering TITLE; start_run_from_title returns nothing. **Resolved (verified 2026-11-17 by Epic 9 triage: game.gd resets first_input_frame = -1 on TITLE entry).**
-- Tests: bus_count == 4 exact assertion and AudioManager._unlocked cleanup are order-fragile.
+- Tests: bus_count == 4 exact assertion and AudioManager._unlocked cleanup are order-fragile. Resolved in Story 9.5 (D-S95-1, D-S95-12): bus count compared with `default_bus_layout.tres`; `_unlocked` reset to its boot value at every suite start by the central reset, and test_title_input's inline restore moved to before_each/after_each.
 - Single SFX player restarts on rapid play_test_sfx; do not copy into pooled SFX (7.2).
 - default_bus_layout.tres has no explicit Master; flow_state_changed uses int instead of the enum.
 
@@ -105,7 +105,7 @@ Story 1.3 AC9 / I-6 ("mumble-speech web check, moved to 3.7") is UNBLOCKED. Tizi
 - ~~`Game.advance()` in INTRO ignores `can_skip_intro` (spec Task 2.2 mandates it); revisit with the real Intro (Epic 5).~~ Resolved in Story 6.7 (AC 7): `advance()` in INTRO goes through `can_skip_intro` + `finish_intro(frame, true)`. **Resolved (verified 2026-11-17 by Epic 9 triage: game.gd can_skip_intro used at the INTRO skip gate (Story 6.7)).**
 - Old and new screen can share a node name within a frame (`remove_child` breaks `TitleScreen`'s `get_viewport()` call); nothing looks screens up by path.
 - Duplicate flow log lines per transition (specific line plus `_set_flow_state` line).
-- Tests mutate shared autoloads and the global EventBus; each restores what it changes, but order dependence is possible.
+- Tests mutate shared autoloads and the global EventBus; each restores what it changes, but order dependence is possible. Resolved in Story 9.5 (D-S95-1, D-S95-8, D-S95-10): central per-suite reset of the autoload globals via the GUT pre-run hook; EventBus connections audited (tracked links dropped in after_each); suite passes in CI, reverse and shuffled order.
 - `?debug` is not visible inside the itch.io iframe (DC2, direct-URL route documented, human step).
 - DebugKeys present on the `?debug&smoke=audio` page without a flow listener.
 - `PlaceholderScreen.is_advance`/`TitleScreen.classify` use `keycode` only (web events with keycode 0).
@@ -296,7 +296,7 @@ Story 1.3 AC9 / I-6 ("mumble-speech web check, moved to 3.7") is UNBLOCKED. Tizi
 - Dying inside the 80-frame defeat window (D-S38-3) discards the kill: retry restarts the boss at full HP and no bit is granted; decide at the MVP playtest (3.9).
 - Release build: FIGHT 2/3 have no boss and no exit until Epic 5/6; the run dead-ends there. **Resolved (verified 2026-11-17 by Epic 9 triage: Epics 5/6 landed: null_pointer and segfault bodies, test_ending_flow.gd).**
 - An F11 recording left running through FIGHT -> HARVEST -> FIGHT does not reproduce fight 2 (new seed, HARVEST idle frames); stop or segment the recorder on the flow change.
-- Test hygiene: defeat hit-stop leaks across suites (test_camera_shake, others); suites poke private `SimClock._pending_hitstop`; add a shared reset helper.
+- Test hygiene: defeat hit-stop leaks across suites (test_camera_shake, others); suites poke private `SimClock._pending_hitstop`; add a shared reset helper. Resolved in Story 9.5 (D-S95-2, D-S95-9): `SimClock.reset_for_tests()` seam + `TestIsolation.clear_hitstop()`; no test writes `_pending_hitstop` any more, and every suite starts with hit-stop cleared.
 - `Game.finish_harvest` has no bounds check on `boss_index + 1` and does not enforce the 2 s skip gate (only the screen does).
 - `Hud.set_duck_only(false)` force-shows every HUD child; `is_duck_only` is inferred from `frame.visible`.
 - HarvestScreen: physics-frame flight vs sim-frame skip/cap diverge under hit-stop; bit flight starts at screen top-centre not the boss position; reassembly segments mapped to space cells vanish.
@@ -317,7 +317,7 @@ Story 1.3 AC9 / I-6 ("mumble-speech web check, moved to 3.7") is UNBLOCKED. Tizi
 - A redirect does not update `Player.facing`; sprite flip and the next action's captured facing may disagree with the dash direction.
 - A K press refused by the gap_free rule is silently dropped (log only); consider a UI/SFX cue if playtest shows confusion.
 - `ComboDef._solo_action` uses `load()` + `.call` on Defs (preload-cycle workaround); verify in a Web export.
-- Echo Dash's single `combo` start log is not asserted; `test_combo_def_validation_additions` mutates the shared `Defs.SLASH_1` (restored before the assert).
+- Echo Dash's single `combo` start log is not asserted; `test_combo_def_validation_additions` mutates the shared `Defs.SLASH_1` (restored before the assert). Resolved in Story 9.5 (D-S95-7, D-S95-11) for the `Defs.SLASH_1` / `BIT_NULL` mutation (duplicates through a test-local solo lookup); the combo start-log assertion half is not in 9.5 scope and stays open.
 
 ## Deferred from: code review of story-4-3-breakpoint-skill (2026-11-10)
 
@@ -622,7 +622,7 @@ Story 1.3 AC9 / I-6 ("mumble-speech web check, moved to 3.7") is UNBLOCKED. Tizi
 
 ## Code review of Story 9.1 (2026-11-17)
 - Patched in review: `Game.title_gate_open_at` treats a clock behind the entry frame as open (a stale `title_entry_frame` left by a test can no longer lock a later title; production `sim_frame` is monotonic); story AC7 reworded to the two-row hint.
-- Deferred (low, Story 9.5): the six order-dependent suites each save/restore `Game.title_entry_frame` by hand; no shared base class or `reset_for_tests()` exists (all suites extend GutTest). Fold into the 9.5 shared reset helper (`Game.reset_for_tests()` + `SimClock.reset_for_tests()`); some suites also set `SimClock.sim_frame` (test_tutorial_flow does not restore it).
+- Deferred (low, Story 9.5): the six order-dependent suites each save/restore `Game.title_entry_frame` by hand; no shared base class or `reset_for_tests()` exists (all suites extend GutTest). Fold into the 9.5 shared reset helper (`Game.reset_for_tests()` + `SimClock.reset_for_tests()`); some suites also set `SimClock.sim_frame` (test_tutorial_flow does not restore it). Resolved in Story 9.5 (D-S95-1, D-S95-3): central reset in `game/tests/support/isolation.gd` run by the pre-run hook at every suite start (Game, SaveService, AudioManager, SimClock incl. sim_frame, Debug, Fullscreen); the six hand-written title-entry save/restores removed. No `Game.reset_for_tests()` was needed (public fields).
 - Deferred (low): a deliberate mouse click inside the 30-frame title gate is dropped silently (not "held"); acceptable, could exempt mouse. `initial_device` uses "a pad is connected", so a keyboard player with an idle paired pad sees pad names until the first key; a global last-device would fix it. No `joy_connection_changed` handling.
 - Deferred (low): test fragility: the checklist hint stack touches the `[PASS] test_actions` row with zero margin (add a hint-rect vs checklist-rect non-intersect test if text grows); the completion rows test hard-codes y 240/264 and a BossView-constant "generous box"; the ending-flow gate test uses `KEY_X` and does not assert a START after the gate.
 - Human check: tutorial top-right hint stack (skip, bar, pause) against the checklist; completion rows at the bottom with the `@` and dummy; held key or pad button across a tutorial replay, ending and practice leave back to the title; pad player's first tutorial prompts.
@@ -636,5 +636,13 @@ Story 1.3 AC9 / I-6 ("mumble-speech web check, moved to 3.7") is UNBLOCKED. Tizi
 ## Deferred from: code review of Story 9.3 (2026-11-17)
 
 - Deferred (low): the pause assist row shows no `: NEXT ATTEMPT` suffix in the TUTORIAL state (`assist_pending` is FIGHT-only) though the toggle is deferred there too (the tutorial arena reads `Game.run.assist`).
-- Deferred (low): `test_live_pending_follows_the_attempt_copy` (test_pause_screen.gd) restores `Game.run`, `flow_state` and `SaveService` inline; move to before_each/after_each. Related to the 9.5 central reset of autoload globals.
+- Deferred (low): `test_live_pending_follows_the_attempt_copy` (test_pause_screen.gd) restores `Game.run`, `flow_state` and `SaveService` inline; move to before_each/after_each. Related to the 9.5 central reset of autoload globals. Resolved in Story 9.5 (D-S95-6): the saves/restores moved to before_each/after_each in test_pause_screen.gd.
 - Deferred (low): no test drives the title `_process` arm lapse or the pause `_input` click on the suffixed row; only the pure helpers are covered.
+
+## Deferred from: code review of Story 9.5 (2026-11-17)
+
+- Deferred (low): the central reset runs per suite, not per test (coordinator override of D-S95-1). Suites keep intra-suite save/restore of `_unlocked`, `sim_frame`, `paused`, `Game` fields and `SimClock._swallow_presses`; a per-test reset would need a `before_all`-safe design.
+- Deferred (low): tests still read `SimClock._pending_hitstop` privately (test_dereference, test_boss_controller, test_sim_clock_reset); add a public read accessor if worth it.
+- Deferred (low): `SoloSeamCombo.solos` (test_echo_dash) is a static dict never cleared after the test; it relies on GDScript static override resolution.
+- Deferred (low): `_layout_bus_count` in test_audio_manager counts `bus/<i>/name` properties and its helper test pins 4; the editor GUT panel needs its Pre-Run Script set to `res://tests/support/gut_isolation_hook.gd`; the shuffled CI step uses one fixed seed.
+

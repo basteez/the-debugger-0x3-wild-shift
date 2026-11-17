@@ -19,7 +19,6 @@ var _saved_flow: int
 var _saved_run: RunState
 var _saved_stats: RunStats
 var _saved_first_input: int
-var _saved_title_entry: int = -1
 var _saved_unlocked: bool
 
 
@@ -37,7 +36,6 @@ func before_each() -> void:
 	_saved_run = Game.run
 	_saved_stats = Game.stats
 	_saved_first_input = Game.first_input_frame
-	_saved_title_entry = Game.title_entry_frame
 	Game.title_entry_frame = -1 # Story 9.1: these title tests start on a boot title (no entry gate)
 	_saved_unlocked = AudioManager.is_unlocked()
 	SaveService.highest_boss = 1
@@ -56,7 +54,6 @@ func after_each() -> void:
 	Game.run = _saved_run
 	Game.stats = _saved_stats
 	Game.first_input_frame = _saved_first_input
-	Game.title_entry_frame = _saved_title_entry # Story 9.1
 	if not _saved_unlocked:
 		AudioManager.set("_unlocked", false)
 	_delete(SCRATCH)

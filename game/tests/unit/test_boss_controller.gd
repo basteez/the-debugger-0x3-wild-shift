@@ -79,13 +79,12 @@ func before_each() -> void:
 	_player_px = FAR_PX
 	_arena = ArenaContext.new()
 	_arena.contact_source = func() -> Vector2: return _player_px
-	SimClock.set(&"_pending_hitstop", 0)
+	TestIsolation.clear_hitstop()
 
 
 func after_each() -> void:
 	Game.flow_state = _saved_state as GameScript.FlowState
-	SimClock.set(&"_pending_hitstop", 0)
-	SimClock.hitstop_frames = 0 # Story 3.8: a defeat requests 20 frames; never leak into the next suite
+	TestIsolation.clear_hitstop() # Story 3.8: a defeat requests 20 frames; never leak into the next suite
 
 
 func _attack(id: StringName, tell: int, active: int, recovery: int, attack_script: Script = RecordingAttack) -> AttackDef:
@@ -872,12 +871,12 @@ func test_boss_view_number_clears_on_fight_restart() -> void:
 
 func test_defeat_requests_20_frames_of_hitstop_once() -> void:
 	var c: BossController = _controller(_timing_def())
-	SimClock.set(&"_pending_hitstop", 0)
+	TestIsolation.clear_hitstop()
 	watch_signals(EventBus)
 	c.take_hit(100)
 	assert_eq(SimClock.get(&"_pending_hitstop"), BossController.DEFEAT_HITSTOP_FRAMES)
 	assert_eq(BossController.DEFEAT_HITSTOP_FRAMES, 20)
-	SimClock.set(&"_pending_hitstop", 0)
+	TestIsolation.clear_hitstop()
 	c.take_hit(5)
 	c.debug_kill()
 	assert_eq(SimClock.get(&"_pending_hitstop"), 0, "no second hit-stop after the defeat")

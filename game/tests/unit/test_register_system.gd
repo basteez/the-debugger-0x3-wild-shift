@@ -26,6 +26,8 @@ class ScriptedInput:
 var _clock: SimClockScript
 var _src: ScriptedInput
 var _reg: Register
+# Story 9.5 (item 108): EventBus links made in a test, dropped in after_each.
+var _bus_links: Array = []
 
 
 func before_each() -> void:
@@ -39,6 +41,7 @@ func before_each() -> void:
 
 
 func after_each() -> void:
+	TestIsolation.disconnect_bus(_bus_links)
 	_clock.free()
 
 
@@ -137,7 +140,7 @@ func test_shift_loop_stops_when_a_listener_deactivates_the_register() -> void:
 	_reg.set_active(true)
 	var off := func(_d: int, _w: Vector2i, _r: PackedInt32Array, _s: StringName) -> void:
 		_reg.set_active(false)
-	EventBus.register_shifted.connect(off)
+	TestIsolation.connect_bus(_bus_links, EventBus.register_shifted, off)
 	_tick(1)
 	EventBus.register_shifted.disconnect(off)
 	assert_eq(_reg.ring, PackedInt32Array([D, L, A]), "second buffered shift not applied once inactive")

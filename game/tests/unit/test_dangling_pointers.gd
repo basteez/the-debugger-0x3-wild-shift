@@ -33,11 +33,11 @@ func before_each() -> void:
 	_arena = ArenaContext.new()
 	_arena.target_source = func() -> Vector2: return Vector2(200, 150)
 	_arena.contact_source = func() -> Vector2: return Vector2(40, 40)
-	SimClock._pending_hitstop = 0
+	TestIsolation.clear_hitstop()
 
 
 func after_each() -> void:
-	SimClock._pending_hitstop = 0
+	TestIsolation.clear_hitstop()
 
 
 ## A reset body in phase 2 (ROAR over) that will only draw `attack_def`.

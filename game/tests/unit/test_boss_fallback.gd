@@ -23,8 +23,7 @@ func before_each() -> void:
 
 func after_each() -> void:
 	Game.flow_state = _saved_state as GameScript.FlowState
-	SimClock.set(&"_pending_hitstop", 0)
-	SimClock.hitstop_frames = 0
+	TestIsolation.clear_hitstop()
 
 
 func _attack(id: StringName) -> AttackDef:
