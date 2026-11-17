@@ -47,6 +47,7 @@ func after_each() -> void:
 	SaveService.track_fights = _saved_track
 	Game.flow_state = _saved_flow as GameScript.FlowState
 	SimClock.paused = _saved_paused
+	SimClock.set(&"_swallow_presses", false) # retry() arms it; never leak it into the next script
 	Game.run = _saved_run
 	Game.stats = _saved_stats
 	if not _saved_unlocked:

@@ -21,19 +21,18 @@ uniform vec2 base_size = vec2(640.0, 360.0);
 void fragment() {
 	vec4 c = texture(screen_texture, SCREEN_UV);
 	vec3 d = abs(c.rgb - warn_colour.rgb);
-	if (max(d.r, max(d.g, d.b)) <= WARN_EPSILON) {
-		COLOR = vec4(c.rgb, 1.0);
-		return;
-	}
-	if (invert) {
-		float lum = dot(c.rgb, vec3(0.299, 0.587, 0.114));
-		float mid = dot((ink_colour.rgb + bg_colour.rgb) * 0.5, vec3(0.299, 0.587, 0.114));
-		c = lum > mid ? bg_colour : ink_colour;
-	}
-	if (dither >= 0.5) {
-		ivec2 p = ivec2(floor(SCREEN_UV * base_size));
-		if ((p.x + p.y) % 2 == 0) {
-			c = bg_colour;
+	// WARN pixels pass through unchanged. No early `return`: Godot rejects it in fragment().
+	if (max(d.r, max(d.g, d.b)) > WARN_EPSILON) {
+		if (invert) {
+			float lum = dot(c.rgb, vec3(0.299, 0.587, 0.114));
+			float mid = dot((ink_colour.rgb + bg_colour.rgb) * 0.5, vec3(0.299, 0.587, 0.114));
+			c = lum > mid ? bg_colour : ink_colour;
+		}
+		if (dither >= 0.5) {
+			ivec2 p = ivec2(floor(SCREEN_UV * base_size));
+			if ((p.x + p.y) % 2 == 0) {
+				c = bg_colour;
+			}
 		}
 	}
 	COLOR = vec4(c.rgb, 1.0);
