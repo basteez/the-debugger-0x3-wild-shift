@@ -30,12 +30,10 @@ func _ready() -> void:
 		Log.info(&"flow", "fight placeholder opened boss=%d" % boss_index)
 
 
-## ASCII text rows for a state (DC11). FIGHT shows the boss index. HARVEST (Story 3.8), INTRO
-## (Story 6.7) and ENDING (Story 6.8) have their own screens, so they return no rows.
-static func lines_for(for_state: int, for_boss_index: int) -> PackedStringArray:
-	match for_state:
-		GameFlow.FlowState.FIGHT:
-			return PackedStringArray(["FIGHT %d" % (for_boss_index + 1), "boss index %d" % for_boss_index])
+## ASCII text rows for a state (DC11). The Story 1.6 `FIGHT n` / `boss index n` label is retired
+## (it drew over the arena in every debug build); HARVEST (Story 3.8), INTRO (Story 6.7) and ENDING
+## (Story 6.8) have their own screens. So no state has rows: the FIGHT node stays, text-free.
+static func lines_for(_for_state: int, _for_boss_index: int) -> PackedStringArray:
 	return PackedStringArray()
 
 
