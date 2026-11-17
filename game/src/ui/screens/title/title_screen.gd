@@ -256,6 +256,8 @@ static func label_rect_at(text: String, x: int, top_y: int) -> Rect2:
 
 
 ## Every counted input unlocks audio first (DC8). Returns the resolved action.
+## Story 9.1 (D-S91-1): inside the title entry gate (Game.title_input_open) a counted press only
+## unlocks audio and returns IGNORE (not consumed, nothing starts, no option acts).
 func handle_input(event: InputEvent) -> Action:
 	var action: Action = resolve(event)
 	if action == Action.IGNORE:
@@ -263,6 +265,8 @@ func handle_input(event: InputEvent) -> Action:
 	if _started or Game.flow_state != Game.FlowState.TITLE:
 		return Action.IGNORE
 	AudioManager.unlock()
+	if not Game.title_input_open(SimClock.sim_frame): # Story 9.1 (D-S91-1): held from the last screen
+		return Action.IGNORE
 	if action == Action.START:
 		_begin(false)
 	else:

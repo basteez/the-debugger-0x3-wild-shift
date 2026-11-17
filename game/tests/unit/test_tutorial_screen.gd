@@ -56,8 +56,31 @@ func test_device_follows_the_last_input() -> void:
 	assert_eq(TutorialScreen.device_for(stick, KB), KB, "stick noise keeps the device")
 	stick.axis_value = -0.9
 	assert_eq(TutorialScreen.device_for(stick, KB), PAD)
+	assert_eq(TutorialScreen.initial_device([]), KB, "no pad connected: the keyboard")
+	assert_eq(TutorialScreen.initial_device([0]), PAD, "Story 9.1 (618c): a connected pad starts as the pad")
 	var screen: TutorialScreen = autofree(TutorialScreen.new())
-	assert_eq(screen.device, KB, "the default is the keyboard")
+	if Input.get_connected_joypads().is_empty(): # headless CI: no pad
+		screen._ready()
+		assert_eq(screen.device, KB, "the default without a pad is the keyboard")
+
+
+## Story 9.1 (AC 10, D-S91-7): a trigger at rest (0 or -1 on some pads) never flips the device; a
+## positive press of 0.5 or more does. Sticks keep the absolute rule.
+func test_trigger_rest_values_keep_the_device() -> void:
+	for axis: JoyAxis in [JOY_AXIS_TRIGGER_LEFT, JOY_AXIS_TRIGGER_RIGHT]:
+		var trigger := InputEventJoypadMotion.new()
+		trigger.axis = axis
+		for rest: float in [-1.0, -0.6, 0.0, 0.4]:
+			trigger.axis_value = rest
+			assert_eq(TutorialScreen.device_for(trigger, KB), KB, "trigger %d at %.1f keeps the device" % [axis, rest])
+		trigger.axis_value = 0.6
+		assert_eq(TutorialScreen.device_for(trigger, KB), PAD, "trigger %d pressed flips it" % axis)
+		trigger.axis_value = 0.5
+		assert_eq(TutorialScreen.device_for(trigger, KB), PAD)
+	var stick := InputEventJoypadMotion.new()
+	stick.axis = JOY_AXIS_LEFT_Y
+	stick.axis_value = -0.6
+	assert_eq(TutorialScreen.device_for(stick, KB), PAD, "a stick pushed up still counts")
 
 
 func test_glyph_names_follow_the_story_7_5_mapping() -> void:
@@ -89,7 +112,10 @@ func test_prompts_fit_64_columns_and_name_the_keys_per_device() -> void:
 	assert_true(TutorialScreen.prompt_rows(TutorialSteps.Step.SHIFT, KB)[0].begins_with("Q / E "))
 	assert_true(TutorialScreen.prompt_rows(TutorialSteps.Step.SHIFT, PAD)[0].begins_with("LB / RB "))
 	assert_true(TutorialScreen.prompt_rows(TutorialSteps.Step.MOVE, PAD)[0].contains("left stick"))
-	assert_eq(TutorialScreen.prompt_text(SCREEN.tutorial_hint_skip, KB), "hold Esc or Bksp: skip")
+	assert_eq(TutorialScreen.hint_rows(KB), PackedStringArray(["hold Esc or Bksp: skip", "P: pause"]))
+	assert_eq(TutorialScreen.hint_rows(PAD), PackedStringArray(["hold SELECT: skip", "START: pause"]))
+	assert_eq(TutorialScreen.glyph_name(&"pause", KB), "P")
+	assert_eq(TutorialScreen.glyph_name(&"pause", PAD), "START")
 
 
 # --- E3: the hold ------------------------------------------------------------------------------
@@ -133,8 +159,10 @@ func test_every_row_fits_the_play_area_and_clears_the_dummy() -> void:
 		var rows: PackedStringArray = TutorialScreen.prompt_rows(step, PAD)
 		for i: int in rows.size():
 			assert_true(TutorialChecklistView.fits_play_area(TutorialChecklistView.prompt_top_left(rows[i], i, rows.size()), rows[i], 1), rows[i])
-	var hint: String = TutorialScreen.prompt_text(SCREEN.tutorial_hint_skip, PAD)
-	assert_true(TutorialChecklistView.fits_play_area(TutorialChecklistView.hint_top_left(hint), hint, 1))
+	for device: int in [KB, PAD]:
+		var hints: PackedStringArray = TutorialScreen.hint_rows(device)
+		for i: int in hints.size():
+			assert_true(TutorialChecklistView.fits_play_area(TutorialChecklistView.hint_row_top_left(hints, i), hints[i], 1), hints[i])
 	var done: PackedStringArray = TutorialChecklistView.done_lines()
 	for i: int in done.size():
 		var at: Vector2 = TutorialChecklistView.done_top_left(done[i], i)
@@ -142,10 +170,66 @@ func test_every_row_fits_the_play_area_and_clears_the_dummy() -> void:
 		assert_false(Rect2(at, Vector2(GlyphFont.text_width(done[i], 2), 16)).intersects(dummy))
 
 
+## A row's drawn rect with its BG backing (what _text paints).
+static func _backed(top_left: Vector2, text: String, scale: int) -> Rect2:
+	var b: float = TutorialChecklistView.BACKING
+	return Rect2(top_left - Vector2.ONE * b, Vector2(GlyphFont.text_width(text, scale), GlyphFont.CELL * scale) + Vector2.ONE * b * 2.0)
+
+
+## Story 9.1 (AC 7, 618a, D-S91-4): the skip / pause hint rows and the hold bar never touch a
+## checklist row ([ ] or [PASS], backing included), for either device.
+func test_hint_rows_and_hold_bar_clear_the_checklist() -> void:
+	var rows: Array[Rect2] = []
+	for i: int in TutorialSteps.STEP_COUNT:
+		for mark: String in [TutorialChecklistView.TODO_MARK, TutorialChecklistView.PASS_MARK]:
+			var text: String = "%s %s" % [mark, SCREEN.tutorial_tests[i]]
+			rows.append(_backed(TutorialChecklistView.row_top_left(i), text, TutorialChecklistView.TEST_SCALE))
+			rows.append(_backed(Vector2(TutorialChecklistView.CURSOR_LEFT, TutorialChecklistView.row_top_left(i).y), TutorialChecklistView.CURSOR, TutorialChecklistView.TEST_SCALE))
+	for device: int in [KB, PAD]:
+		var hints: PackedStringArray = TutorialScreen.hint_rows(device)
+		assert_eq(hints.size(), 2, "skip row and pause row")
+		var drawn: Array[Rect2] = [TutorialChecklistView.hold_bar_rect(hints[0])]
+		for i: int in hints.size():
+			assert_lte(hints[i].length(), PROMPT_MAX)
+			assert_true(DuckLineDef.is_ascii(hints[i]), hints[i])
+			drawn.append(_backed(TutorialChecklistView.hint_row_top_left(hints, i), hints[i], TutorialChecklistView.PROMPT_SCALE))
+		for d: Rect2 in drawn:
+			for r: Rect2 in rows:
+				assert_false(d.intersects(r), "hint %s overlaps checklist %s" % [d, r])
+		assert_false(_backed(TutorialChecklistView.hint_row_top_left(hints, 1), hints[1], 1).intersects(drawn[0]), "the pause row clears the hold bar")
+
+
+## Story 9.1 (AC 8, 618b, D-S91-5): the completion rows sit in the bottom band, inside the play
+## area, and their backing never touches the `@` at spawn or the dummy (its `{;}`, cue and the
+## largest damage number under it).
+func test_completion_rows_clear_the_spawn_and_the_dummy() -> void:
+	var at_size := Vector2(GlyphFont.text_width(PlayerView.PLAYER_GLYPH, PlayerView.GLYPH_SCALE), Const.TILE_PX)
+	var player := Rect2(PlayerView.player_top_left(Arena.SPAWN_PX), at_size)
+	var cell: float = GlyphFont.CELL * BossView.GLYPH_SCALE
+	var dummy_body := Rect2(BossView.line_top_left(Arena.TUTORIAL_DUMMY_PX, Vector2(cell * 3, cell)), Vector2(cell * 3, cell))
+	# The cue reaches CUE_REF_RADIUS under the `;`; the PATCHED (2x) damage number sits under the
+	# body + cue band (BossView._draw_number): a generous box over both.
+	var number_h: float = GlyphFont.CELL * 2.0
+	var below: float = BossView.CUE_MARKER_BASE + cell + BossView.STACK_GAP + number_h
+	var dummy_zone := Rect2(dummy_body.position - Vector2(cell * 2, cell * 2), Vector2(cell * 7, maxf(below, BossView.CUE_REF_RADIUS) + cell * 3))
+	var done: PackedStringArray = TutorialChecklistView.done_lines()
+	var area: Rect2 = Arena.play_area()
+	for i: int in done.size():
+		var at: Vector2 = TutorialChecklistView.done_top_left(done[i], i)
+		var r: Rect2 = _backed(at, done[i], TutorialChecklistView.TEST_SCALE)
+		assert_true(TutorialChecklistView.fits_play_area(at, done[i], TutorialChecklistView.TEST_SCALE), done[i])
+		assert_true(area.encloses(r), "%s backing inside the play area" % done[i])
+		assert_false(r.intersects(player), "%s never covers the @" % done[i])
+		assert_false(r.intersects(dummy_zone), "%s never covers the dummy or its number" % done[i])
+		assert_gt(at.y, Arena.SPAWN_PX.y + Const.TILE_PX, "%s is in the bottom band" % done[i])
+	assert_eq(TutorialChecklistView.done_top_left(done[0], 0).y, 240.0)
+	assert_eq(TutorialChecklistView.done_top_left(done[1], 1).y, 264.0)
+
+
 func test_view_draws_only_while_fed() -> void:
 	var view: TutorialChecklistView = autofree(TutorialChecklistView.new())
 	assert_false(view.active)
-	view.show_state(TutorialChecklistView.checklist_lines(TutorialSteps.new()), 0, PackedStringArray(["x"]), "hint", 0.0, false)
+	view.show_state(TutorialChecklistView.checklist_lines(TutorialSteps.new()), 0, PackedStringArray(["x"]), PackedStringArray(["hint"]), 0.0, false)
 	assert_true(view.active)
 	assert_eq(view.current, 0)
 	view.clear()

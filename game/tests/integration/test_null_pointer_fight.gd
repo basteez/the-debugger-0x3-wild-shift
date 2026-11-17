@@ -26,6 +26,7 @@ var _saved_enabled: bool
 var _saved_state: int
 var _saved_run: RunState
 var _saved_source: InputSource
+var _saved_title_entry: int = -1
 var _main: Node2D
 
 
@@ -33,6 +34,7 @@ func before_each() -> void:
 	_saved_enabled = Debug.enabled
 	_saved_state = Game.flow_state
 	_saved_run = Game.run
+	_saved_title_entry = Game.title_entry_frame
 	_saved_source = SimClock.input_source
 	SimClock.input_source = null # headless: no presses
 	Game.run = RunState.new()
@@ -45,6 +47,7 @@ func before_each() -> void:
 func after_each() -> void:
 	Game.flow_state = _saved_state as GameScript.FlowState
 	Game.run = _saved_run
+	Game.title_entry_frame = _saved_title_entry # Story 9.1
 	Debug.enabled = _saved_enabled
 	SimClock.input_source = _saved_source
 	SimClock.begin_fight(0)

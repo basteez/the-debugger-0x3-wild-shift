@@ -26,6 +26,11 @@ const BOSS_IDS: Array[StringName] = [&"infinite_loop", &"null_pointer", &"segfau
 ## ENDING_LEAVE_GATE_FRAMES sim frames, so the input that ended the last fight never counts.
 const ENDING_HOLD_FRAMES := 900
 const ENDING_LEAVE_GATE_FRAMES := 60
+## Story 9.1 (D-S91-1, D-S91-2): after a non-TITLE -> TITLE entry (a tutorial replay ends, an Ending
+## ends, a practice leave) the title ignores every counted press for TITLE_ENTRY_GATE_FRAMES sim
+## frames, so a key or pad button held from the last screen never starts a run or toggles an option.
+## The boot title is never gated (title_entry_frame stays -1).
+const TITLE_ENTRY_GATE_FRAMES := 30
 ## States where Esc and focus loss pause (Story 1.7 DC1): the 60 Hz clock drives the Intro cap and the fight.
 ## Story 6.8 (D-S68-6): the Ending too, so its timeline freezes on Esc.
 ## Story 8.2 (D-S82-1): the tutorial too (P and focus loss; a bare Esc never pauses there, A6).
@@ -59,6 +64,8 @@ const REFOCUS_ON_CLICK_JS := "window.focus(); var c=document.querySelector('canv
 var flow_state: FlowState = FlowState.TITLE
 ## Sim frame of the first title input: start of the 30-s first-shift clock. -1 before it.
 var first_input_frame: int = -1
+## Story 9.1 (D-S91-1): sim frame of the last non-TITLE -> TITLE entry; -1 at boot (never gated).
+var title_entry_frame: int = -1
 ## Sim frame on which INTRO was entered; -1 outside a run.
 var intro_start_frame: int = -1
 var run: RunState = RunState.new()
@@ -540,6 +547,19 @@ static func ending_leave_open_at(start_frame: int, frame: int) -> bool:
 	return start_frame >= 0 and frame > start_frame + ENDING_LEAVE_GATE_FRAMES
 
 
+## Pure (Story 9.1, D-S91-1): true once a title entered at `entry_frame` accepts a press at `frame`.
+## Always true for the boot title (`entry_frame` < 0). A clock behind the entry (`frame` < `entry_frame`)
+## cannot happen in play (sim_frame is monotonic); it counts as open so a stale entry frame left by
+## a test never locks a later title.
+static func title_gate_open_at(entry_frame: int, frame: int) -> bool:
+	return entry_frame < 0 or frame < entry_frame or frame >= entry_frame + TITLE_ENTRY_GATE_FRAMES
+
+
+## Story 9.1 (AC 1, 4): true once the title accepts a press (the entry gate has passed).
+func title_input_open(frame: int) -> bool:
+	return title_gate_open_at(title_entry_frame, frame)
+
+
 ## Story 6.8 (AC 6): true in ENDING once the leave gate has passed.
 func can_leave_ending(frame: int) -> bool:
 	return flow_state == FlowState.ENDING and ending_leave_open_at(ending_start_frame, frame)
@@ -703,6 +723,8 @@ func _set_flow_state(to: FlowState) -> void:
 		EventBus.pause_toggled.emit(false)
 	if to != FlowState.DEAD:
 		death_frame = -1
+	if to == FlowState.TITLE and from != FlowState.TITLE: # Story 9.1 (D-S91-1): arm the title gate
+		title_entry_frame = SimClock.sim_frame
 	harvest_start_frame = SimClock.sim_frame if to == FlowState.HARVEST else -1
 	# Story 6.8 (AC 1, 15): the Ending's timeline origin and the stats snapshot, taken on entry.
 	ending_start_frame = SimClock.sim_frame if to == FlowState.ENDING else -1

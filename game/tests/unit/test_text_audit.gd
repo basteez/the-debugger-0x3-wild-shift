@@ -204,6 +204,11 @@ func test_tutorial_text_is_audited() -> void:
 		for device: int in [TutorialScreen.Device.KEYBOARD, TutorialScreen.Device.GAMEPAD]:
 			for row: String in TutorialScreen.prompt_rows(step, device):
 				assert_lte(row.length(), 64, row)
+	for device: int in [TutorialScreen.Device.KEYBOARD, TutorialScreen.Device.GAMEPAD]: # Story 9.1 (618a)
+		for row: String in TutorialScreen.hint_rows(device):
+			assert_lte(row.length(), 64, row)
+			assert_true(DuckLineDef.is_ascii(row), row)
+			assert_false(row.contains("{"), "%s: every placeholder filled" % row)
 	var bad: TextScreenText = SCREEN.duplicate()
 	bad.tutorial_tests = PackedStringArray(["only_one"])
 	assert_gt(bad.validate().size(), 0, "six tests required")
