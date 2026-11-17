@@ -18,7 +18,7 @@ sources:
 **Author:** Tiziano
 **Game Type:** Top-Down Action Boss Rush (canonical `action-platformer` with `fighting` conventions; no platforming)
 **Target Platform(s):** Web (HTML5, desktop browsers) on itch.io
-**Jam:** GitHub Game Off 2026 — theme **SHIFT** — submission deadline 2026-12-01 13:37 PST
+**Jam:** GitHub Game Off 2026 — theme **SHIFT** — internal submission target Nov 29 12:00 PST; official Game Off cutoff Dec 1 13:37 PST
 
 > **Facilitation note.** Tiziano delegated the open design decisions to the facilitator on 2026-11-06. Every value not taken from the brief started as a facilitator proposal, logged in `decision-log.md`; Tiziano reviewed the GDD in the Finalize pass (D-028 to D-043) and it is accepted as v1.0. v1.1 applies the implementation-readiness decisions D-045 to D-049. All numbers are first-pass tuning targets, to be re-tuned after the Infinite Loop MVP playtest (Nov 14).
 
@@ -81,7 +81,7 @@ No moat is claimed. The "developer vs bugs" premise exists in other itch.io game
 
 ### Project Goals
 
-1. Submit a complete, playable web build to GitHub Game Off 2026. The target is **2026-11-29 12:00 PST**, giving ≥ 49 h of buffer before the deadline.
+1. Submit a complete, playable web build to GitHub Game Off 2026. The internal submission target is **Nov 29 12:00 PST**, giving ≥ 49 h of buffer before the official Game Off cutoff (**Dec 1 13:37 PST**).
 2. Score strongly in **Theme** and **Innovation** by making SHIFT the core combat verb, and in **Gameplay** through hit feel.
    - **Graphics:** a cover GIF and screenshots that show the 1-bit glyph style and a shift moment.
    - **Audio:** the expected weakest category. Mitigation: a distinct sound for each shift direction and a glyph-glitch sound for each boss.
@@ -259,10 +259,11 @@ All timings assume a 60 FPS simulation. 1 tile = 16 px at the 640×360 base reso
 - **Input buffer:** 8 frames for actions and shifts.
 - **Remapping:** out of scope for v1.0. The pause screen shows the controls.
 - **Press-to-start:** the title screen requires a key press or click before any audio plays (browser autoplay policy). Every input unlocks audio.
-  - **Option hotkeys (D-048):** `[N]` new run (shown only when a save exists), `[P]` practice (Should), `[T]` tutorial (replay; Story 8.2), `[B]` debug build (Should), `[F]` fullscreen. An option hotkey, or a click on its label, acts on that option only.
+  - **Option hotkeys (D-048):** `[N]` new run (shown only when a save is past the first boss and the run is not completed; the first press arms the row, `PRESS N AGAIN: WIPE PROGRESS`, for 1.5 s, and a second N or a click on that row starts a fresh run), `[P]` practice (Should), `[T]` tutorial (replay; Story 8.2), `[B]` debug build (Should), `[F]` fullscreen. An option hotkey, or a click on its label, acts on that option only.
   - **Any other key or click** starts the run, or continues it at the highest boss reached. That input starts the 30-s first-shift clock (Gameplay Metrics) and leads straight into the ≤ 8 s intro.
-  - Gamepad: Start starts or continues; Select starts a new run.
-- **Pause screen:** lists the controls, plus `[Esc]` resume, `[F]` fullscreen, `[B]` debug build (Should) and `[M]` mute (Should; mutes the Master bus and persists).
+  - **Title entry gate (Story 9.1, D-S91-1):** when the title is entered from a tutorial replay, an Ending or a practice leave, counted presses are ignored for 0.5 s (30 sim frames), so a key or pad button held from that screen starts or toggles nothing. The boot title is never gated.
+  - Gamepad: Start starts or continues; Select starts a new run (Select twice confirms, as the `[N]` row does).
+- **Pause screen:** lists the controls, plus `[Esc]` resume, `[F]` fullscreen, `[B]` debug build (Should) and `[M]` mute (Should; mutes the Master bus and persists). While an assist change waits for the next fight attempt, the `[B]` row adds `: NEXT ATTEMPT` (Story 9.3, D-S93-3).
 
 ---
 
@@ -334,7 +335,7 @@ This section uses the `fighting` genre guide's structure for frame data, combos,
 - **"Running the test suite"** (Story 8.2, D-051): on a run whose save has not done it, the Intro is followed by a **TUTORIAL** flow state in The Clearing, against a tutorial dummy (`{;}`) that never attacks, never hurts and never dies. It takes damage states like a boss (×0.5 unpatched, ×1.5 Patched).
 - **Six tests**, each passed only by doing it, in order, shown as a large checklist in the play area (`[ ] test_x` → `[PASS] test_x`) with a one- or two-row prompt naming the keys of the last input device (keyboard or pad): `test_move` (walk 3 tiles), `test_actions` (use J and K), `test_shift` (shift until the live bits read `A D`), `test_combo` (a Dash Strike), `test_patch` (Dash Strike the dummy's `;` while it is open: it opens on a fixed timer, closed 3 s then open 2 s, with the Boss 1 open cue), `test_crit` (hit it again while Patched).
 - When all pass: `ALL TESTS PASSED.` / `deploying to production...`, then Boss 1 exactly as before (start set `[D, A]`, duck lines T1–T4). The register starts at `[D, A]`, so the run's first shift is the tutorial's `test_shift`, well inside the 30-s first-shift goal.
-- **Skip:** hold Esc or Backspace (pad: Select) for 1 s at any time (shown as `hold Esc or Bksp: skip`; Backspace because the browser eats Esc in itch fullscreen); a tap does nothing, and P pauses. **Replay:** `[T] tutorial` on the title (key T or a click; it ends back at the title).
+- **Skip:** hold Esc or Backspace (pad: Select) for 1 s at any time (shown as `hold Esc or Bksp: skip`; Backspace because the browser eats Esc in itch fullscreen); a tap does nothing, and P pauses. **Replay:** `[T] tutorial` on the title (key T or a click, no pad button; it ends back at the title).
 - Completing or skipping sets `tutorial_done` in the save (version 2; version 1 saves load with it false). Resume and retry never show the tutorial; `[N] new run` shows it only while `tutorial_done` is false. No new duck line, music or asset (the title track plays during the tutorial).
 
 ### Boss Design
@@ -488,7 +489,7 @@ This section uses the `fighting` genre guide's structure for frame data, combos,
 - **Total target:** 10–15 minutes, deaths included.
 - **Tuning levers, in order:** boss HP → tell length → recovery length → attack gap → player HP. The ×0.5 / ×1.5 damage-state multipliers are not tuning levers (they enforce Pillar 1).
 - **Tuning status:** all HP, damage and timing values in this document are first-pass. They are re-tuned after the Nov 14 MVP playtest.
-- **Assist option (Should): "Debug build"** toggle on the title and pause screens. It sets player HP to 8, halves Breakpoint's cooldown to 6 s and stretches tells ×1.5. It does **not** change the ×0.5 unpatched multiplier: the assist eases survival, not the shift. It is labelled neutrally and carries no penalty.
+- **Assist option (Should): "Debug build"** toggle on the title and pause screens. It sets player HP to 8, halves Breakpoint's cooldown to 6 s and stretches tells ×1.5. It does **not** change the ×0.5 unpatched multiplier: the assist eases survival, not the shift. It is labelled neutrally and carries no penalty. It applies from the next fight attempt, never mid-fight (D-S74-1): until then the pause row reads `[B] DEBUG BUILD ON: NEXT ATTEMPT` (or `OFF`) (Story 9.3, D-S93-3).
 
 ### Economy and Resources
 
@@ -555,9 +556,17 @@ row 17  cd D ■■□□     11 │                                      │
 row 18  cd L ■■■■     12 │                                      │
 row 19  brk  ■□□□     13 │                                      │
 row 22  >o            14 │                                      │
-row 23  "Q and E      15 │                                      │
-row 24  shift your    16 │                                      │
-row ..  bits..."      17 │                                      │
+row 23  Q or E           │                                      │
+row 24  shifts your   15 │                                      │
+row 25  bits. Go on,     │                                      │
+row 26  shift. It's      │                                      │
+row 27  waiting.         │                                      │
+row 28  Only the two  16 │                                      │
+row 29  on the left      │                                      │
+row 30  are live;        │                                      │
+row 31  the rest are     │                                      │
+row 32  in code       17 │                                      │
+row 33  review.          │                                      │
 row 37                18 └──────────────────────────────────────┘
 row 38  ── console ────────────────────────────────────────────────
 row 39..44  console.log("-5") // resisted   ·   CRITICAL: 15 dmg   (6 lines)
@@ -634,7 +643,7 @@ row 39..44  console.log("-5") // resisted   ·   CRITICAL: 15 dmg   (6 lines)
 | 4 | LOOP Combos & Breakpoint | Echo; Echo Dash; Breakpoint | Nov 15–17 |
 | 5 | Null Pointer & Watch | Boss 2; Watch; the NULL bit and Clean Catch | Nov 18–21 |
 | 6 | Segfault, Intro & Ending | Ghost Echo, Dereference, Boss 3, the intro and ending screens, all game text | Nov 22–25 |
-| 7 | Audio, Polish & Submission | Music and SFX; the assist toggle; save/resume; gamepad (Should); practice target on the title screen (Should); browser tests; itch.io page; submission by Nov 29 12:00 PST | Nov 26–29 |
+| 7 | Audio, Polish & Submission | Music and SFX; the assist toggle; save/resume; gamepad (Should); practice target on the title screen (Should); browser tests; itch.io page; submission by the internal target Nov 29 12:00 PST (official cutoff Dec 1 13:37 PST) | Nov 26–29 |
 
 - **Sequencing:** epics are strictly sequential, with non-overlapping windows, and each one ends with a web deploy.
 - **Overruns:** if an epic overruns by > 1 day, apply the cut ladder (Out of Scope).
@@ -650,7 +659,7 @@ row 39..44  console.log("-5") // resisted   ·   CRITICAL: 15 dmg   (6 lines)
 - 60 FPS sustained in Chrome and Firefox (see Performance Requirements); no crashes in Safari over a full run.
 - The title screen is interactive in ≤ 10 s on 50 Mbps; the web build is ≤ 32 MB (raised from 30 MB on 2026-11-10, see deferred-work.md).
 - Zero blocking bugs across 3 consecutive full runs before submission.
-- Submitted by 2026-11-29 12:00 PST, ≥ 49 h before the deadline.
+- Submitted by the internal target Nov 29 12:00 PST, ≥ 49 h before the official cutoff (Dec 1 13:37 PST).
 
 ### Gameplay Metrics
 

@@ -49,7 +49,7 @@ brief: '_bmad-output/planning-artifacts/briefs/brief-github-gameoff-2026-2026-11
 **Engine (pre-decided in brief/GDD):** Godot 4, GDScript, Compatibility renderer (WebGL2), single-threaded web export, Sample audio mode
 **Genre:** Top-Down Action Boss Rush (fighting-game frame-data conventions, no platforming)
 **Project Level:** Medium — small content scope (1 arena, 3 bosses), high precision/feel requirements
-**Team:** solo director; 100% AI-written code; ~3.5 weeks (submission target 2026-11-29 12:00 PST)
+**Team:** solo director; 100% AI-written code; ~3.5 weeks (internal submission target Nov 29 12:00 PST; official Game Off cutoff Dec 1 13:37 PST)
 
 ### Core Systems
 

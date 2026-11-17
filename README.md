@@ -27,7 +27,7 @@ Three bosses — **Infinite Loop**, **Null Pointer** and **Segfault** — each b
 - ⏱️ A full run takes 10–15 minutes
 - 🖥️ 1-bit, code-as-fantasy look: text glyphs, a debugger HUD, damage as `console.log` lines
 
-> **Status:** jam entry for GitHub Game Off 2026, in final polish. The submission deadline is **2026-12-01 13:37 PST**. The music in the current build is placeholder loops until the final tracks land.
+> **Status:** jam entry for GitHub Game Off 2026, in final polish. The internal submission target is **Nov 29 12:00 PST**; the official Game Off cutoff is **Dec 1 13:37 PST**. The music in the current build is placeholder loops until the final tracks land.
 
 ## Controls
 
@@ -52,13 +52,14 @@ Every option can also be clicked.
 
 | Option | Where | Keyboard | Gamepad |
 |---|---|---|---|
-| New run (shown once a save is past the first boss) | Title | N | Select / Back |
+| New run (shown once a save is past the first boss and the run is not completed; press N again, or click the row again, to wipe the save) | Title | N, then N again | Select / Back, then again |
 | Practice (the `/* test */` dummy, no save) | Title | P | L3 (left stick click) |
+| Tutorial replay (the guided test suite, then back to the title) | Title | T | none |
 | Debug build (assist on/off) | Title, pause | B | B / Circle |
 | Fullscreen on/off | Title, pause | F | R3 (right stick click) |
 | Mute on/off | Pause | M | Select / Back |
 
-In practice, L (pad: Select) cycles the loadout and Esc (pad: L3) goes back to the title. Any other key or button on the title starts the run (with a save past Boss 1 it resumes at the saved boss).
+In practice, L (pad: Select) cycles the loadout and Esc (pad: L3) goes back to the title. Any other key or button on the title starts the run (with a save past Boss 1 it resumes at the saved boss). When you return to the title from a tutorial replay, an ending or a practice run, presses are ignored for half a second, so a key held from that screen starts nothing.
 
 ## Run and build
 

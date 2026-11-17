@@ -150,7 +150,7 @@ This document provides the complete epic and story breakdown for The Debugger 0x
 - NFR13: Tunability — all HP, damage and timing values are first-pass, data-driven and re-tuned after the Nov 14 playtest. The ×0.5 / ×1.5 multipliers are not tuning levers. Tuning order: boss HP → tell → recovery → gap → player HP.
 - NFR14: Playtest targets — ≥ 80% Patch Infinite Loop with Dash Strike unprompted; ≥ 80% clear Boss 1 within 3 attempts; shift feel ≥ 4/5; ≥ 50% mention the shift/register unprompted.
 - NFR15: Licensing — assets CC0 preferred, CC-BY accepted with credits, no NC/ND; credits in README and on itch.io.
-- NFR16: Schedule — epics strictly sequential with non-overlapping windows; every epic ends with a web build on the itch.io draft page and a Chrome/Firefox smoke test; MVP playtest gate Nov 14 (≥ 3 people); submission by 2026-11-29 12:00 PST; cut ladder applied if an epic overruns by > 1 day; Boss 1 fallback = phases 1–2 only.
+- NFR16: Schedule — epics strictly sequential with non-overlapping windows; every epic ends with a web build on the itch.io draft page and a Chrome/Firefox smoke test; MVP playtest gate Nov 14 (≥ 3 people); submission by the internal target Nov 29 12:00 PST (official Game Off cutoff Dec 1 13:37 PST); cut ladder applied if an epic overruns by > 1 day; Boss 1 fallback = phases 1–2 only.
 - NFR17: Localisation — English only.
 
 ### Additional Requirements
@@ -311,7 +311,7 @@ A complete framed run from Intro to Ending: Ghost Echo and Dereference, the fina
 **FRs covered:** FR18, FR19, FR40–FR44, FR45 (complete), FR48, FR51
 
 ### Epic 7: Audio, Polish & Submission (Nov 26–29)
-A jam-ready release, submitted: music and the full SFX pass, save/resume, assist toggle, fullscreen, (Should) gamepad and title-screen practice target, browser matrix and performance check, itch.io page and README; submitted by Nov 29 12:00 PST.
+A jam-ready release, submitted: music and the full SFX pass, save/resume, assist toggle, fullscreen, (Should) gamepad and title-screen practice target, browser matrix and performance check, itch.io page and README; submitted by the internal target Nov 29 12:00 PST (official Game Off cutoff Dec 1 13:37 PST).
 **FRs covered:** FR53, FR55, FR59 (title), FR60, FR61, FR62, FR63 (full pass), FR64
 
 ### Epic 8: Playtest Response: Onboarding and Hit Readability (Nov 17–25)
@@ -1468,7 +1468,7 @@ So that the duck line budget and all jokes ship exactly as designed.
 
 ## Epic 7: Audio, Polish & Submission
 
-A jam-ready release, submitted: music and the full SFX pass, save/resume, assist toggle, fullscreen, (Should) gamepad and title-screen practice target, browser matrix and performance check, itch.io page and README; submitted by Nov 29 12:00 PST. Window: Nov 26–29.
+A jam-ready release, submitted: music and the full SFX pass, save/resume, assist toggle, fullscreen, (Should) gamepad and title-screen practice target, browser matrix and performance check, itch.io page and README; submitted by the internal target Nov 29 12:00 PST (official Game Off cutoff Dec 1 13:37 PST). Window: Nov 26–29.
 
 ### Story 7.1: Music and Crossfades
 
@@ -1643,7 +1643,7 @@ So that raters understand the game in 30 seconds and the entry is valid.
 
 **Given** the jam
 **When** the entry is submitted to GitHub Game Off 2026
-**Then** it is submitted by 2026-11-29 12:00 PST (≥ 49 h before the deadline)
+**Then** it is submitted by the internal target Nov 29 12:00 PST (≥ 49 h before the official cutoff Dec 1 13:37 PST)
 
 ## Epic 8: Playtest Response: Onboarding and Hit Readability
 
@@ -1747,7 +1747,7 @@ So that I know what to do before Boss 1 starts, without a manual.
 
 ## Epic 9: Deferred Work Burn-down
 
-Burn-down of the deferred-work backlog after Epic 8, scoped by the triage of `deferred-work.md` (2026-11-17). Items are fixed only where they touch player experience, the submission docs or test reliability; the rest stay WONTFIX or HUMAN. Stories are stacked PRs in this order. Each story marks its covered items in `deferred-work.md` as "Resolved in Story 9.N". Design calls are marked `[design call]` with IDs D-S9n-n in the story files and recorded in the GDD decision log (D-052). Window: proposed Nov 25–28, before the internal target Nov 29 12:00 PST. Cut 9.4 and 9.5 first if the window overruns.
+Burn-down of the deferred-work backlog after Epic 8, scoped by the triage of `deferred-work.md` (2026-11-17). Items are fixed only where they touch player experience, the submission docs or test reliability; the rest stay WONTFIX or HUMAN. Stories are stacked PRs in this order. Each story marks its covered items in `deferred-work.md` as "Resolved in Story 9.N". Design calls are marked `[design call]` with IDs D-S9n-n in the story files and recorded in the GDD decision log (D-052). Window: started 2026-11-17, well before the internal target Nov 29 12:00 PST (official cutoff Dec 1 13:37 PST). Cut 9.4 and 9.5 first if the window overruns.
 
 ### Story 9.1: Input Grace and Tutorial Polish
 

@@ -49,7 +49,7 @@
 # SCHEDULE (epics strictly sequential, non-overlapping windows, NFR16):
 #   E1 Nov 6–7 | E2 Nov 8–10 | E3 Nov 11–14 (MVP gate Nov 14) | E4 Nov 15–17
 #   E5 Nov 18–21 | E6 Nov 22–25 | E7 Nov 26–29
-#   SUBMISSION DEADLINE: 2026-11-29 12:00 PST.
+#   SUBMISSION: internal target Nov 29 12:00 PST; official Game Off cutoff Dec 1 13:37 PST.
 #
 # DEFINITION OF DONE (every epic, from epics.md → Epic List, NFR16):
 #   all its stories meet their ACs; GUT and CI green; a release web build deployed
@@ -157,7 +157,7 @@ development_status:
   6-9-game-text-audit: done # last story of Epic 6; design calls D-S69-1..7 in story file
   epic-6-retrospective: optional
 
-  # Epic 7: Audio, Polish & Submission — window Nov 26–29; SUBMIT by Nov 29 12:00 PST
+  # Epic 7: Audio, Polish & Submission — window Nov 26–29; SUBMIT by the internal target Nov 29 12:00 PST (official cutoff Dec 1 13:37 PST)
   epic-7: in-progress
   7-1-music-and-crossfades: done # HUMAN: Tiziano composes BeepBox tracks (can start E5–E6); placeholders until then
   7-2-final-sfx-pass: done
@@ -183,7 +183,7 @@ development_status:
   9-1-input-grace-and-tutorial-polish: done
   9-2-miss-feedback-polish: done
   9-3-run-and-assist-clarity: done
-  9-4-doc-consistency: backlog
+  9-4-doc-consistency: done
   9-5-test-isolation-hardening: backlog # optional, cut first
   9-6-save-and-pad-robustness: backlog # optional
   epic-9-retrospective: optional
