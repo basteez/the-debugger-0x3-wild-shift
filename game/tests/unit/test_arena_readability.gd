@@ -99,20 +99,86 @@ func test_halo_radii() -> void:
 	assert_false(Arena.in_halo(c, FAR, FAR, 0.0, FAR, FAR), "no actor, no halo")
 
 
-func test_trees_and_label_are_never_hidden() -> void:
+## Story 9.8 (D-S98-1, AC 3): trees are never hidden, even on row 0 beside the label; only scenery
+## and label cells are in the hidden set.
+func test_trees_are_never_hidden() -> void:
 	# Every actor on top of the label row and the ring corners.
 	var hidden: PackedInt32Array = Arena.hidden_cells_for(Vector2(40, 8), Vector2(200, 8), 200.0, Vector2(8, 280), Vector2(504, 140))
 	assert_gt(hidden.size(), 0)
+	var label_hidden: int = 0
 	for idx: int in hidden:
 		@warning_ignore("integer_division")
-		var ch: String = Arena.LAYOUT[idx / Arena.TILES.x][idx % Arena.TILES.x]
-		assert_true(Arena.is_scenery(ch), "only scenery hides (got '%s')" % ch)
+		var cell := Vector2i(idx % Arena.TILES.x, idx / Arena.TILES.x)
+		var ch: String = Arena.LAYOUT[cell.y][cell.x]
+		assert_ne(ch, Arena.TREE, "a tree is never hidden (%s)" % cell)
+		assert_true(Arena.is_scenery(ch) or Arena.is_label_cell(cell), "only scenery or the label hides (got '%s')" % ch)
+		if Arena.is_label_cell(cell):
+			label_hidden += 1
+	assert_gt(label_hidden, 0, "the boss over row 0 hides label cells")
 	assert_false(Arena.is_scenery(Arena.TREE))
 	for i: int in Arena.LABEL.length():
-		assert_false(Arena.is_scenery(Arena.LABEL[i]), "label glyph '%s'" % Arena.LABEL[i])
-	# The label row is row 0: no index there is ever hidden.
-	for idx: int in hidden:
-		assert_gt(idx, Arena.TILES.x - 1, "row 0 (ring + label) stays")
+		assert_false(Arena.is_scenery(Arena.LABEL[i]), "label glyph '%s' is never dithered" % Arena.LABEL[i])
+
+
+## Story 9.8 (D-S98-5): the label cells are found by position: row 0, columns 2-17, never a tree.
+func test_label_cells_by_position() -> void:
+	var row0: String = Arena.LAYOUT[0]
+	for col: int in Arena.TILES.x:
+		var cell := Vector2i(col, 0)
+		var in_label: bool = col >= Arena.LABEL_COL and col < Arena.LABEL_COL + Arena.LABEL.length()
+		assert_eq(Arena.is_label_cell(cell), in_label, "col %d" % col)
+		if in_label:
+			assert_eq(row0[col], Arena.LABEL[col - Arena.LABEL_COL])
+		else:
+			assert_eq(row0[col], Arena.TREE)
+	assert_false(Arena.is_label_cell(Vector2i(Arena.LABEL_COL, 1)), "row 1 is not the label")
+	assert_eq(Arena.LABEL_COL + Arena.LABEL.length() - 1, 17)
+
+
+## Story 9.8 (D-S98-1, AC 1, 2): a label cell is hidden by the same in_halo predicate and the same four
+## radii as scenery (inclusive); just outside every halo it stays.
+func test_label_cell_under_each_halo_radius() -> void:
+	var cell := Vector2i(Arena.LABEL_COL + 3, 0) # `c` of `stack`
+	var idx: int = Arena.cell_index(cell)
+	var c: Vector2 = Arena.cell_centre_px(cell)
+	var down := Vector2(0, 1)
+	var cases: Array = [
+		[c + down * 24.0, FAR, 0.0, FAR, FAR, true, "player 24"],
+		[c + down * 24.5, FAR, 0.0, FAR, FAR, false, "player 24.5"],
+		[FAR, c + down * 50.0, 30.0, FAR, FAR, true, "boss 30 + 20"],
+		[FAR, c + down * 50.5, 30.0, FAR, FAR, false, "boss 30 + 20.5"],
+		[FAR, FAR, 0.0, c + down * 32.0, FAR, true, "practice 32"],
+		[FAR, FAR, 0.0, c + down * 32.5, FAR, false, "practice 32.5"],
+		[FAR, FAR, 0.0, FAR, c + down * 24.0, true, "decoy 24"],
+		[FAR, FAR, 0.0, FAR, c + down * 24.5, false, "decoy 24.5"],
+	]
+	for k: Array in cases:
+		var hidden: PackedInt32Array = Arena.hidden_cells_for(k[0], k[1], k[2], k[3], k[4])
+		assert_eq(hidden.has(idx), k[5], k[6])
+		assert_eq(Arena.in_halo(c, k[0], k[1], k[2], k[3], k[4]), k[5], "same predicate: %s" % k[6])
+	assert_false(Arena.hidden_cells_for(FAR, FAR, 0.0, FAR, FAR).has(idx), "no actor: the label is drawn")
+
+
+## Story 9.8 (D-S98-1, AC 4): the Infinite Loop ring drifted onto row 0 (the drift clamp is unchanged):
+## the label cells under its halo are hidden, the trees stay, and the arena's mask follows.
+func test_ring_on_row_0_hides_the_label_under_it() -> void:
+	_arena = Arena.new()
+	_arena.enter_fight(Register.fight_start_for_boss(0), false, Arena.INFINITE_LOOP_DEF_PATH)
+	assert_true(_arena.boss is InfiniteLoopBody, "the Infinite Loop")
+	_arena.player.position_px = Vector2(-500, -500)
+	_arena.boss.body_center_px = Arena.cell_centre_px(Vector2i(Arena.LABEL_COL + 8, 0))
+	assert_true(_arena.refresh_hidden_cells())
+	var under: int = 0
+	for col: int in Arena.TILES.x:
+		var cell := Vector2i(col, 0)
+		if Arena.is_label_cell(cell):
+			var in_ring_halo: bool = Arena.in_halo(Arena.cell_centre_px(cell), FAR, _arena.boss.body_center_px, _arena.boss.body_radius_px(), FAR, FAR)
+			assert_eq(_arena.is_hidden(cell), in_ring_halo, "label col %d" % col)
+			if in_ring_halo:
+				under += 1
+		else:
+			assert_false(_arena.hidden_cells().has(Arena.cell_index(cell)), "tree col %d stays" % col)
+	assert_gt(under, 0, "the ring hides some label cells")
 
 
 func test_hidden_cells_follow_the_live_actors() -> void:
@@ -144,6 +210,32 @@ func test_redraw_only_when_the_set_changes() -> void:
 	var src: String = FileAccess.get_file_as_string("res://src/arena/arena.gd")
 	var body: String = src.substr(src.find("func _process("), 200)
 	assert_false(body.contains("queue_redraw"), "no unconditional redraw in _process")
+
+
+## Story 9.8 (D-S98-8, AC 11): no actor moved: nothing recomputed, the stored set is the same array
+## object state; the draw lookup is the bool mask (no linear has), matching the 9.7 hidden set.
+func test_unchanged_actors_skip_the_recompute_and_mask_matches() -> void:
+	_arena = Arena.new()
+	_arena.player.position_px = Arena.cell_centre_px(Vector2i(1, 1))
+	assert_true(_arena.refresh_hidden_cells(), "first refresh stores the set")
+	var stored: PackedInt32Array = _arena.hidden_cells()
+	assert_eq(stored, Arena.hidden_cells_for(_arena.player.position_px, FAR, 0.0, FAR, FAR), "same set as 9.7")
+	for i: int in 3:
+		assert_false(_arena.refresh_hidden_cells(), "unchanged actors: no redraw")
+	assert_eq(_arena.hidden_cells(), stored)
+	for row: int in Arena.TILES.y:
+		for col: int in Arena.TILES.x:
+			var cell := Vector2i(col, row)
+			assert_eq(_arena.is_hidden(cell), stored.has(Arena.cell_index(cell)), "mask %s" % cell)
+	_arena.player.position_px = Vector2(-500, -500)
+	assert_true(_arena.refresh_hidden_cells(), "a moved actor redraws once")
+	assert_false(_arena.refresh_hidden_cells())
+	assert_false(_arena.is_hidden(Vector2i(1, 1)))
+	var src: String = FileAccess.get_file_as_string("res://src/arena/arena.gd")
+	var draw: String = src.substr(src.find("func _draw("))
+	draw = draw.substr(0, draw.find("\nfunc ", 1))
+	assert_false(draw.contains("_hidden.has"), "no linear lookup in _draw")
+	assert_string_contains(draw, "is_hidden(")
 
 
 # --- AC 10, 11: the title bar, HP readout and practice readout ------------------------------------
@@ -184,10 +276,15 @@ func test_practice_readout_on_the_console_header() -> void:
 	var cell: Vector2i = PracticeFrameCounter.header_cell(text)
 	assert_eq(cell.y, Hud.LOG.position.y, "row 38, the console rule")
 	assert_eq(cell.x + text.length(), Hud.COLS - 2, "right-aligned two columns from the edge")
+	# Story 9.8 (D-S98-4, AC 9): the visible text has no pad space; its last glyph is on column 77.
+	assert_ne(text[0], " ", "no leading pad")
+	assert_ne(text[text.length() - 1], " ", "no trailing pad")
+	assert_eq(cell.x + text.length() - 1, 77, "last visible glyph on column 77")
 	assert_gt(cell.x, 12, "clear of the `── console` title")
 	var back: Rect2 = PracticeFrameCounter.backing_rect(text)
-	assert_eq(back.position, Vector2(cell * GlyphFont.CELL))
-	assert_eq(back.size, Vector2(text.length() * GlyphFont.CELL, GlyphFont.CELL))
+	assert_eq(back.position, Vector2((cell - Vector2i(1, 0)) * GlyphFont.CELL), "one pad cell left")
+	assert_eq(back.size, Vector2((text.length() + 2) * GlyphFont.CELL, GlyphFont.CELL), "one pad cell each side")
+	assert_lte(back.end.x, float(Hud.COLS * GlyphFont.CELL), "clipped to column 79")
 	var wide: String = PracticeFrameCounter.header_text(9999999)
 	assert_gt(PracticeFrameCounter.header_cell(wide).x, 12, "a long practice still fits")
 

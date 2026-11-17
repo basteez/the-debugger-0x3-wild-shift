@@ -5,9 +5,11 @@ extends Node2D
 ## newest at the bottom; the panel fills top-down like a console, then scrolls. Gameplay
 ## presentation driven by EventBus (not the Log autoload): it reads only signal arguments (AD-05).
 ## Story 2.9: EventBus.player_damaged appends `WARN: hp--` (D-S29-9).
-## Story 3.2 (FR27, D-S32-18): the line depends on the damage state; resisted lines are dithered.
+## Story 3.2 (FR27, D-S32-18): the line depends on the damage state.
 ## Story 5.3 (D-S53-6): EventBus.player_stunned appends its reason (`NullPointerException`).
-## Story 8.1 (D-E8-3, D-S81-2): EventBus.hit_missed appends a dithered `// miss` line.
+## Story 8.1 (D-E8-3, D-S81-2): EventBus.hit_missed appends a `// miss` line.
+## Story 9.8 (D-S98-2): every line is plain INK. The resisted and miss lines used to sit under the
+## 50% checker, unreadable at 1x; their text (`// resisted`, `// miss`) already says what they are.
 
 const SCALE := 1
 ## Story 9.7 (D-S97-4): the block the lines are drawn in. Full width by default (column 0, from
@@ -20,14 +22,10 @@ var _ring: PackedStringArray = PackedStringArray()
 ## Index of the oldest line in the ring.
 var _head: int = 0
 var _count: int = 0
-## Parallel to _ring: true for a line drawn under the 50% checker dither (resisted hits).
-var _dithered: Array[bool] = []
 
 
 func _init() -> void:
 	_ring.resize(Hud.LOG_LINES)
-	_dithered.resize(Hud.LOG_LINES)
-	_dithered.fill(false)
 
 
 func _enter_tree() -> void:
@@ -53,7 +51,7 @@ func _exit_tree() -> void:
 
 
 ## Appends a line; once the ring is full the oldest line scrolls off.
-func append_line(text: String, dithered: bool = false) -> void:
+func append_line(text: String) -> void:
 	var cap: int = _ring.size()
 	var at: int
 	if _count < cap:
@@ -63,7 +61,6 @@ func append_line(text: String, dithered: bool = false) -> void:
 		at = _head
 		_head = (_head + 1) % cap
 	_ring[at] = text
-	_dithered[at] = dithered
 	queue_redraw()
 
 
@@ -72,14 +69,6 @@ func lines() -> PackedStringArray:
 	var out := PackedStringArray()
 	for i: int in _count:
 		out.append(_ring[(_head + i) % _ring.size()])
-	return out
-
-
-## Per shown line (oldest first): true when it is drawn dithered.
-func dithered_lines() -> Array[bool]:
-	var out: Array[bool] = []
-	for i: int in _count:
-		out.append(_dithered[(_head + i) % _ring.size()])
 	return out
 
 
@@ -135,31 +124,26 @@ func reset_block() -> void:
 	set_block(0, 0, Hud.LOG_LINES)
 
 
-## Story 9.7 (D-S97-4): what _draw shows in the current block, oldest first: {cell, text, dithered}.
+## Story 9.7 (D-S97-4): what _draw shows in the current block, oldest first: {cell, text}.
 ## The newest block_max_lines lines, each cut to the columns left of the block's origin.
 func block_rows() -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	var shown: PackedStringArray = lines()
-	var dithered: Array[bool] = dithered_lines()
 	var skip: int = maxi(shown.size() - block_max_lines, 0)
 	var width: int = Hud.COLS - block_col
 	for i: int in range(skip, shown.size()):
 		var cell := Vector2i(block_col, Hud.LOG.position.y + 1 + block_first_line + i - skip)
-		out.append({"cell": cell, "text": shown[i].left(width), "dithered": dithered[i]})
+		out.append({"cell": cell, "text": shown[i].left(width)})
 	return out
 
 
 func _draw() -> void:
 	for r: Dictionary in block_rows():
-		var text: String = r["text"]
-		GlyphFont.draw_cell(self, r["cell"], text, Palette.INK, SCALE)
-		if r["dithered"]:
-			var rect := Rect2(GlyphFont.cell_to_px(r["cell"], SCALE), Vector2(text.length(), 1) * GlyphFont.CELL * SCALE)
-			draw_texture_rect(Dither.checker(), rect, true)
+		GlyphFont.draw_cell(self, r["cell"], r["text"], Palette.INK, SCALE)
 
 
 func _on_hit_landed(_target: StringName, damage: int, state: int, _is_combo: bool, _pos: Vector2) -> void:
-	append_line(line_for_damage(damage, state), state == DamageState.Kind.UNPATCHED)
+	append_line(line_for_damage(damage, state))
 
 
 func _on_player_damaged(_hp: int) -> void:
@@ -171,6 +155,6 @@ func _on_player_stunned(reason: StringName) -> void:
 	append_line(String(reason))
 
 
-## Story 8.1 (D-E8-3): one dithered line per miss, like a resisted hit.
+## Story 8.1 (D-E8-3): one line per miss, plain INK like every line (D-S98-2).
 func _on_hit_missed(_target: StringName, closed: bool, _pos: Vector2) -> void:
-	append_line(line_for_miss(closed), true)
+	append_line(line_for_miss(closed))

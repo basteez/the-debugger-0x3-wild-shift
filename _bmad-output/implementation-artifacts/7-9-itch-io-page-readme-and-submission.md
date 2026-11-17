@@ -197,6 +197,6 @@ Claude Opus 5.5 (claude-opus-5-5), gds-dev-story, pipeline run 2026-11-14.
 - [ ] H-S79-2 3 to 5 screenshots from the release web build (`?debug` off): 1-bit glyph look, a shift moment, HUD with the register visible.
 - [ ] H-S79-3 Edit the itch page (game id 5332990): paste approved copy from `itch-page-copy.md`, upload GIF and screenshots, check controls and credits render; apply the iframe pad line if H-S75-4 shows the pad is blocked.
 - [ ] H-S79-4 Confirm the AI-use wording and the "no generative image or sound model" claim.
-- [ ] H-S79-5 Submit to GitHub Game Off 2026 by 2026-11-29 12:00 PST.
+- [x] H-S79-5 Submit to GitHub Game Off 2026 by 2026-11-29 12:00 PST. Done 2026-11-17, submitted by Tiziano on itch (jam game-off-2026).
 - [design call, revised] Design call 6: the repo is ALREADY public (verified 2026-11-14), so no visibility step; H-S79-5 is the jam submission only.
 - Code review (gds-code-review, 2026-11-14): fixed voice wording (live or pre-rendered clips) and title-resume note; rest deferred or dismissed (see deferred-work.md). GUT 1771/1771, check_guards OK.

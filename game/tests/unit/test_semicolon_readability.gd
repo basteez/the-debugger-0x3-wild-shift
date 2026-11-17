@@ -227,13 +227,13 @@ func test_line_for_miss_wording_ascii_and_width() -> void:
 		assert_lte(line.length(), Hud.LOG.size.x, "fits the log width")
 
 
-func test_miss_signal_appends_one_dithered_line() -> void:
+func test_miss_signal_appends_one_plain_line() -> void:
 	var panel := LogPanel.new()
 	add_child_autofree(panel)
 	EventBus.hit_missed.emit(&"boss", true, Vector2.ZERO)
 	EventBus.hit_missed.emit(&"boss", false, Vector2.ZERO)
 	assert_eq(panel.lines(), PackedStringArray([LogPanel.line_for_miss(true), LogPanel.line_for_miss(false)]))
-	assert_eq(panel.dithered_lines(), [true, true] as Array[bool], "dithered like the resisted line")
+	assert_false(panel.has_method("dithered_lines"), "Story 9.8 (D-S98-2): plain INK, no dither flag")
 	remove_child(panel)
 	assert_false(EventBus.hit_missed.is_connected(panel._on_hit_missed), "disconnected on exit")
 	add_child(panel)

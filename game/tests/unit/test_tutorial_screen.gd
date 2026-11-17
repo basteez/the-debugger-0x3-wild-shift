@@ -270,6 +270,21 @@ func test_view_draws_only_while_fed() -> void:
 	assert_false(view.active)
 
 
+## Story 9.8 (D-S98-4, AC 10): a word wider than the 56-column block is broken at 56, so no glyph
+## passes column 79; the text is kept in order and nothing is cut with `...` (D-S98-7).
+func test_prompt_wrap_breaks_a_word_wider_than_the_block() -> void:
+	var word: String = "x".repeat(60)
+	var wrapped: PackedStringArray = TutorialConsole.wrap_prompt(PackedStringArray(["press", word, "now"]))
+	assert_eq(wrapped, PackedStringArray(["press", "x".repeat(56), "xxxx", "now"]))
+	for line: String in wrapped:
+		assert_lte(line.length(), TutorialConsole.PROMPT_WIDTH, line)
+		assert_lte(TutorialConsole.PROMPT_COL + line.length() - 1, Hud.COLS - 1, "no glyph past column 79")
+	assert_eq("".join(wrapped).replace(" ", ""), ("press" + word + "now"), "nothing lost, nothing added")
+	var huge: PackedStringArray = TutorialConsole.wrap_prompt(PackedStringArray(["y".repeat(130)]))
+	assert_eq(huge, PackedStringArray(["y".repeat(56), "y".repeat(56), "y".repeat(18)]))
+	assert_eq(TutorialConsole.wrap_prompt(PackedStringArray(["a b", "c"])), PackedStringArray(["a b c"]), "short text unchanged")
+
+
 ## Story 9.7 (D-S97-4, AC 6-8): the console draws the checklist (cursor on the current row) and the
 ## wrapped prompt, moves the log lines under the prompt in the right block, and hands the full-width
 ## log back on clear.

@@ -64,7 +64,7 @@ This document provides the complete epic and story breakdown for The Debugger 0x
 **Hit feedback (juice)**
 
 - FR26: Hit-stop values and precedence: crit 8 > the combo's own value (Dash Strike 6, Dereference 8) > unpatched hit 3; Patched applied 4; player hit 4; boss defeated 20; shift 0.
-- FR27: Hit feedback per state. Resisted (unpatched): half the glyph particles, smaller damage glyphs, a dithered `console.log("-5") // resisted` log line and a dull thud. Crit (Patched): log line in CAPS (`CRITICAL: 15 dmg`) and 1 frame of full-screen colour inversion. Combo hit: plus a 2-px shake for 6 frames. Player hit: `WARN: hp--`, a 3-px shake and the invulnerability blink.
+- FR27: Hit feedback per state. Resisted (unpatched): half the glyph particles, smaller damage glyphs, a plain-INK `console.log("-5") // resisted` log line (Story 9.8, D-S98-2: no longer dithered) and a dull thud. Crit (Patched): log line in CAPS (`CRITICAL: 15 dmg`) and 1 frame of full-screen colour inversion. Combo hit: plus a 2-px shake for 6 frames. Player hit: `WARN: hp--`, a 3-px shake and the invulnerability blink.
 - FR28: Shift juice: the HUD register slides over 6 frames with an overshoot bounce, a mechanical key-click SFX (distinct for `<<` and `>>`) plays, and the weapon inverts for 4 frames. Feedback starts on the input frame.
 - FR29: Boss glyph jitter rises in steps at 66% and 33% HP. On defeat, the boss's glyphs reassemble into its fixed line and the duck squeaks.
 
@@ -115,7 +115,7 @@ This document provides the complete epic and story breakdown for The Debugger 0x
 **Arena and HUD**
 
 - FR56: The Clearing (labelled `stack frame 0x03`): a fantasy hunting ground drawn in glyphs (trees `♣`, grass `"`, rocks `o`, a stream of `=`; Story 9.7, D-S97-2: was `~`), decorative only, with a per-boss sky comment (`// TODO: this should terminate`, `// FIXME: who owns this pointer?`, `// HACK: do not read past this line`). Collision never changes.
-- FR57: IDE HUD laid out per the GDD's HUD Layout wireframe (D-047: HUD text at 1× on an 8-px grid, 80×45 cells; world glyphs at 2×): register panel on the left (8 bits with `reserved` nibble, shift previews, hex value, active combo name and a `J→K` glyph, cooldowns), log panel at the bottom (crits in CAPS, resisted lines dithered with `// resisted`), line numbers down the left edge, boss signature header.
+- FR57: IDE HUD laid out per the GDD's HUD Layout wireframe (D-047: HUD text at 1× on an 8-px grid, 80×45 cells; world glyphs at 2×): register panel on the left (8 bits with `reserved` nibble, shift previews, hex value, active combo name and a `J→K` glyph, cooldowns), log panel at the bottom (crits in CAPS, resisted lines in plain INK with `// resisted`, D-S98-2), line numbers down the left edge, boss signature header.
 
 **Options, practice and input**
 
@@ -142,7 +142,7 @@ This document provides the complete epic and story breakdown for The Debugger 0x
 - NFR5: Responsiveness — no added input latency beyond the browser/engine baseline; 0-frame shift with feedback on the input frame; retry after death in ≤ 2 s.
 - NFR6: Display — 640×360 base resolution, integer-scaled (pixel-perfect), Nearest filtering.
 - NFR7: Compatibility — Chrome and Firefox fully supported; Safari playable (cosmetic WebGL2 quirks accepted); no mobile; no crash in Safari over a full run.
-- NFR8: Readability (Pillar 2) — 1-bit palette ink `#E8E8E8` on `#101014`; inversion, a 50% dither and a 75% scenery dither (Story 9.7, D-S97-1) are the only extra states; red `#FF4040` is reserved for warnings (Breakpoint, SIGSEGV); one monospace pixel font on a 16-px grid; no damage without a tell.
+- NFR8: Readability (Pillar 2) — 1-bit palette ink `#E8E8E8` on `#101014`; inversion, a 50% dither (register cells, Breakpoint) and a 75% scenery dither (Story 9.7, D-S97-1) are the only extra states; log lines are plain INK, none dithered (Story 9.8, D-S98-2); red `#FF4040` is reserved for warnings (Breakpoint, SIGSEGV); one monospace pixel font on a 16-px grid; no damage without a tell.
 - NFR9: Session length — a first-time full run takes 10–15 minutes including deaths; per-boss first-clear targets 60–120 s / 120–150 s / 150–210 s.
 - NFR10: Onboarding — the first shift happens within 30 s of the first title-screen input, intro included.
 - NFR11: Reliability — zero blocking bugs across 3 consecutive full runs before submission; the game never shows an error to the player.
@@ -1747,7 +1747,7 @@ So that I know what to do before Boss 1 starts, without a manual.
 
 ## Epic 9: Deferred Work Burn-down
 
-Burn-down of the deferred-work backlog after Epic 8, scoped by the triage of `deferred-work.md` (2026-11-17). Items are fixed only where they touch player experience, the submission docs or test reliability; the rest stay WONTFIX or HUMAN. Stories are stacked PRs in this order. Each story marks its covered items in `deferred-work.md` as "Resolved in Story 9.N". Design calls are marked `[design call]` with IDs D-S9n-n in the story files and recorded in the GDD decision log (D-052; D-054 for Story 9.7). Window: started 2026-11-17, well before the internal target Nov 29 12:00 PST (official cutoff Dec 1 13:37 PST). Cut 9.4 and 9.5 first if the window overruns. Story 9.7 (arena readability) is added on 2026-11-17 from the first playtest's screenshots, not from the deferred list; it comes last in the stack.
+Burn-down of the deferred-work backlog after Epic 8, scoped by the triage of `deferred-work.md` (2026-11-17). Items are fixed only where they touch player experience, the submission docs or test reliability; the rest stay WONTFIX or HUMAN. Stories are stacked PRs in this order. Each story marks its covered items in `deferred-work.md` as "Resolved in Story 9.N". Design calls are marked `[design call]` with IDs D-S9n-n in the story files and recorded in the GDD decision log (D-052; D-054 for Story 9.7; D-055 for Story 9.8). Window: started 2026-11-17, well before the internal target Nov 29 12:00 PST (official cutoff Dec 1 13:37 PST). Cut 9.4 and 9.5 first if the window overruns. Story 9.7 (arena readability) is added on 2026-11-17 from the first playtest's screenshots, not from the deferred list. Story 9.8 (readability leftovers) is added on 2026-11-17 from the 9.7 review and the playtest follow-up; Stories 9.7 and 9.8 come last in the stack, 9.8 last.
 
 ### Story 9.1: Input Grace and Tutorial Polish
 
@@ -1962,3 +1962,53 @@ So that I can always tell what is mine and what is the fight.
 **Given** the planning docs
 **When** this story closes
 **Then** NFR8 names the 75% scenery dither, the GDD art/palette and HUD sections match the shipped layout, decision-log row D-054 exists, and deferred-work.md records the duck-bubble wrap as out of scope
+
+### Story 9.8: Readability Leftovers
+
+As a player,
+I want the frame label to stay readable under the tree ring, the log lines to read at 1x, the boss header never to collide with the HP readout, and the cheap 9.7 leftovers I can see to be fixed,
+So that the last readability gaps from the first playtest are closed before submission.
+
+**Requirements:** the 9.7 review and the playtest follow-up (coordinator brief `gameoff-wt/s98/brief.md`, decisions D-S98-1..4 approved); DC4a; NFR8 (log lines plain INK, no new dither state); D-S33-7 (drift clamp unchanged); D-055. Story file `9-8-readability-leftovers.md`; design calls D-S98-1..4 (approved) and dev calls D-S98-5..8.
+
+**Acceptance Criteria:**
+
+**Given** a `stack frame 0x03` label cell whose centre is within an actor halo (24 px of the player, boss radius + 20 px of the boss, 32 px of the practice target, 24 px of a live decoy)
+**When** the arena is drawn
+**Then** that label cell is not drawn; tree ring cells are always drawn in full INK (D-S98-1)
+
+**Given** the Infinite Loop ring drifted onto arena row 0
+**When** the frame is drawn
+**Then** the ring and the label no longer draw over each other, with no change to the sim or the drift clamp (D-S98-1, D-S33-7)
+
+**Given** a resisted hit (`// resisted`) or a miss (`// miss: ...`) in the log
+**When** the console is drawn
+**Then** the line is plain INK, not dithered; its text is unchanged (D-S98-2)
+
+**Given** FR27, FR57, NFR8 and the GDD wording that says these lines are dithered
+**When** this story closes
+**Then** they say plain INK; historical story acceptance criteria stay as written (D-S98-2)
+
+**Given** every boss definition at max HP, and the player's max HP including the assist variant
+**When** the row 0 header and the HP readout are laid out
+**Then** the header `void <signature>() // hp N` ends at least one column before the readout (D-S98-3)
+
+**Given** a practice run
+**When** the console header is drawn
+**Then** the visible `frames N` and key hint text ends 2 columns from the edge, the pad space not counted (9.7 review item) (D-S98-4)
+
+**Given** a tutorial prompt
+**When** it is wrapped into the right block
+**Then** no word runs past column 79, every real prompt wraps to at most 3 lines of at most 56 columns, and at least 3 log lines still show under it (D-S98-4)
+
+**Given** the arena's hidden-cell set is unchanged between frames
+**When** it is refreshed
+**Then** no redraw is queued and no array is rebuilt per frame, the lookup is not linear, and the change is kept only if it is trivial (D-S98-4)
+
+**Given** the change set
+**When** it is verified
+**Then** the GUT suite, `game/tools/check_guards.sh` and a real exported web build (checked by eye, screenshots recorded) pass
+
+**Given** the planning docs and deferred-work.md
+**When** this story closes
+**Then** decision-log row D-055 exists, the 9.7 items handled here are marked "Resolved in Story 9.8", and the duck-bubble wrap and the `/* test */` halo item stay open (D-S98-4)

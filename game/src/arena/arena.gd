@@ -127,8 +127,15 @@ var reserved_write_enabled: bool = Defs.FEATURE_FLAGS.reserved_write
 ## into the boss by _set_boss.
 var fight_assist: bool = false
 ## Story 9.7 (D-S97-3): the scenery cells the last _draw skipped (the actor halo), sorted indices.
+## Story 9.8 (D-S98-1): the label cells under a halo are in it too.
 var _hidden: PackedInt32Array = PackedInt32Array()
-## Every scenery cell's index in LAYOUT (static, built once; LAYOUT is constant).
+## Story 9.8 (D-S98-8): per LAYOUT cell (cell_index), 1 when hidden. Rebuilt only when _hidden changes,
+## so _draw's lookup is O(1) instead of a linear PackedInt32Array.has.
+var _hidden_mask: PackedByteArray = PackedByteArray()
+## Story 9.8 (D-S98-8): the actor inputs the hidden set was last computed from; unchanged inputs skip
+## the recompute (no hidden-set array or mask rebuild; only the small inputs Array is built per frame). Empty until the first refresh.
+var _halo_inputs: Array = []
+## Every hideable cell's index in LAYOUT (scenery + label; static, built once; LAYOUT is constant).
 static var _scenery_index: PackedInt32Array = PackedInt32Array()
 
 
@@ -422,7 +429,7 @@ func _draw() -> void:
 			if ch == " ":
 				continue
 			var scenery: bool = is_scenery(ch)
-			if scenery and _hidden.has(cell_index(Vector2i(col, row))):
+			if (scenery or is_label_cell(Vector2i(col, row))) and is_hidden(Vector2i(col, row)):
 				continue
 			GlyphFont.draw_cell(self, Vector2i(col, row), ch, Palette.INK, GLYPH_SCALE)
 			if scenery: # D-S97-1: the 75% BG dither over the glyph cell
@@ -433,6 +440,13 @@ func _draw() -> void:
 ## ring and the `stack frame 0x03` label are the frame and stay full INK. Pure.
 static func is_scenery(ch: String) -> bool:
 	return ch == GRASS or ch == ROCK or ch == WATER
+
+
+## Story 9.8 (D-S98-1, D-S98-5): true for the `stack frame 0x03` label cells, found by layout
+## position (arena row 0, LABEL_COL to the label's last column), never by glyph, so a tree never
+## matches. The label is not scenery: never dithered, but hidden by the actor halo like scenery. Pure.
+static func is_label_cell(cell: Vector2i) -> bool:
+	return cell.y == 0 and cell.x >= LABEL_COL and cell.x < LABEL_COL + LABEL.length()
 
 
 ## Row-major index of a layout cell. Pure.
@@ -456,8 +470,8 @@ static func in_halo(centre: Vector2, player_px: Vector2, boss_px: Vector2, boss_
 			or centre.distance_to(decoy_px) <= HALO_DECOY_PX
 
 
-## Story 9.7 (D-S97-3): the sorted indices (cell_index) of the scenery cells in a halo. Trees and the
-## label are never in the list. Pure.
+## Story 9.7 (D-S97-3): the sorted indices (cell_index) of the scenery cells in a halo. Trees are
+## never in the list. Story 9.8 (D-S98-1): the label cells in a halo are (same predicate). Pure.
 static func hidden_cells_for(player_px: Vector2, boss_px: Vector2, boss_radius: float, practice_px: Vector2, decoy_px: Vector2) -> PackedInt32Array:
 	var out := PackedInt32Array()
 	var cells: PackedInt32Array = _scenery_cells()
@@ -471,6 +485,13 @@ static func hidden_cells_for(player_px: Vector2, boss_px: Vector2, boss_radius: 
 
 ## The hidden cells for the live actors of this arena (reads only; AD-05).
 func current_hidden_cells() -> PackedInt32Array:
+	var a: Array = _current_halo_inputs()
+	return hidden_cells_for(a[0], a[1], a[2], a[3], a[4])
+
+
+## The actor inputs of the halo: [player_px, boss_px, boss_radius, practice_px, decoy_px]; an absent
+## actor is Vector2.INF (reads only; AD-05).
+func _current_halo_inputs() -> Array:
 	var boss_px: Vector2 = Vector2.INF
 	var boss_radius: float = 0.0
 	if is_instance_valid(boss):
@@ -480,17 +501,32 @@ func current_hidden_cells() -> PackedInt32Array:
 	var decoy: GhostDecoy = ghost_echo.decoy if ghost_echo != null else null
 	var decoy_px: Vector2 = decoy.position_px if decoy != null and decoy.is_live() else Vector2.INF
 	var player_px: Vector2 = player.position_px if player != null else Vector2.INF
-	return hidden_cells_for(player_px, boss_px, boss_radius, practice_px, decoy_px)
+	return [player_px, boss_px, boss_radius, practice_px, decoy_px]
 
 
 ## Recomputes the hidden set; queues a redraw only when it changed. True when it changed.
+## Story 9.8 (D-S98-8): no actor moved since the last call: nothing is recomputed or stored.
 func refresh_hidden_cells() -> bool:
-	var now: PackedInt32Array = current_hidden_cells()
+	var inputs: Array = _current_halo_inputs()
+	if inputs == _halo_inputs:
+		return false
+	_halo_inputs = inputs
+	var now: PackedInt32Array = hidden_cells_for(inputs[0], inputs[1], inputs[2], inputs[3], inputs[4])
 	if now == _hidden:
 		return false
 	_hidden = now
+	_hidden_mask.resize(TILES.x * TILES.y)
+	_hidden_mask.fill(0)
+	for idx: int in _hidden:
+		_hidden_mask[idx] = 1
 	queue_redraw()
 	return true
+
+
+## Story 9.8 (D-S98-8): true when the last refresh hid this cell (O(1), the mask).
+func is_hidden(cell: Vector2i) -> bool:
+	var idx: int = cell_index(cell)
+	return idx >= 0 and idx < _hidden_mask.size() and _hidden_mask[idx] == 1
 
 
 ## The hidden set the arena last drew with (tests).
@@ -498,13 +534,13 @@ func hidden_cells() -> PackedInt32Array:
 	return _hidden
 
 
-## The indices of every scenery cell in LAYOUT, built once.
+## The indices of every hideable cell in LAYOUT (scenery, and the label since Story 9.8), built once.
 static func _scenery_cells() -> PackedInt32Array:
 	if _scenery_index.is_empty():
 		for row: int in LAYOUT.size():
 			var line: String = LAYOUT[row]
 			for col: int in line.length():
-				if is_scenery(line[col]):
+				if is_scenery(line[col]) or is_label_cell(Vector2i(col, row)):
 					_scenery_index.append(cell_index(Vector2i(col, row)))
 	return _scenery_index
 

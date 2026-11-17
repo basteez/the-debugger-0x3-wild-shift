@@ -99,14 +99,22 @@ func test_line_for_damage_per_state() -> void:
 			assert_lt(line.unicode_at(i), 128, "ASCII only")
 
 
-func test_resisted_lines_are_dithered() -> void:
+## Story 9.8 (D-S98-2, AC 5, 6): resisted and miss lines are plain INK like every other line; the
+## log keeps no dither flag and draws no checker (it stays for the register panel and Breakpoint).
+func test_resisted_and_miss_lines_are_plain_ink() -> void:
 	EventBus.hit_landed.emit(&"boss", 8, DamageState.Kind.UNPATCHED, false, Vector2.ZERO)
 	EventBus.hit_landed.emit(&"boss", 15, DamageState.Kind.PATCHED, false, Vector2.ZERO)
 	EventBus.hit_landed.emit(&"practice_target", 10, DamageState.Kind.BASE, false, Vector2.ZERO)
-	assert_eq(_panel.lines(), PackedStringArray(["console.log(\"-8\") // resisted", "CRITICAL: 15 dmg", "console.log(\"-10\")"]))
-	var expected: Array[bool] = [true, false, false]
-	assert_eq(_panel.dithered_lines(), expected)
-	for i: int in Hud.LOG_LINES:
-		_panel.append_line("x")
-	var none: Array[bool] = [false, false, false, false, false, false]
-	assert_eq(_panel.dithered_lines(), none, "the flag scrolls off with its line")
+	EventBus.hit_missed.emit(&"boss", true, Vector2.ZERO)
+	EventBus.player_damaged.emit(3)
+	assert_eq(_panel.lines(), PackedStringArray(["console.log(\"-8\") // resisted", "CRITICAL: 15 dmg", "console.log(\"-10\")", LogPanel.line_for_miss(true), "WARN: hp--"]))
+	assert_false(_panel.has_method("dithered_lines"), "no dither state in the log")
+	for r: Dictionary in _panel.block_rows():
+		assert_eq(r.keys(), ["cell", "text"], "a row carries no dithered key")
+	var src: String = FileAccess.get_file_as_string("res://src/ui/hud/log_panel.gd")
+	var code: String = src.substr(src.find("func _draw("))
+	code = code.substr(0, code.find("\nfunc ", 1))
+	assert_false(code.contains("Dither"), "the log draws no dither rect")
+	assert_string_contains(code, "Palette.INK")
+	assert_false(src.contains("Dither.checker"), "no checker anywhere in the log")
+	assert_same(RegisterPanel.checker_texture(), Dither.checker(), "the register panel keeps its 50% checker")

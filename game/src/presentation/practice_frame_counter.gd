@@ -13,6 +13,8 @@ const SCREEN_TEXT: TextScreenText = preload("res://data/text/screen_text.tres")
 const TEXT_SCALE := 1
 ## Story 9.7 (D-S97-5): columns left free between the readout and the right edge.
 const RIGHT_MARGIN := 2
+## Story 9.8 (D-S98-4): BG cells of backing on each side of the text, over the console rule.
+const BACKING_PAD := 1
 ## Columns between the frame count and the key hint.
 const GAP := "   "
 
@@ -40,10 +42,11 @@ static func lines_for(frames: int) -> PackedStringArray:
 	return PackedStringArray(["frames %d" % frames, SCREEN_TEXT.practice_hint])
 
 
-## Pure (D-S97-5): the header text: both parts on one row, one space of backing on each side.
+## Pure (D-S97-5): the header text: both parts on one row. Story 9.8 (D-S98-4): no pad spaces, so
+## the visible text ends RIGHT_MARGIN columns from the edge; the backing adds the pad cells.
 static func header_text(frames: int) -> String:
 	var parts: PackedStringArray = lines_for(frames)
-	return " %s%s%s " % [parts[0], GAP, parts[1]]
+	return "%s%s%s" % [parts[0], GAP, parts[1]]
 
 
 ## Pure (D-S97-5): the HUD cell of the header text's first glyph: on the console header row,
@@ -52,9 +55,14 @@ static func header_cell(text: String) -> Vector2i:
 	return Vector2i(maxi(0, Hud.COLS - RIGHT_MARGIN - text.length()), Hud.LOG.position.y)
 
 
-## Pure: the BG backing over the console rule under the header text (HUD pixels).
+## Pure: the BG backing over the console rule under the header text (HUD pixels). Story 9.8
+## (D-S98-4): BACKING_PAD cells each side of the text, clipped to the HUD's columns.
 static func backing_rect(text: String) -> Rect2:
-	return Rect2(GlyphFont.cell_to_px(header_cell(text), TEXT_SCALE), Vector2(GlyphFont.text_width(text, TEXT_SCALE), GlyphFont.CELL * TEXT_SCALE))
+	var cell: Vector2i = header_cell(text)
+	var first: int = maxi(cell.x - BACKING_PAD, 0)
+	var end: int = mini(cell.x + text.length() + BACKING_PAD, Hud.COLS)
+	var px: Vector2 = GlyphFont.cell_to_px(Vector2i(first, cell.y), TEXT_SCALE)
+	return Rect2(px, Vector2((end - first) * GlyphFont.CELL * TEXT_SCALE, GlyphFont.CELL * TEXT_SCALE))
 
 
 func _draw() -> void:
