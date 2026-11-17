@@ -554,11 +554,12 @@ var _il_shifts: int = 0
 ## The real Infinite Loop, started (first shift seen, `;` open at angle 0, i.e. right of the centre)
 ## unless `open` is false, with segment `k` placed at `at`. The resolver test never ticks the boss,
 ## so the ring stays put during the action.
-func _loop(at: Vector2, k: int = 0, open: bool = true, skip_phase: bool = false) -> InfiniteLoopBody:
+## Story 9.2: `body` swaps in a test double of the body (the whiff stub), default the real one.
+func _loop(at: Vector2, k: int = 0, open: bool = true, skip_phase: bool = false, body: InfiniteLoopBody = null) -> InfiniteLoopBody:
 	_il_shifts = 0
 	var ctx := ArenaContext.new()
 	ctx.shift_count = func() -> int: return _il_shifts
-	var b := InfiniteLoopBody.new()
+	var b: InfiniteLoopBody = body if body != null else InfiniteLoopBody.new()
 	assert_true(b.setup(IL_DEF, null, ctx))
 	b.reset_for_fight()
 	var centre: Vector2 = b.body_center_px
@@ -766,3 +767,125 @@ func test_a_plain_boss_hit_gives_no_miss() -> void:
 	_finish_action()
 	assert_eq(_boss_hits().size(), 1)
 	assert_signal_emit_count(EventBus, "hit_missed", 0)
+
+
+# --- Story 9.2 (AC 1, 2, 4-8, D-S92-1..4): miss feedback polish ---
+
+const NESTED: AttackDef = preload("res://data/bosses/infinite_loop/attack_nested_loop.tres")
+const L := Register.Bit.LOOP
+
+
+## A test double of the ring that whiff-stuns (the real Infinite Loop never does, range 0.0), so the
+## same-frame whiff / miss overlap (D-S92-4) can be pinned.
+class WhiffLoop extends InfiniteLoopBody:
+	func whiff_stun_range_px() -> float:
+		return 400.0
+
+
+## Puts the ring into the Nested Loop TELL at `frames_left` (the resolver test never ticks the boss,
+## so the blink block stays put for the whole action).
+func _nested_tell(b: InfiniteLoopBody, frames_left: int) -> void:
+	b.state = BossController.BossState.TELL
+	b.current = NESTED
+	b.frames_left = frames_left
+
+
+## A solo J slash from spawn, ticked to its end.
+func _solo_slash() -> void:
+	_buf.push(J, _t)
+	_tick()
+	assert_eq(_fsm.action, Defs.SLASH_1)
+	_finish_action()
+
+
+func test_a_slash_on_the_blinked_out_ring_logs_no_miss() -> void:
+	_ring([A, D])
+	var b: InfiniteLoopBody = _loop(SPAWN + Vector2(24, 0), 0, false)
+	_nested_tell(b, InfiniteLoopBody.FLASH_BLOCK) # a hidden block
+	assert_true(b.ring_blinked_out())
+	_solo_slash()
+	assert_eq(b.hp, 400)
+	assert_signal_emit_count(EventBus, "hit_landed", 0)
+	assert_signal_emit_count(EventBus, "hit_missed", 0, "the ring was not drawn (D-S92-1)")
+
+
+func test_a_slash_on_the_drawn_ring_during_the_nested_tell_logs_one_miss() -> void:
+	_ring([A, D])
+	var b: InfiniteLoopBody = _loop(SPAWN + Vector2(24, 0), 0, false)
+	_nested_tell(b, 0) # a drawn block
+	assert_false(b.ring_blinked_out())
+	_solo_slash()
+	assert_eq(_misses().size(), 1, "AC 2: the 8.1 miss is unchanged while the ring is drawn")
+	assert_true(_misses()[0][1], "closed")
+
+
+func test_a_hit_on_the_open_semicolon_during_the_blink_still_lands() -> void:
+	_ring([A, D])
+	var b: InfiniteLoopBody = _loop(SPAWN + Vector2(24, 0))
+	assert_true(b.is_open())
+	_nested_tell(b, InfiniteLoopBody.FLASH_BLOCK)
+	assert_true(b.ring_blinked_out())
+	_solo_slash()
+	assert_eq(_boss_hits().size(), 1, "the `;` hurtbox is not gated by the blink")
+	assert_lt(b.hp, 400)
+	assert_signal_emit_count(EventBus, "hit_missed", 0)
+
+
+func test_an_echo_replay_on_the_closed_ring_logs_no_miss() -> void:
+	_ring([A, L])
+	_buf.push(J, _t) # the slash Echo will replay, swung at nothing
+	_tick()
+	var guard: int = 0
+	while (_fsm.action != null or _fsm.link.is_open()) and guard < 200:
+		_tick()
+		guard += 1
+	assert_same(_fsm.echo.last, Defs.SLASH_1)
+	assert_eq(_player.facing, Vector2i(1, 0))
+	var b: InfiniteLoopBody = _loop(_player.position_px + Vector2(24, 0), 0, false)
+	_buf.push(K, _t)
+	_tick()
+	assert_same(_fsm.action, Defs.SLASH_1)
+	assert_true(_fsm.echoing)
+	_finish_action()
+	assert_eq(b.hp, 400)
+	assert_signal_emit_count(EventBus, "hit_landed", 0)
+	assert_signal_emit_count(EventBus, "hit_missed", 0, "an Echo replay never misses (D-S92-2)")
+
+
+func test_a_combo_opener_with_a_held_k_logs_no_miss() -> void:
+	_ring([A, D])
+	_loop(SPAWN + Vector2(24, 0), 0, false)
+	_buf.push(J, 0)
+	_run_to(3)
+	_buf.push(K, _t)
+	var last: int = Defs.SLASH_1.startup_frames + Defs.SLASH_1.active_frames
+	var held_on_last: bool = false
+	var guard: int = 0
+	while _fsm.action == Defs.SLASH_1 and guard < 100:
+		_tick()
+		if _fsm.action == Defs.SLASH_1 and _fsm.action_frame == last:
+			held_on_last = _fsm.link.held
+			assert_eq(_misses().size(), 0, "the opener's last active frame logs nothing (D-S92-3)")
+		guard += 1
+	assert_true(held_on_last, "K was held on the opener's last active frame")
+	assert_eq(_fsm.action, Defs.DASH_STRIKE)
+	_finish_action()
+	assert_eq(_misses().size(), 1, "only the follow-up (the Dash Strike) is judged")
+
+
+func test_a_dash_strike_still_logs_one_miss() -> void:
+	_ring([A, D])
+	_loop(SPAWN + Vector2(64, 0), 0, false)
+	_dash_strike()
+	assert_false(_fsm.link.held, "a combo closes its link")
+	_finish_action()
+	assert_eq(_misses().size(), 1, "AC 6: a combo with a closed link keeps its miss")
+
+
+func test_a_whiff_stun_on_the_last_frame_logs_no_miss() -> void:
+	_ring([A, D])
+	var b: InfiniteLoopBody = _loop(SPAWN + Vector2(24, 0), 0, false, false, WhiffLoop.new())
+	assert_eq(b.whiff_stun_range_px(), 400.0)
+	_solo_slash()
+	assert_signal_emit_count(EventBus, "player_stunned", 1, "the NPE whiff stun")
+	assert_signal_emit_count(EventBus, "hit_missed", 0, "the whiff line is the only feedback (D-S92-4)")

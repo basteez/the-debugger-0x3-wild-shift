@@ -606,8 +606,8 @@ Story 1.3 AC9 / I-6 ("mumble-speech web check, moved to 3.7") is UNBLOCKED. Tizi
 
 ## Code review of Story 8.1 (2026-11-17)
 - Patched in review: the open `;` cue collided with the `i = N` counter (marker base 21 -> 18 px) and collapsed on the small phase-3 inner ring (cue now scales with the ring radius, bar kept off the `;` cell); test added.
-- Deferred (low): a swing at the ring while the Nested Loop blink hides it still logs a miss (no visible target); consider gating `body_touch_px` on visibility.
-- Deferred (low): a miss and the NPE whiff stun can fire on the same last active frame; Echo replay / non-final combo steps also log a miss (no `echoing` filter). Watch for log spam in playtests.
+- Deferred (low): a swing at the ring while the Nested Loop blink hides it still logs a miss (no visible target); consider gating `body_touch_px` on visibility. **Resolved in Story 9.2 (D-S92-1):** `InfiniteLoopBody.ring_blinked_out()` (sim side, pure, BossView delegates) gates `body_touch_px`; the `;` hurtbox is not gated.
+- Deferred (low): a miss and the NPE whiff stun can fire on the same last active frame; Echo replay / non-final combo steps also log a miss (no `echoing` filter). Watch for log spam in playtests. **Resolved in Story 9.2 (D-S92-2, D-S92-3, D-S92-4):** `_check_miss` skips Echo replays (`actions.echoing`) and combo openers with a held K (`actions.link.held`); `_check_whiff` returns true when it stuns and the miss is skipped on that frame. Playtest log-spam watch stays a human check.
 - Deferred (low): the open `;` countdown bar saturates at full for windows longer than `ring.open_frames` (Spit / phase-3 timers); `hurt_radius > contact_radius` is relied on for hit/miss exclusivity but not enforced by `RingDef.validate()`.
 - Human check: the open-`;` cue and the `i = N` counter overlap, and the Constrict radius, in a running build.
 
@@ -626,3 +626,9 @@ Story 1.3 AC9 / I-6 ("mumble-speech web check, moved to 3.7") is UNBLOCKED. Tizi
 - Deferred (low): a deliberate mouse click inside the 30-frame title gate is dropped silently (not "held"); acceptable, could exempt mouse. `initial_device` uses "a pad is connected", so a keyboard player with an idle paired pad sees pad names until the first key; a global last-device would fix it. No `joy_connection_changed` handling.
 - Deferred (low): test fragility: the checklist hint stack touches the `[PASS] test_actions` row with zero margin (add a hint-rect vs checklist-rect non-intersect test if text grows); the completion rows test hard-codes y 240/264 and a BossView-constant "generous box"; the ending-flow gate test uses `KEY_X` and does not assert a START after the gate.
 - Human check: tutorial top-right hint stack (skip, bar, pause) against the checklist; completion rows at the bottom with the `@` and dummy; held key or pad button across a tutorial replay, ending and practice leave back to the title; pad player's first tutorial prompts.
+
+## Deferred from: code review of Story 9.2 (2026-11-17)
+
+- Deferred (low): `link.held` (D-S92-3) suppresses the opener's miss even when the K follow-up never starts (K on cooldown, Echo memory empty, or the hold expires after 8 frames); same shortcut as the D-S53-12 whiff rule. A tighter "held and startable now" gate would fix it.
+- Deferred (low): a swing that touches the ring on a drawn blink block and ends its last ACTIVE frame inside a hidden block still logs the miss (the touch is latched per serial; the blink gate only blocks touches recorded on hidden frames). Needs swings longer than 6 frames; no test.
+- Deferred (low): `test_a_whiff_stun_on_the_last_frame_logs_no_miss` was already green before the gate (`begin_stun` resets `action_frame`), so it does not fail if the `if not _check_whiff` gate is reverted; the gate is belt and braces. The open-ring Echo miss case has no test (the gate ignores openness).
