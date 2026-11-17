@@ -199,6 +199,43 @@ func test_hint_rows_and_hold_bar_clear_the_checklist() -> void:
 		assert_false(_backed(TutorialChecklistView.hint_row_top_left(hints, 1), hints[1], 1).intersects(drawn[0]), "the pause row clears the hold bar")
 
 
+## Hotfix: the 2x checklist rows' backings reach into the next row (BACKING px), so _draw paints every
+## backing before any glyph; text_rows() hands _draw all rows, the cursor included, in one list.
+func test_checklist_backings_overlap_neighbours_so_draw_is_two_pass() -> void:
+	var view := TutorialChecklistView.new()
+	add_child_autofree(view)
+	var texts := PackedStringArray()
+	for i: int in TutorialSteps.STEP_COUNT:
+		texts.append("[ ] test_row_%d" % i)
+	view.show_state(texts, 1, PackedStringArray(), PackedStringArray(), 0.0, false)
+	var all: Array[Dictionary] = view.text_rows()
+	assert_eq(all.size(), TutorialSteps.STEP_COUNT + 1, "six rows and the cursor")
+	var first: Dictionary = all[0]
+	var second: Dictionary = all[1]
+	var glyphs := Rect2(first["at"], Vector2(GlyphFont.text_width(first["text"], first["scale"]), GlyphFont.CELL * first["scale"]))
+	var next_back: Rect2 = TutorialChecklistView.backing_rect(second["at"], second["text"], second["scale"])
+	assert_true(next_back.intersects(glyphs), "row 2's backing covers the underscore row of row 1 (hence two passes)")
+
+
+## Hotfix: the hint rows and the hold bar (backing included) sit inside the tree ring, so they never
+## cover the frame row and its `stack frame 0x03` label, for either device.
+func test_hint_rows_clear_the_frame_title() -> void:
+	var cell: float = Arena.TILE_PX
+	var label := Rect2(Vector2(Arena.LABEL_COL * cell, 0), Vector2(Arena.LABEL.length() * cell, cell))
+	var frame_top := Rect2(Arena.play_area().position, Vector2(Arena.play_area().size.x, cell))
+	var interior: Rect2 = Arena.play_area().grow(-cell)
+	assert_eq(TutorialChecklistView.hint_area(), interior)
+	for device: int in [KB, PAD]:
+		var hints: PackedStringArray = TutorialScreen.hint_rows(device)
+		var drawn: Array[Rect2] = [TutorialChecklistView.hold_bar_rect(hints[0])]
+		for i: int in hints.size():
+			drawn.append(_backed(TutorialChecklistView.hint_row_top_left(hints, i), hints[i], TutorialChecklistView.PROMPT_SCALE))
+		for d: Rect2 in drawn:
+			assert_false(d.intersects(label), "hint %s overlaps the frame title %s" % [d, label])
+			assert_false(d.intersects(frame_top), "hint %s sits on the frame row" % d)
+			assert_true(interior.encloses(d), "hint %s inside the tree ring" % d)
+
+
 ## Story 9.1 (AC 8, 618b, D-S91-5): the completion rows sit in the bottom band, inside the play
 ## area, and their backing never touches the `@` at spawn or the dummy (its `{;}`, cue and the
 ## largest damage number under it).

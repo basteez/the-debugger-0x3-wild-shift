@@ -127,6 +127,22 @@ func test_screen_for_each_state() -> void:
 	assert_eq(main.arena.register.active_window(), Vector2i(Register.Bit.DASH, Register.Bit.ATTACK), "register starts [D, A]")
 	assert_false(main.hud.is_duck_only(), "the full HUD: the register panel shows")
 	assert_eq(main.tutorial_view.get_index(), 0, "drawn under the player and boss views")
+	# Hotfix: the effective draw order. The Arena draws its scenery in its own _draw, before every
+	# child, so the view (same z, not behind its parent, visible) is above the ground and under the
+	# `@` and the dummy.
+	var view: TutorialChecklistView = main.tutorial_view
+	assert_eq(view.get_parent(), main.arena, "a child of the arena, drawn after its scenery")
+	assert_false(view.show_behind_parent, "never under the arena's scenery")
+	assert_true(view.z_as_relative)
+	assert_eq(view.z_index, 0)
+	assert_true(view.visible)
+	for child_path: NodePath in [^"PlayerView", ^"BossView"]:
+		var other := main.arena.get_node_or_null(child_path) as CanvasItem
+		assert_not_null(other, "%s exists" % child_path)
+		if other == null:
+			continue
+		assert_eq(other.z_index, view.z_index, "%s shares the view's z" % child_path)
+		assert_gt(other.get_index(), view.get_index(), "%s draws over the view" % child_path)
 
 
 func test_flow_signal_swaps_screen_and_keeps_layers() -> void:
