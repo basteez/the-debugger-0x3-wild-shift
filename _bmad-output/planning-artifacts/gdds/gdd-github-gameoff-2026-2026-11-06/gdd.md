@@ -208,7 +208,7 @@ All timings assume a 60 FPS simulation. 1 tile = 16 px at the 640×360 base reso
 
 | State | Multiplier | With Clean Catch (×1.5 on top) | Example: slash 10 / Dash Strike 20 | Feedback |
 |---|---|---|---|---|
-| **Unpatched** (default) | ×0.5 — the bug "resists" until it is reproduced and patched | ×0.75 | 5 / 10 | Resisted: `console.log("-5") // resisted` in 50% dither, smaller damage glyphs, half the particles, a dull thud SFX |
+| **Unpatched** (default) | ×0.5 — the bug "resists" until it is reproduced and patched | ×0.75 | 5 / 10 | Resisted: `console.log("-5") // resisted` in plain INK (D-S98-2), smaller damage glyphs, half the particles, a dull thud SFX |
 | **Patched** (180 frames) | ×1.5 (Crit) | ×2.25 | 15 / 30 | Crit: logged in CAPS (`CRITICAL: 15 dmg`), colour inversion, Patched chime on application |
 
 - **Patched boss:** all player damage ×1.5 (Crit). The Patching hit itself counts as Patched.
@@ -232,13 +232,13 @@ All timings assume a 60 FPS simulation. 1 tile = 16 px at the 640×360 base reso
 
 | Event | Hit-stop | Feedback |
 |---|---|---|
-| Unpatched hit (resisted, ×0.5) | 3 frames | Half the usual glyph particles; smaller damage glyphs; `console.log("-5") // resisted` in 50% dither in the log panel; a dull thud SFX. Readable as "no real damage" (Pillar 2) |
+| Unpatched hit (resisted, ×0.5) | 3 frames | Half the usual glyph particles; smaller damage glyphs; `console.log("-5") // resisted` in plain INK in the log panel (D-S98-2: the text says it, a dither was unreadable at 1x); a dull thud SFX. Readable as "no real damage" (Pillar 2) |
 | Combo hit | 6 frames (Dash Strike), 8 (Dereference) | As the hit for the boss's state (resisted or crit), plus a 2-px screen shake for 6 frames |
 | Crit (Patched) | 8 frames | The log line is in CAPS; 1 frame of full-screen colour inversion |
 | Shift | 0 | The HUD register slides over 6 frames with an overshoot bounce; a mechanical key-click SFX; the weapon inverts for 4 frames |
 | Patched applied | 4 frames | `// patched` tag; a rising chime |
 | Player hit | 4 frames | `WARN: hp--`; a 3-px screen shake; 60 frames of invulnerability blink |
-| Miss on a boss body (Infinite Loop ring, not the open `;`) | 0 | One line per action in 50% dither: `// miss: ";" is closed`, or `// miss: aim for the ";"` while it is open; a 3-glyph deflect burst; the dull resisted thud SFX. No damage, no state change (D-051) |
+| Miss on a boss body (Infinite Loop ring, not the open `;`) | 0 | One plain-INK line per action (D-S98-2): `// miss: ";" is closed`, or `// miss: aim for the ";"` while it is open; a 3-glyph deflect burst; the dull resisted thud SFX. No damage, no state change (D-051) |
 | Boss at 66% / 33% HP | — | Glyph jitter amplitude rises in steps |
 | Boss defeated | 20 frames | Glyphs reassemble into the boss's **fixed line** (see Boss Design); a duck squeak |
 
@@ -523,7 +523,7 @@ This section uses the `fighting` genre guide's structure for frame data, combos,
 
 - **World:** a fantasy RPG seen through a debugger's eyes. The world is drawn as text glyphs (trees, grass, monsters made of characters) and is always framed by IDE chrome. The debugger sees the bits beneath everything.
 - **Palette:** 1-bit, two colours: ink `#E8E8E8` on near-black `#101014`.
-  - Colour inversion, a 50% dither and a 75% scenery dither (Story 9.7, D-S97-1) are the only additional states. Scenery (grass, rock, water) is dithered and drops out under a halo around the player, the bosses, the practice target and a live decoy, so the actors read against the ground.
+  - Colour inversion, a 50% dither (register cells, Breakpoint) and a 75% scenery dither (Story 9.7, D-S97-1) are the only additional states; log lines are never dithered (Story 9.8, D-S98-2). Scenery (grass, rock, water) is dithered and drops out under a halo around the player, the bosses, the practice target and a live decoy, so the actors read against the ground. The `stack frame 0x03` label (full INK, never dithered) drops out under the same halo, so a boss drifting onto the top row never draws over it; the tree ring is always drawn (Story 9.8, D-S98-1).
   - **One accent, red `#FF4040`,** is reserved for warnings: the Breakpoint line and dot, and SIGSEGV. Nothing else may use it.
 - **Glyphs (D-047):** everything is a glyph from one 8×8 CP437-style monospace pixel font (CC0 or OFL): the player (`@` with a `>o` duck companion), the bosses, the particles, the environment and the HUD.
   - World glyphs are drawn at 2× on the 16-px tile grid.
@@ -531,7 +531,7 @@ This section uses the `fighting` genre guide's structure for frame data, combos,
   - Both are integer scales, so everything stays pixel-perfect.
 - **HUD:** an IDE debugger layout.
   - The register panel shows 8 bits, with the upper nibble labelled `reserved`, plus the shift previews and the register's byte value in hex (e.g. `0x03`).
-  - Line numbers run down the left; a log panel at the bottom (crits in CAPS; resisted unpatched hits in 50% dither with a `// resisted` suffix).
+  - Line numbers run down the left; a log panel at the bottom (crits in CAPS; resisted unpatched hits and misses in plain INK, marked by their `// resisted` / `// miss` text, D-S98-2).
   - Each boss is named as a function signature, e.g. `void infiniteLoop() // hp 400`.
 
 #### HUD Layout (D-047)

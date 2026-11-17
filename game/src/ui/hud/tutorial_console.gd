@@ -25,9 +25,17 @@ var prompt_lines: PackedStringArray = PackedStringArray()
 
 
 ## Pure (D-S97-4, [design call] D-S97-10): the prompt rows joined into one paragraph and word-wrapped
-## to PROMPT_WIDTH columns (the second row often continues the first sentence).
+## to PROMPT_WIDTH columns (the second row often continues the first sentence). Story 9.8 (D-S98-4):
+## a single word wider than PROMPT_WIDTH (DuckBubble.wrap keeps it whole) is broken every
+## PROMPT_WIDTH columns, so no glyph passes column 79. The duck's own wrap is unchanged.
 static func wrap_prompt(prompt: PackedStringArray) -> PackedStringArray:
-	return DuckBubble.wrap(" ".join(prompt), PROMPT_WIDTH)
+	var out := PackedStringArray()
+	for line: String in DuckBubble.wrap(" ".join(prompt), PROMPT_WIDTH):
+		while line.length() > PROMPT_WIDTH:
+			out.append(line.left(PROMPT_WIDTH))
+			line = line.substr(PROMPT_WIDTH)
+		out.append(line)
+	return out
 
 
 ## Pure: HUD cell of console line `line` (0 = the row under the header) at column `col`.

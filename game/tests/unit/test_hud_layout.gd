@@ -113,3 +113,28 @@ func test_log_rows_39_to_44_hold_the_lines() -> void:
 	for i: int in Hud.LOG_LINES:
 		rows.append(LogPanel.line_cell(i).y)
 	assert_eq(rows, [39, 40, 41, 42, 43, 44])
+
+
+## Story 9.8 (D-S98-3, AC 8): on row 0 the longest boss header (`void <signature>() // hp N` at the
+## boss's max HP, every boss def incl. tutorial and test bosses) ends at least one column before the
+## right-aligned HP readout at the player's max HP, normal and assist. Every def is found on disk.
+func test_boss_header_clears_hp_readout() -> void:
+	var player_def: PlayerDef = load("res://data/player/player_def.tres")
+	var max_hps: Array[int] = [player_def.max_hp, PlayerHealth.ASSIST_MAX_HP]
+	assert_eq(PlayerHealth.max_hp_for(player_def, true), PlayerHealth.ASSIST_MAX_HP, "assist max is the constant")
+	var defs: int = 0
+	var dir := DirAccess.open("res://data/bosses")
+	assert_not_null(dir)
+	for sub: String in dir.get_directories():
+		var path: String = "res://data/bosses/%s/boss_def.tres" % sub
+		if not ResourceLoader.exists(path):
+			continue
+		var def: BossDef = load(path)
+		defs += 1
+		var header: String = Hud.boss_header(def.name_signature, def.max_hp)
+		for max_hp: int in max_hps:
+			var readout: String = PlayerHealth.hp_text(max_hp, max_hp)
+			var start: int = HpReadout.cell_for(readout).x
+			assert_eq(start + readout.length(), Hud.COLS, "the readout ends on the last column")
+			assert_lt(header.length(), start, "%s (%d cols) clears %s at column %d" % [header, header.length(), readout, start])
+	assert_gte(defs, 5, "tutorial dummy, three bosses, test boss")
