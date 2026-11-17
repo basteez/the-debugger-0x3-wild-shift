@@ -3,6 +3,26 @@ extends GutTest
 
 const CONTROL_LABELS: Array[String] = ["MOVE", "ACTION 1", "ACTION 2", "SHIFT", "BREAKPOINT", "WATCH"]
 
+# Story 9.5 (AC 4): the shared state a test changes is saved and restored here, not inline.
+var _saved_flow: int
+var _saved_run: RunState
+var _saved_assist: bool
+var _saved_path: String
+
+
+func before_each() -> void:
+	_saved_flow = Game.flow_state
+	_saved_run = Game.run
+	_saved_assist = SaveService.assist
+	_saved_path = SaveService.path
+
+
+func after_each() -> void:
+	Game.flow_state = _saved_flow as Game.FlowState
+	Game.run = _saved_run
+	SaveService.assist = _saved_assist
+	SaveService.path = _saved_path
+
 
 func test_lines_list_every_control_and_resume() -> void:
 	var lines: PackedStringArray = PauseScreen.lines_for(false)
@@ -120,10 +140,6 @@ func test_pending_layout_fits_the_gutter() -> void:
 
 
 func test_live_pending_follows_the_attempt_copy() -> void:
-	var saved_flow: int = Game.flow_state
-	var saved_run: RunState = Game.run
-	var saved_assist: bool = SaveService.assist
-	var saved_path: String = SaveService.path
 	SaveService.path = ""
 	Game.run = RunState.new()
 	Game.flow_state = Game.FlowState.FIGHT
@@ -143,7 +159,3 @@ func test_live_pending_follows_the_attempt_copy() -> void:
 	Game.run.assist = true # the next attempt copies it (Game._begin_fight)
 	pause._process(0.0)
 	assert_false(pause.live_assist_pending(), "the suffix clears with no event")
-	Game.flow_state = saved_flow as Game.FlowState
-	Game.run = saved_run
-	SaveService.assist = saved_assist
-	SaveService.path = saved_path

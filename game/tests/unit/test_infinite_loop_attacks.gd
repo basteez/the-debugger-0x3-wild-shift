@@ -28,6 +28,8 @@ var _player_px: Vector2
 var _target_px: Vector2
 var _shifts: int = 0
 var _saved_state: int
+# Story 9.5 (item 108): EventBus links made in a test, dropped in after_each.
+var _bus_links: Array = []
 
 
 func before_each() -> void:
@@ -40,12 +42,13 @@ func before_each() -> void:
 	_arena.target_source = func() -> Vector2: return _target_px
 	_arena.contact_source = func() -> Vector2: return _player_px
 	_arena.shift_count = func() -> int: return _shifts
-	SimClock.set(&"_pending_hitstop", 0)
+	TestIsolation.clear_hitstop()
 
 
 func after_each() -> void:
+	TestIsolation.disconnect_bus(_bus_links)
 	Game.flow_state = _saved_state as GameScript.FlowState
-	SimClock.set(&"_pending_hitstop", 0)
+	TestIsolation.clear_hitstop()
 
 
 func _health(invuln: bool = false) -> PlayerHealth:
@@ -160,7 +163,7 @@ func test_rng_is_drawn_only_on_pick_ticks() -> void:
 	_target_px = b.body_center_px + Vector2(0, 5 * TILE)
 	var tells: Array[int] = [0]
 	var on_tell: Callable = func(_id: StringName, _sfx: StringName) -> void: tells[0] += 1
-	EventBus.boss_tell_started.connect(on_tell)
+	TestIsolation.connect_bus(_bus_links, EventBus.boss_tell_started, on_tell)
 	for i: int in 1500:
 		if i == 400:
 			b.debug_skip_phase()

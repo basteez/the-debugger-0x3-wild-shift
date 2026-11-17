@@ -51,13 +51,13 @@ func before_each() -> void:
 	_arena.contact_source = func() -> Vector2: return _player_px
 	_tells.clear()
 	EventBus.boss_tell_started.connect(_on_tell)
-	SimClock.set(&"_pending_hitstop", 0)
+	TestIsolation.clear_hitstop()
 
 
 func after_each() -> void:
 	EventBus.boss_tell_started.disconnect(_on_tell)
 	Game.flow_state = _saved_state as GameScript.FlowState
-	SimClock.set(&"_pending_hitstop", 0)
+	TestIsolation.clear_hitstop()
 
 
 func _on_tell(id: StringName, sfx: StringName) -> void:

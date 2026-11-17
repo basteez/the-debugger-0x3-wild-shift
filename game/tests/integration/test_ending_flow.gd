@@ -19,7 +19,6 @@ var _saved_run: RunState
 var _saved_first: int
 var _saved_intro: int
 var _saved_source: InputSource
-var _saved_title_entry: int = -1
 var _saved_unlocked: bool = false
 var _saved_stats: RunStats
 var _main: Node2D
@@ -39,8 +38,8 @@ func before_each() -> void:
 	_saved_intro = Game.intro_start_frame
 	_saved_source = SimClock.input_source
 	_saved_stats = Game.stats
-	_saved_title_entry = Game.title_entry_frame
 	_saved_unlocked = AudioManager.is_unlocked()
+	Game.title_entry_frame = -1 # Story 9.5: per-test; the central reset only runs per suite
 	SimClock.input_source = null # headless: no presses
 	SimClock.paused = false
 	Game.run = RunState.new()
@@ -56,7 +55,6 @@ func after_each() -> void:
 	Game.stats = _saved_stats
 	Game.first_input_frame = _saved_first
 	Game.intro_start_frame = _saved_intro
-	Game.title_entry_frame = _saved_title_entry
 	if not _saved_unlocked: # Story 9.1: the gated title press unlocks audio; later suites expect it locked
 		AudioManager.set("_unlocked", false)
 	Game.ending_start_frame = -1

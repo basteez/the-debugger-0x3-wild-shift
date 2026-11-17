@@ -32,14 +32,12 @@ func before_each() -> void:
 	_fsm.set_active(true)
 	_combat = CombatResolver.new(_fsm, _player)
 	_t = 0
-	SimClock._pending_hitstop = 0
-	SimClock.hitstop_frames = 0
+	TestIsolation.clear_hitstop()
 	watch_signals(EventBus)
 
 
 func after_each() -> void:
-	SimClock._pending_hitstop = 0
-	SimClock.hitstop_frames = 0
+	TestIsolation.clear_hitstop()
 	_combat = null
 	_fsm = null
 	_player = null

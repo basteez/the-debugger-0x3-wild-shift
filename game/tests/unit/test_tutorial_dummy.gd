@@ -42,14 +42,12 @@ func before_each() -> void:
 	_dummy.body_center_px = SPAWN + Vector2(64, 0)
 	_combat.boss = _dummy
 	_t = 0
-	SimClock._pending_hitstop = 0
-	SimClock.hitstop_frames = 0
+	TestIsolation.clear_hitstop()
 	watch_signals(EventBus)
 
 
 func after_each() -> void:
-	SimClock._pending_hitstop = 0
-	SimClock.hitstop_frames = 0
+	TestIsolation.clear_hitstop()
 
 
 ## One world tick in SimClock phase order (the dummy in BOSS_HAZARDS, after COMBAT).
@@ -83,7 +81,7 @@ func _dash_strike() -> void:
 	_run_to(start + 12)
 	while _fsm.action != null:
 		_tick()
-	SimClock._pending_hitstop = 0
+	TestIsolation.clear_hitstop()
 
 
 func _boss_hits() -> Array:

@@ -13,7 +13,6 @@ var _saved_warned: bool
 var _saved_paused: bool
 var _saved_flow: int
 var _saved_save: Dictionary = {}
-var _saved_title_entry: int = -1
 var _saved_frame: int = 0
 var _saved_unlocked: bool
 ## The fake window mode; `honour` false makes every request a no-op (a refused request).
@@ -30,7 +29,6 @@ func before_each() -> void:
 	_saved_flow = Game.flow_state
 	_saved_save = {"path": SaveService.path, "highest_boss": SaveService.highest_boss, "assist": SaveService.assist, "muted": SaveService.muted}
 	_saved_unlocked = AudioManager.is_unlocked()
-	_saved_title_entry = Game.title_entry_frame
 	_saved_frame = SimClock.sim_frame
 	Game.title_entry_frame = -1 # Story 9.1: the boot title, outside the entry gate
 	SaveService.path = ""
@@ -50,7 +48,6 @@ func after_each() -> void:
 	Fullscreen.warned = _saved_warned
 	SimClock.paused = _saved_paused
 	Game.flow_state = _saved_flow as GameScript.FlowState
-	Game.title_entry_frame = _saved_title_entry
 	SimClock.sim_frame = _saved_frame
 	for key: String in _saved_save:
 		SaveService.set(key, _saved_save[key])

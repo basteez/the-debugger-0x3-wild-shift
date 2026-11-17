@@ -54,12 +54,12 @@ func before_each() -> void:
 	_reg.set_fight_start(PackedInt32Array([A, D, L, N]))
 	_link = LinkState.new()
 	_arena.player_effects.bind(_reg, _link)
-	SimClock.set(&"_pending_hitstop", 0)
+	TestIsolation.clear_hitstop()
 
 
 func after_each() -> void:
 	Game.flow_state = _saved_state as GameScript.FlowState
-	SimClock.set(&"_pending_hitstop", 0)
+	TestIsolation.clear_hitstop()
 
 
 func _health_new() -> PlayerHealth:

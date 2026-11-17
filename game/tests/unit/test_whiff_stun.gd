@@ -40,12 +40,12 @@ var _t: int = 0
 
 
 func before_each() -> void:
-	SimClock._pending_hitstop = 0
+	TestIsolation.clear_hitstop()
 	_t = 0
 
 
 func after_each() -> void:
-	SimClock._pending_hitstop = 0
+	TestIsolation.clear_hitstop()
 
 
 func _rig(bits: Array, boss: BossController) -> void:
@@ -89,7 +89,7 @@ func _tick(times: int = 1) -> void:
 		if _combat.boss != null:
 			_combat.boss.tick(_ctx)
 		_combat.tick(_ctx)
-		SimClock._pending_hitstop = 0
+		TestIsolation.clear_hitstop()
 		_t += 1
 
 

@@ -6,8 +6,7 @@ var _driver: CameraShakeDriver
 
 func before_each() -> void:
 	# The shake runs on sim frames: no hit-stop left by an earlier suite (Story 3.8 defeat hit-stop).
-	SimClock.set(&"_pending_hitstop", 0)
-	SimClock.hitstop_frames = 0
+	TestIsolation.clear_hitstop()
 	_driver = CameraShakeDriver.new()
 	add_child(_driver)
 

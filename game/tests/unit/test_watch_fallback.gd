@@ -32,15 +32,13 @@ func before_each() -> void:
 	_ctx = SimContext.new()
 	_ctx.reseed(5454)
 	_saved_source = SimClock.input_source
-	SimClock._pending_hitstop = 0
-	SimClock.hitstop_frames = 0
+	TestIsolation.clear_hitstop()
 	SimClock.paused = false
 
 
 func after_each() -> void:
 	SimClock.input_source = _saved_source
-	SimClock._pending_hitstop = 0
-	SimClock.hitstop_frames = 0
+	TestIsolation.clear_hitstop()
 	SimClock.watch_gate_active = false
 	SimClock.ctx.watch_held = false
 	SimClock.begin_fight(0)
@@ -100,7 +98,7 @@ func test_paused_in_roar() -> void:
 	_visibility(b, 10)
 	var left: int = b.fallback_cycle_left
 	b.take_hit(int(NP_DEF.max_hp * 0.5)) # phase change: ROAR
-	SimClock._pending_hitstop = 0
+	TestIsolation.clear_hitstop()
 	assert_eq(b.state, BossController.BossState.ROAR)
 	for i: int in BossController.ROAR_FRAMES - 1:
 		b.tick(_ctx)
@@ -112,7 +110,7 @@ func test_paused_when_defeated() -> void:
 	_visibility(b, 30)
 	var left: int = b.fallback_cycle_left
 	b.take_hit(NP_DEF.max_hp)
-	SimClock._pending_hitstop = 0
+	TestIsolation.clear_hitstop()
 	assert_eq(b.state, BossController.BossState.DEFEATED)
 	_visibility(b, 50)
 	assert_eq(b.fallback_cycle_left, left, "paused while DEFEATED")

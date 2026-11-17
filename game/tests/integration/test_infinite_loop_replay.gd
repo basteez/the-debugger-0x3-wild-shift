@@ -77,6 +77,8 @@ var _boss_hits: Array[int] = []
 ## Boss hits that landed while the boss was in an attack's RECOVERY (Story 3.4).
 var _recovery_hits: Array[int] = []
 var _body: InfiniteLoopBody = null
+# Story 9.5 (item 108): EventBus links made in a test, dropped in after_each.
+var _bus_links: Array = []
 
 
 func before_each() -> void:
@@ -88,6 +90,7 @@ func before_each() -> void:
 
 
 func after_each() -> void:
+	TestIsolation.disconnect_bus(_bus_links)
 	EventBus.hit_landed.disconnect(_on_hit_landed)
 	SimClock.input_source = _saved_source
 	SimClock.recorder = null
@@ -162,7 +165,7 @@ func _session(source: InputSource, seed_value: int, frames: int = FRAMES, attack
 	_recovery_hits = [0]
 	var tells: Dictionary[StringName, int] = {}
 	var on_tell: Callable = func(id: StringName, _sfx: StringName) -> void: tells[id] = tells.get(id, 0) + 1
-	EventBus.boss_tell_started.connect(on_tell)
+	TestIsolation.connect_bus(_bus_links, EventBus.boss_tell_started, on_tell)
 	var arena := Arena.new()
 	add_child(arena)
 	SimClock.begin_fight(seed_value)
@@ -173,7 +176,7 @@ func _session(source: InputSource, seed_value: int, frames: int = FRAMES, attack
 	_body = body
 	var start_frame: int = SimClock.sim_frame
 	var on_defeat: Callable = func(_id: StringName) -> void: defeat_tick[0] = SimClock.sim_frame - start_frame
-	EventBus.boss_defeated.connect(on_defeat)
+	TestIsolation.connect_bus(_bus_links, EventBus.boss_defeated, on_defeat)
 	var hashes := PackedInt64Array()
 	var h: int = 17
 	var rng_off_tell: int = 0

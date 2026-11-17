@@ -8,10 +8,16 @@ const L := Register.Bit.LOOP
 const N := Register.Bit.NULL_BIT
 
 var _reg: Register
+# Story 9.5 (item 108): EventBus links made in a test, dropped in after_each.
+var _bus_links: Array = []
 
 
 func before_each() -> void:
 	_reg = Register.new()
+
+
+func after_each() -> void:
+	TestIsolation.disconnect_bus(_bus_links)
 
 
 func _ring(bits: Array) -> PackedInt32Array:
@@ -88,7 +94,7 @@ func test_shift_emits_register_shifted_once() -> void:
 func test_signal_ring_is_a_copy() -> void:
 	var seen: Array[PackedInt32Array] = []
 	var cb := func(_d: int, _w: Vector2i, r: PackedInt32Array, _s: StringName) -> void: seen.append(r)
-	EventBus.register_shifted.connect(cb)
+	TestIsolation.connect_bus(_bus_links, EventBus.register_shifted, cb)
 	_reg.shift(Register.LEFT)
 	EventBus.register_shifted.disconnect(cb)
 	assert_eq(seen.size(), 1)

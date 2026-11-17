@@ -26,7 +26,6 @@ var _saved_enabled: bool
 var _saved_state: int
 var _saved_run: RunState
 var _saved_source: InputSource
-var _saved_title_entry: int = -1
 var _main: Node2D
 
 
@@ -34,8 +33,8 @@ func before_each() -> void:
 	_saved_enabled = Debug.enabled
 	_saved_state = Game.flow_state
 	_saved_run = Game.run
-	_saved_title_entry = Game.title_entry_frame
 	_saved_source = SimClock.input_source
+	Game.title_entry_frame = -1 # Story 9.5: per-test; the central reset only runs per suite
 	SimClock.input_source = null # headless: no presses
 	Game.run = RunState.new()
 	Debug.enabled = true
@@ -47,7 +46,6 @@ func before_each() -> void:
 func after_each() -> void:
 	Game.flow_state = _saved_state as GameScript.FlowState
 	Game.run = _saved_run
-	Game.title_entry_frame = _saved_title_entry # Story 9.1
 	Debug.enabled = _saved_enabled
 	SimClock.input_source = _saved_source
 	SimClock.begin_fight(0)
@@ -182,7 +180,7 @@ func _to_recovery_at(rig: Dictionary, p: Vector2) -> NullPointerBody:
 
 
 func test_echo_dash_through_the_visible_recovery_patches_phase_1() -> void:
-	SimClock._pending_hitstop = 0
+	TestIsolation.clear_hitstop()
 	var rig: Dictionary = _combat_rig([D, L])
 	var boss: NullPointerBody = _to_recovery_at(rig, SPAWN + Vector2(56, 0))
 	var buf: InputBuffer = rig["buf"]
@@ -197,11 +195,11 @@ func test_echo_dash_through_the_visible_recovery_patches_phase_1() -> void:
 	assert_true(boss.weak_window.is_patched(), "D->L Echo Dash through the visible ghost Patches phase 1")
 	assert_eq(boss.state, S.RECOVERY, "within the recovery")
 	assert_eq(boss.pass_reveal_left, NullPointerBody.PASS_REVEAL_FRAMES)
-	SimClock._pending_hitstop = 0
+	TestIsolation.clear_hitstop()
 
 
 func test_dash_strike_on_the_visible_recovery_patches_phase_2() -> void:
-	SimClock._pending_hitstop = 0
+	TestIsolation.clear_hitstop()
 	var rig: Dictionary = _combat_rig([A, D])
 	var boss: NullPointerBody = rig["boss"]
 	boss.take_hit(350)
@@ -221,7 +219,7 @@ func test_dash_strike_on_the_visible_recovery_patches_phase_2() -> void:
 	assert_true(boss.weak_window.is_patched(), "A->D Dash Strike on the visible ghost Patches phase 2")
 	assert_eq(boss.state, S.RECOVERY, "within the recovery")
 	assert_lt(boss.hp, hp_before, "the existing damage path")
-	SimClock._pending_hitstop = 0
+	TestIsolation.clear_hitstop()
 
 
 # --- Story 5.3 AC 23: Dangling Pointers through the real flow ---
@@ -272,7 +270,7 @@ func test_a_real_slash_dispels_a_decoy_without_a_stun() -> void:
 	buf.push(J, rig["t"])
 	for i: int in 10:
 		_rig_tick(rig)
-	SimClock._pending_hitstop = 0
+	TestIsolation.clear_hitstop()
 	assert_eq(boss.decoys.size(), before - 1, "the slash dispelled the decoy")
 	assert_eq(boss.dispel_flash_positions().size(), 1)
 	var fsm: ActionStateMachine = rig["fsm"]
@@ -284,7 +282,7 @@ func test_a_real_slash_dispels_a_decoy_without_a_stun() -> void:
 # --- Story 5.5 AC 5, 6: a real Null Pointer attack through Null Dodge arms Clean Catch ---
 
 func test_null_dodge_through_an_attack_then_a_slash_deals_clean_catch() -> void:
-	SimClock._pending_hitstop = 0
+	TestIsolation.clear_hitstop()
 	var saved: int = Game.flow_state
 	Game.flow_state = GameScript.FlowState.TITLE # a hit outside the dodge must not record a death
 	var rig: Dictionary = _combat_rig([Register.Bit.NULL_BIT, A], true)
@@ -310,7 +308,7 @@ func test_null_dodge_through_an_attack_then_a_slash_deals_clean_catch() -> void:
 			health.dead = false
 			health.invuln_left = 0
 		n += 1
-	SimClock._pending_hitstop = 0
+	TestIsolation.clear_hitstop()
 	assert_true(fsm.clean_catch_armed, "a Null Pointer attack passed through the dodge (%d ticks)" % n)
 	assert_false(hp_lost_in_dodge, "no HP lost on intangible frames")
 	while fsm.action != null:
@@ -324,7 +322,7 @@ func test_null_dodge_through_an_attack_then_a_slash_deals_clean_catch() -> void:
 	buf.push(K, rig["t"]) # K = A: a solo slash on the unpatched ghost
 	for i: int in 12:
 		_rig_tick(rig)
-	SimClock._pending_hitstop = 0
+	TestIsolation.clear_hitstop()
 	assert_eq(hp_before - boss.hp, 8, "slash 10 x0.5 x1.5 = 7.5 -> 8")
 	var hits: int = get_signal_emit_count(EventBus, "hit_landed")
 	assert_eq(hits, 1, "one hit_landed")

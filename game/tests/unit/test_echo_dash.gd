@@ -39,14 +39,12 @@ func before_each() -> void:
 	_fsm.set_active(true)
 	_combat = CombatResolver.new(_fsm, _player)
 	_t = 0
-	SimClock._pending_hitstop = 0
-	SimClock.hitstop_frames = 0
+	TestIsolation.clear_hitstop()
 	watch_signals(EventBus)
 
 
 func after_each() -> void:
-	SimClock._pending_hitstop = 0
-	SimClock.hitstop_frames = 0
+	TestIsolation.clear_hitstop()
 	_combat = null
 	_fsm = null
 	_player = null
@@ -179,29 +177,51 @@ func _combo(first: int, second: int, action: ActionDef) -> ComboDef:
 	return c
 
 
+## Story 9.5 (item 320, D-S95-7): a ComboDef whose solo lookup reads a test-local table instead of
+## the shared Defs bits, so a test can change a solo (a duplicate) without mutating Defs.
+class SoloSeamCombo extends ComboDef:
+	static var solos: Dictionary = {}
+
+	static func _solo_action(bit: int) -> ActionDef:
+		return solos.get(bit, null) as ActionDef
+
+
+## A SoloSeamCombo over the shipped solos, with `overrides` ({bit: ActionDef or null}) on top.
+func _seam_combo(first: int, second: int, action: ActionDef, overrides: Dictionary) -> ComboDef:
+	var solos: Dictionary = {}
+	for bit: int in Register.Bit.values():
+		solos[bit] = Defs.solo_action(bit)
+	solos.merge(overrides, true)
+	SoloSeamCombo.solos = solos
+	var c := SoloSeamCombo.new()
+	c.first = first
+	c.second = second
+	c.action = action
+	c.display_name = "Test"
+	return c
+
+
 func test_combo_def_validation_additions() -> void:
 	assert_eq(_combo(D, L, Defs.ECHO_DASH).validate().size(), 0)
 	# Story 5.5: N has a solo action now; the check is exercised by clearing it for one call.
 	assert_eq(_combo(A, N, Defs.DASH_STRIKE).validate().size(), 0, "N's solo is Null Dodge")
-	var null_bit: BitDef = Defs.BIT_NULL
-	var null_solo: ActionDef = null_bit.solo_action
-	null_bit.solo_action = null
-	var no_solo: int = _combo(A, N, Defs.DASH_STRIKE).validate().size()
-	null_bit.solo_action = null_solo
+	var no_solo: int = _seam_combo(A, N, Defs.DASH_STRIKE, {N: null}).validate().size()
 	assert_eq(no_solo, 1, "second bit without a solo action")
+	assert_eq(_seam_combo(A, N, Defs.DASH_STRIKE, {}).validate().size(), 0, "the seam reads the shipped solos")
+	assert_not_null(Defs.BIT_NULL.solo_action, "the shared BitDef is untouched")
 	assert_eq(_combo(A, D, Defs.DASH).validate().size(), 1, "combo action with a cooldown")
 	var gap := _combo(D, L, Defs.DASH_STRIKE)
 	gap.gap_free = true
 	assert_eq(gap.validate().size(), 0, "Dash Strike is invulnerable from frame 1")
 	gap.action = Defs.SLASH_1
 	assert_eq(gap.validate().size(), 1, "gap_free needs an action invulnerable from frame 1")
-	# J startup + 1 > 8: shipped defs are read-only at runtime, restored right after.
-	var slash: ActionDef = Defs.SLASH_1
-	var startup: int = slash.startup_frames
+	# J startup + 1 > 8, on a duplicate: shipped defs are read-only at runtime (D-S95-7).
+	var startup: int = Defs.SLASH_1.startup_frames
+	var slash: ActionDef = Defs.SLASH_1.duplicate()
 	slash.startup_frames = 8
-	var errors: PackedStringArray = _combo(A, D, Defs.DASH_STRIKE).validate()
-	slash.startup_frames = startup
+	var errors: PackedStringArray = _seam_combo(A, D, Defs.DASH_STRIKE, {A: slash}).validate()
 	assert_eq(errors.size(), 1, "first solo startup 8")
+	assert_eq(Defs.SLASH_1.startup_frames, startup, "Defs.SLASH_1 is unchanged")
 
 
 # --- AC2: trigger and cost ---
@@ -559,7 +579,7 @@ func _echo_link_second_on(weak: Vector2i) -> BossController:
 	_buf.push(K, _t) # held by the link until slash_1 ends
 	var guard: int = 0
 	while _boss_hits() < 2 and guard < 40:
-		SimClock._pending_hitstop = 0
+		TestIsolation.clear_hitstop()
 		_tick()
 		guard += 1
 	assert_true(_fsm.echoing)

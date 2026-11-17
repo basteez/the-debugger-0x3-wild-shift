@@ -34,14 +34,12 @@ func before_each() -> void:
 	Game.flow_state = GameScript.FlowState.TITLE
 	_ctx = SimContext.new()
 	_ctx.reseed(6363)
-	SimClock._pending_hitstop = 0
-	SimClock.hitstop_frames = 0
+	TestIsolation.clear_hitstop()
 
 
 func after_each() -> void:
 	Game.flow_state = _saved_state as GameScript.FlowState
-	SimClock._pending_hitstop = 0
-	SimClock.hitstop_frames = 0
+	TestIsolation.clear_hitstop()
 
 
 func _body(idle: bool = false) -> SegfaultBody:
