@@ -653,3 +653,11 @@ Story 1.3 AC9 / I-6 ("mumble-speech web check, moved to 3.7") is UNBLOCKED. Tizi
 - Deferred (low/design): a pad disconnect in TITLE/DEAD/HARVEST is forgotten (unlike `_focus_lost`); any device's disconnect pauses, even a second pad or a flapping HID device (`test_any_device_pauses` pins it); consider pausing only when the last input device was the pad.
 - Deferred (low): in-place fallback after a failed temp write can truncate `save.cfg` on a full disk; no fsync; a string-typed `highest_boss` drops to 1 and is rewritten on the next save; a float/bool `version` wipes the save (hand-edit only); stale `save.cfg.tmp` never cleaned at boot.
 - Deferred (low, tests): no test for rename failure, a corrupt temp or a null DirAccess through `save()`; no `_exit_tree` disconnect test; `_handle_engine_errors()` is called last in two tests.
+
+## Hotfix: tutorial checklist visible in export
+- Root cause: `@export var x: PackedStringArray = []` in text_screen_text.gd exported empty in the web build (4.7.2 .tres to .res conversion); fixed with `PackedStringArray()`; guarded by test_export_defaults (source scan of res://src and res://data). Review also fixed the checklist underscore (all backings drawn before all glyphs).
+- Deferred (med): `Array[PackedStringArray] = []` (`intro_captions`) and other typed-Array `= []` exports are assumed safe (the web intro works); unverified in the export, and the guard does not flag them.
+- Deferred (low): `test_tutorial_text_rows_are_present` loads the .tres in the editor, so it cannot reproduce the export bug (sanity check only); a real guard needs an `--export-pack` round trip.
+- Deferred (low): the guard regex misses an `@export` annotation on its own line above the `var`, and `= (...)`/line-continuation defaults.
+- Deferred (low): 9-1 story file hint coordinates (bar y 18-20) are stale: now bar y 27-29, hints inside the tree ring (HINT_TOP must stay >= BACKING).
+- Deferred (low): `test_checklist_backings_overlap_neighbours_so_draw_is_two_pass` proves the overlap geometry, not the draw order (no pixel read in headless); verified visually on the web build.

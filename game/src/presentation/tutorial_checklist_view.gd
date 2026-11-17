@@ -7,8 +7,9 @@ extends Node2D
 ## hint under the bar (Story 9.1), and the two completion rows at 2x in the bottom band once every
 ## test passed (Story 9.1, D-S91-5: clear of the `@` at spawn and the dummy). Every row has a BG backing so it reads
 ## over the scenery. A child of the Arena added by Main before the player and boss views (drawn under
-## them). Presentation only: the TUTORIAL screen hands it the text (show_state); it reads no sim state.
-## INK/BG only.
+## them; the Arena draws its scenery in its own _draw, before every child, and has no fill, so the
+## view is above the ground and under the `@` and the dummy). Presentation only: the TUTORIAL screen
+## hands it the text (show_state); it reads no sim state. INK/BG only.
 
 const SCREEN_TEXT: TextScreenText = preload("res://data/text/screen_text.tres")
 const TEST_SCALE := 2
@@ -24,11 +25,17 @@ const ROW_STEP := 16.0
 ## Prompt rows: centred, the last one 8 px above the play area's bottom edge.
 const PROMPT_BOTTOM_MARGIN := 8.0
 const PROMPT_STEP := 12.0
-## Skip hint: 8 px in from the top-right corner; the hold bar 2 px under it. Story 9.1 (D-S91-4):
-## further hint rows (the pause key) right-aligned under the bar, HINT_ROW_GAP below it, 12 px apart.
-const HINT_MARGIN := 8.0
+## Skip hint: right-aligned in the top-right corner of the arena interior (the play area inside the
+## tree ring, hint_area()), HINT_MARGIN in from its right edge and HINT_TOP below its top edge; the hold
+## bar HOLD_BAR_GAP under it. Story 9.1 (D-S91-4): further hint rows (the pause key) right-aligned
+## under the bar, HINT_ROW_GAP below it, 12 px apart.
+## [design call] Hotfix: the hints sat on the tree ring's top row (beside `stack frame 0x03`) and read
+## as part of the frame; they now stay inside the ring, the bar 1 px clear of checklist row 1.
+const HINT_MARGIN := 4.0
+## HINT_TOP must stay >= BACKING: the skip row's backing then sits inside the ring (test_hint_rows_clear_the_frame_title).
+const HINT_TOP := 2.0
 const HOLD_BAR_HEIGHT := 2.0
-const HOLD_BAR_GAP := 2.0
+const HOLD_BAR_GAP := 1.0
 const HINT_ROW_GAP := 2.0
 const HINT_ROW_STEP := 12.0
 ## Completion rows (D-S82-7): centred, 2x, 24 px apart. Story 9.1 (D-S91-5): bottom-anchored like the
@@ -72,10 +79,16 @@ static func prompt_top_left(text: String, i: int, count: int) -> Vector2:
 	return Vector2(x, bottom_top - (count - 1 - i) * PROMPT_STEP).round()
 
 
-## Pure: top-left of the skip hint, right-aligned in the top-right corner.
+## Pure (hotfix): the rect the hint rows live in: the play area inside the tree ring (one tile in on
+## every side), so they never sit on the frame row with the `stack frame 0x03` label.
+static func hint_area() -> Rect2:
+	return Arena.play_area().grow(-Arena.TILE_PX)
+
+
+## Pure: top-left of the skip hint, right-aligned in the top-right corner of hint_area().
 static func hint_top_left(text: String) -> Vector2:
-	var area: Rect2 = Arena.play_area()
-	return Vector2(area.end.x - HINT_MARGIN - GlyphFont.text_width(text, PROMPT_SCALE), area.position.y + HINT_MARGIN)
+	var area: Rect2 = hint_area()
+	return Vector2(area.end.x - HINT_MARGIN - GlyphFont.text_width(text, PROMPT_SCALE), area.position.y + HINT_TOP)
 
 
 ## Pure (Story 9.1): the hold bar under the skip hint row `text` (its width).
@@ -126,30 +139,42 @@ func clear() -> void:
 	queue_redraw()
 
 
+## Every text row of the current state as {at, text, scale}, in draw order.
+func text_rows() -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	for i: int in lines.size():
+		var at: Vector2 = row_top_left(i)
+		out.append({"at": at, "text": lines[i], "scale": TEST_SCALE})
+		if i == current:
+			out.append({"at": Vector2(CURSOR_LEFT, at.y), "text": CURSOR, "scale": TEST_SCALE})
+	for i: int in prompt.size():
+		out.append({"at": prompt_top_left(prompt[i], i, prompt.size()), "text": prompt[i], "scale": PROMPT_SCALE})
+	for i: int in hints.size():
+		out.append({"at": hint_row_top_left(hints, i), "text": hints[i], "scale": PROMPT_SCALE})
+	if done:
+		var dl: PackedStringArray = done_lines()
+		for i: int in dl.size():
+			out.append({"at": done_top_left(dl[i], i), "text": dl[i], "scale": TEST_SCALE})
+	return out
+
+
+## Pure (hotfix): the BG backing of a text row.
+static func backing_rect(top_left: Vector2, text: String, scale: int) -> Rect2:
+	var size := Vector2(GlyphFont.text_width(text, scale), GlyphFont.CELL * scale)
+	return Rect2(top_left - Vector2.ONE * BACKING, size + Vector2.ONE * BACKING * 2.0)
+
+
+## All the backings first, then all the glyphs: a row's backing reaches BACKING px into its
+## neighbours, so drawing row by row hid the underscore (the glyph's bottom row) of the row above.
 func _draw() -> void:
 	if not active:
 		return
-	for i: int in lines.size():
-		var at: Vector2 = row_top_left(i)
-		_text(at, lines[i], TEST_SCALE)
-		if i == current:
-			_text(Vector2(CURSOR_LEFT, at.y), CURSOR, TEST_SCALE)
-	for i: int in prompt.size():
-		_text(prompt_top_left(prompt[i], i, prompt.size()), prompt[i], PROMPT_SCALE)
-	for i: int in hints.size():
-		_text(hint_row_top_left(hints, i), hints[i], PROMPT_SCALE)
+	var all: Array[Dictionary] = text_rows()
+	for r: Dictionary in all:
+		draw_rect(backing_rect(r["at"], r["text"], r["scale"]), Palette.BG)
+	for r: Dictionary in all:
+		GlyphFont.draw_at(self, r["at"], r["text"], Palette.INK, r["scale"])
 	if not hints.is_empty() and hold > 0.0: # after the rows, so no backing ever covers the bar
 		var bar: Rect2 = hold_bar_rect(hints[0])
 		draw_rect(bar, Palette.INK, false, 1.0)
 		draw_rect(Rect2(bar.position, Vector2(roundf(bar.size.x * hold), HOLD_BAR_HEIGHT)), Palette.INK)
-	if done:
-		var rows: PackedStringArray = done_lines()
-		for i: int in rows.size():
-			_text(done_top_left(rows[i], i), rows[i], TEST_SCALE)
-
-
-## One text row with a BG backing.
-func _text(top_left: Vector2, text: String, scale: int) -> void:
-	var size := Vector2(GlyphFont.text_width(text, scale), GlyphFont.CELL * scale)
-	draw_rect(Rect2(top_left - Vector2.ONE * BACKING, size + Vector2.ONE * BACKING * 2.0), Palette.BG)
-	GlyphFont.draw_at(self, top_left, text, Palette.INK, scale)

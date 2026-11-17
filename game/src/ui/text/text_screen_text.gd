@@ -34,10 +34,13 @@ const TUTORIAL_STEP_COUNT := 6
 ## templates whose {move} {j} {k} {shift} {skip} placeholders TutorialScreen.prompt_text fills with the
 ## last input device's key names; the skip hint template; the two completion rows.
 ## Story 9.1 (618a, D-S91-4 fallback): the pause hint template, the second hint row under the hold bar.
+## Hotfix (tutorial checklist invisible on web): the Packed*Array defaults are `PackedStringArray()`,
+## never `[]`: with `= []` the editor's export (the text -> binary .res conversion) dropped these
+## values, so the shipped build had no test names and no prompts (test_export_defaults guards it).
 @export var tutorial_label: String = ""
-@export var tutorial_tests: PackedStringArray = []
-@export var tutorial_prompts: PackedStringArray = []
-@export var tutorial_prompts_2: PackedStringArray = []
+@export var tutorial_tests: PackedStringArray = PackedStringArray()
+@export var tutorial_prompts: PackedStringArray = PackedStringArray()
+@export var tutorial_prompts_2: PackedStringArray = PackedStringArray()
 @export var tutorial_hint_skip: String = ""
 @export var tutorial_hint_pause: String = ""
 @export var tutorial_all_pass_1: String = ""
