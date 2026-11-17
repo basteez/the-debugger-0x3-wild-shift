@@ -97,6 +97,10 @@ func test_hint_text_matches_each_phase_window_of_every_boss() -> void:
 		if boss == null:
 			_arena.free()
 			continue
+		var dummy := boss as TutorialDummyBody
+		if dummy != null: # Story 8.2 (D-S82-4): the window exists only while the dummy's `;` is open
+			assert_eq(dummy.current_weak_window(), Vector2i.ZERO, "tutorial dummy: no window while closed")
+			dummy.open_left = TutorialDummyBody.OPEN_FRAMES
 		for i: int in def.phases.size():
 			boss.phase_index = i
 			var w: Vector2i = def.phases[i].weak_window

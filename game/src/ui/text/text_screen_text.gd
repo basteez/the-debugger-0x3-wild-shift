@@ -6,6 +6,8 @@ extends Def
 ## data/ending/ending_text.tres (6.8, D-S68-8). Lives in data/text/screen_text.tres. ASCII only.
 
 const PANEL_COUNT := 3
+## Story 8.2 (D-E8-5): the tutorial's six tests, in step order.
+const TUTORIAL_STEP_COUNT := 6
 
 @export var title: String = ""
 @export var prompt: String = ""
@@ -25,6 +27,17 @@ const PANEL_COUNT := 3
 ## press switches to: `[F] fullscreen` while windowed, `[F] windowed` while fullscreen).
 @export var fullscreen_label: String = ""
 @export var windowed_label: String = ""
+## Story 8.2 (AC 2, 9, 11, 12, 15, D-S82-6, D-S82-7): the guided tutorial's text. The title option
+## label; the checklist test names; per step, the prompt row and an optional second row (empty: none),
+## templates whose {move} {j} {k} {shift} {skip} placeholders TutorialScreen.prompt_text fills with the
+## last input device's key names; the skip hint template; the two completion rows.
+@export var tutorial_label: String = ""
+@export var tutorial_tests: PackedStringArray = []
+@export var tutorial_prompts: PackedStringArray = []
+@export var tutorial_prompts_2: PackedStringArray = []
+@export var tutorial_hint_skip: String = ""
+@export var tutorial_all_pass_1: String = ""
+@export var tutorial_all_pass_2: String = ""
 
 
 func validate() -> PackedStringArray:
@@ -49,6 +62,16 @@ func validate() -> PackedStringArray:
 		out.append("fullscreen_label must not be empty")
 	if windowed_label.is_empty():
 		out.append("windowed_label must not be empty")
+	for field: String in ["tutorial_label", "tutorial_hint_skip", "tutorial_all_pass_1", "tutorial_all_pass_2"]:
+		if String(get(field)).is_empty():
+			out.append("%s must not be empty" % field)
+	for field: String in ["tutorial_tests", "tutorial_prompts", "tutorial_prompts_2"]:
+		var rows: PackedStringArray = get(field)
+		if rows.size() != TUTORIAL_STEP_COUNT:
+			out.append("%s must hold exactly %d rows, has %d" % [field, TUTORIAL_STEP_COUNT, rows.size()])
+	for i: int in tutorial_tests.size():
+		if tutorial_tests[i].is_empty() or tutorial_prompts.size() <= i or tutorial_prompts[i].is_empty():
+			out.append("tutorial step %d has an empty test name or prompt" % i)
 	if intro_captions.size() != PANEL_COUNT:
 		out.append("intro_captions must hold exactly %d panels, has %d" % [PANEL_COUNT, intro_captions.size()])
 	for i: int in intro_captions.size():
@@ -75,4 +98,10 @@ func all_text() -> PackedStringArray:
 	var out := PackedStringArray([title, prompt, dead_line, new_run_label, debug_build_on_label, debug_build_off_label, practice_label, practice_hint, fullscreen_label, windowed_label])
 	for panel: PackedStringArray in intro_captions:
 		out.append_array(panel)
+	out.append_array([tutorial_label, tutorial_hint_skip, tutorial_all_pass_1, tutorial_all_pass_2])
+	out.append_array(tutorial_tests)
+	out.append_array(tutorial_prompts)
+	for row: String in tutorial_prompts_2:
+		if not row.is_empty():
+			out.append(row)
 	return out

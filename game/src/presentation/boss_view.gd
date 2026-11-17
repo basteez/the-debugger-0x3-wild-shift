@@ -38,6 +38,9 @@ extends Node2D
 ## cell (open_left / open_frames) and a filled triangle pointing at the `;`. Closed, ROAR, DEFEATED
 ## or hidden by the Nested Loop blink: plain glyph, no cue. Drawn after the `i = N` counter and before
 ## the Patched stack, so the Patched stack wins any overlap. INK only. Reads only (AD-05).
+## Story 8.2 (E7, AC 10): the tutorial dummy (TutorialDummyBody) is drawn as `{;}` at its centre; its
+## `;` is the lit (inverted) cell while open, with the same 8.1 cue (bar and pointer) drawn below it,
+## pointing up at the `;` (the shared _draw_cue_at helper; plain `;`, no cue, while closed).
 
 const GLYPH_SCALE := 2
 const TELL_MARK := "!"
@@ -77,6 +80,11 @@ const CUE_MIN_SCALE := 0.5
 ## The bar never sits closer than this to the `;` centre (its cell reaches 8 px on an axis).
 const CUE_BAR_MIN_INSET := 10.0
 const CUE_MARKER_HALF := 4.0
+## Story 8.2 (E7): the tutorial dummy's glyph cells, left to right (the `;` in the middle), and where
+## its cue's virtual "ring centre" sits: CUE_REF_RADIUS below the `;`, so the cue is drawn at full
+## size under the `;`, pointing up at it.
+const DUMMY_GLYPHS: PackedStringArray = ["{", ";", "}"]
+const DUMMY_SEMICOLON_INDEX := 1
 ## Story 5.1: the ghost's glyph lines (two rows of `null`) and the column glyph, at GHOST_SCALE.
 const GHOST_LINES: PackedStringArray = ["null", "null"]
 const TRAIL_GLYPH := "null"
@@ -154,6 +162,9 @@ func _draw() -> void:
 		return
 	if boss is NullPointerBody:
 		_draw_ghost(boss as NullPointerBody)
+		return
+	if boss is TutorialDummyBody: # Story 8.2 (E7)
+		_draw_dummy(boss as TutorialDummyBody)
 		return
 	if is_glyph_body(boss): # Story 6.3: the Segfault dragon, read by method (AD-12 leaf rule)
 		_draw_glyph_body(boss)
@@ -405,15 +416,34 @@ func _draw_ring_cell(centre: Vector2, glyph: String, lit: bool, cell: Vector2, j
 ## Story 8.1 (D-E8-2): the open `;` cue: the countdown bar (outline, then the fill from its first
 ## end) and the pointer triangle, on the inner side of the ring. Reads only.
 func _draw_open_cue(body: InfiniteLoopBody, jitter: Vector2) -> void:
-	var centre: Vector2 = body.body_center_px + jitter
-	var semicolon: Vector2 = body.semicolon_px() + jitter
+	_draw_cue_at(body.body_center_px + jitter, body.semicolon_px() + jitter, body.open_left, body.ring.open_frames)
+
+
+## Story 8.2 (E7): the cue from plain values (the ring or virtual centre, the `;` centre, the open
+## ticks left and the opening's length), shared by the Infinite Loop and the tutorial dummy.
+func _draw_cue_at(centre: Vector2, semicolon: Vector2, open_left: int, open_frames: int) -> void:
 	var bar: PackedVector2Array = open_cue_bar(centre, semicolon)
 	var normal: Vector2 = (semicolon - centre).normalized() * (CUE_BAR_WIDTH / 2.0 + 1.0)
 	draw_polyline(PackedVector2Array([bar[0] + normal, bar[1] + normal, bar[1] - normal, bar[0] - normal, bar[0] + normal]), Palette.INK, 1.0)
-	var fraction: float = open_bar_fraction(body.open_left, body.ring.open_frames)
+	var fraction: float = open_bar_fraction(open_left, open_frames)
 	if fraction > 0.0:
 		draw_line(bar[0], bar[0].lerp(bar[1], fraction), Palette.INK, CUE_BAR_WIDTH)
 	draw_colored_polygon(open_cue_marker(centre, semicolon), Palette.INK)
+
+
+## Story 8.2 (E7, AC 10): the tutorial dummy `{;}`: the `;` inverted with the cue under it while
+## open, plain while closed; the Patched stack above and the damage number under the cue. Reads only.
+func _draw_dummy(body: TutorialDummyBody) -> void:
+	var cell := Vector2(GlyphFont.CELL * GLYPH_SCALE, GlyphFont.CELL * GLYPH_SCALE)
+	var open: bool = dummy_cue_on(body)
+	for k: int in DUMMY_GLYPHS.size():
+		_draw_ring_cell(dummy_cell_centre(body.body_center_px, k), DUMMY_GLYPHS[k], open and k == DUMMY_SEMICOLON_INDEX, cell, Vector2.ZERO)
+	if open:
+		_draw_cue_at(dummy_cue_centre(body.body_center_px), body.body_center_px, body.open_left, TutorialDummyBody.OPEN_FRAMES)
+	var size := Vector2(cell.x * DUMMY_GLYPHS.size(), cell.y)
+	if body.weak_window.is_patched():
+		_draw_patched(line_top_left(body.body_center_px, size), size, body.weak_window.frames_left)
+	_draw_number(Vector2(0, CUE_MARKER_BASE + cell.y))
 
 
 ## Story 3.4 (G1): the running attack's tell marks, hazard cells and outline. Reads only.
@@ -528,6 +558,21 @@ static func nested_flash_hidden(telling: bool, frames_left: int) -> bool:
 ## Story 3.5 (D-S35-9): true while the Spit's origin `;` glows (its last spit_tell_frames ticks). Reads only.
 static func spit_glow_on(body: InfiniteLoopBody) -> bool:
 	return body.spit.glowing()
+
+
+## Story 8.2 (E7): true while the dummy's `;` cue is drawn: open and hittable. Reads only.
+static func dummy_cue_on(body: TutorialDummyBody) -> bool:
+	return body != null and body.weak_point_open()
+
+
+## Story 8.2 (E7): the centre of the dummy's glyph cell `k` (the `;` is the body centre). Pure.
+static func dummy_cell_centre(centre: Vector2, k: int) -> Vector2:
+	return centre + Vector2((k - DUMMY_SEMICOLON_INDEX) * GlyphFont.CELL * GLYPH_SCALE, 0.0)
+
+
+## Story 8.2 (E7): the dummy cue's virtual ring centre, CUE_REF_RADIUS below the `;`. Pure.
+static func dummy_cue_centre(semicolon: Vector2) -> Vector2:
+	return semicolon + Vector2(0.0, CUE_REF_RADIUS)
 
 
 ## Story 8.1 (AC 3, 4): true while the open `;` cue is drawn: the `;` is hittable (open, not ROAR,

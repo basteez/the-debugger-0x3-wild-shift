@@ -188,6 +188,27 @@ func test_screen_text_validates_and_the_screens_read_it() -> void:
 	assert_eq(SCREEN.dead_line, "Process exited with code 1")
 
 
+## Story 8.2 (G4, AC 9, 17): the tutorial text is audited screen text: ASCII, six tests and prompts,
+## every prompt row within 64 columns at 1x for both devices, and the title reads its label.
+func test_tutorial_text_is_audited() -> void:
+	assert_eq(SCREEN.validate(), PackedStringArray())
+	assert_eq(SCREEN.tutorial_tests.size(), TutorialSteps.STEP_COUNT)
+	assert_eq(SCREEN.tutorial_prompts.size(), TutorialSteps.STEP_COUNT)
+	assert_eq(SCREEN.tutorial_prompts_2.size(), TutorialSteps.STEP_COUNT)
+	assert_eq(TitleScreen.TUTORIAL_TEXT, SCREEN.tutorial_label)
+	assert_eq(SCREEN.tutorial_all_pass_1, "ALL TESTS PASSED.")
+	assert_eq(SCREEN.tutorial_all_pass_2, "deploying to production...")
+	for text: String in SCREEN.all_text():
+		assert_true(DuckLineDef.is_ascii(text), text)
+	for step: int in TutorialSteps.STEP_COUNT:
+		for device: int in [TutorialScreen.Device.KEYBOARD, TutorialScreen.Device.GAMEPAD]:
+			for row: String in TutorialScreen.prompt_rows(step, device):
+				assert_lte(row.length(), 64, row)
+	var bad: TextScreenText = SCREEN.duplicate()
+	bad.tutorial_tests = PackedStringArray(["only_one"])
+	assert_gt(bad.validate().size(), 0, "six tests required")
+
+
 func test_intro_captions_keep_their_panel_grouping() -> void:
 	assert_eq(SCREEN.intro_captions.size(), IntroScreen.PANEL_COUNT)
 	var sizes: Array[int] = []

@@ -33,6 +33,11 @@ const NULL_POINTER_DEF_PATH := "res://data/bosses/null_pointer/boss_def.tres"
 ## leaf (FeatureFlags.segfault): its body class is loaded by path, never named here.
 const SEGFAULT_DEF_PATH := "res://data/bosses/segfault/boss_def.tres"
 const SEGFAULT_BODY_PATH := "res://src/bosses/segfault/segfault_body.gd"
+## Story 8.2 (D-S82-2, C3): the tutorial dummy, the boss of the TUTORIAL state (TutorialDummyBody).
+## [design call] Placed right of spawn and a little up (not at TEST_BOSS_PX), so the checklist in the
+## play area's top-left corner never covers it.
+const TUTORIAL_DEF_PATH := "res://data/bosses/tutorial_dummy/boss_def.tres"
+const TUTORIAL_DUMMY_PX := SPAWN_PX + Vector2(8 * TILE_PX, -2 * TILE_PX)
 ## Story 6.6 (AC 3, cut #1): the AttackDef id of Reserved Write, dropped from the pools when its flag
 ## is off (by id, never by class).
 const RESERVED_WRITE_ID := &"reserved_write"
@@ -237,7 +242,7 @@ func _set_boss(path: String) -> void:
 			return
 		boss = controller
 		boss_def_path = path
-		boss.body_center_px = TEST_BOSS_PX # the Infinite Loop, the Null Pointer and the Segfault place themselves in reset (D-S33-18)
+		boss.body_center_px = TUTORIAL_DUMMY_PX if path == TUTORIAL_DEF_PATH else TEST_BOSS_PX # the Infinite Loop, the Null Pointer and the Segfault place themselves in reset (D-S33-18)
 		if is_inside_tree():
 			SimClock.register_system(boss)
 	boss.breakpoint_on = breakpoint_enabled # D-S43-11: the SIGSEGV fallback reads the flag
@@ -327,6 +332,8 @@ static func boss_class_for(path: String) -> GDScript:
 		return InfiniteLoopBody
 	if path == NULL_POINTER_DEF_PATH:
 		return NullPointerBody
+	if path == TUTORIAL_DEF_PATH: # Story 8.2 (C3)
+		return TutorialDummyBody
 	if path == SEGFAULT_DEF_PATH: # Story 6.3 (AD-12): by path, the leaf's class is never named
 		var script := load(SEGFAULT_BODY_PATH) as GDScript
 		if script == null:

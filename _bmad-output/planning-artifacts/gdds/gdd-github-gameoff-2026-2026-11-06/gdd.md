@@ -259,7 +259,7 @@ All timings assume a 60 FPS simulation. 1 tile = 16 px at the 640×360 base reso
 - **Input buffer:** 8 frames for actions and shifts.
 - **Remapping:** out of scope for v1.0. The pause screen shows the controls.
 - **Press-to-start:** the title screen requires a key press or click before any audio plays (browser autoplay policy). Every input unlocks audio.
-  - **Option hotkeys (D-048):** `[N]` new run (shown only when a save exists), `[P]` practice (Should), `[B]` debug build (Should), `[F]` fullscreen. An option hotkey, or a click on its label, acts on that option only.
+  - **Option hotkeys (D-048):** `[N]` new run (shown only when a save exists), `[P]` practice (Should), `[T]` tutorial (replay; Story 8.2), `[B]` debug build (Should), `[F]` fullscreen. An option hotkey, or a click on its label, acts on that option only.
   - **Any other key or click** starts the run, or continues it at the highest boss reached. That input starts the 30-s first-shift clock (Gameplay Metrics) and leads straight into the ≤ 8 s intro.
   - Gamepad: Start starts or continues; Select starts a new run.
 - **Pause screen:** lists the controls, plus `[Esc]` resume, `[F]` fullscreen, `[B]` debug build (Should) and `[M]` mute (Should; mutes the Master bus and persists).
@@ -328,6 +328,14 @@ This section uses the `fighting` genre guide's structure for frame data, combos,
 - A `/* test */` training dummy with infinite HP and no attacks.
 - It is used for development tuning (Epic 2) and offered to players from the title screen as a **Should**.
 - It shows a per-hit damage log and a frame counter.
+
+### Onboarding: the Tutorial
+
+- **"Running the test suite"** (Story 8.2, D-051): on a run whose save has not done it, the Intro is followed by a **TUTORIAL** flow state in The Clearing, against a tutorial dummy (`{;}`) that never attacks, never hurts and never dies. It takes damage states like a boss (×0.5 unpatched, ×1.5 Patched).
+- **Six tests**, each passed only by doing it, in order, shown as a large checklist in the play area (`[ ] test_x` → `[PASS] test_x`) with a one- or two-row prompt naming the keys of the last input device (keyboard or pad): `test_move` (walk 3 tiles), `test_actions` (use J and K), `test_shift` (shift until the live bits read `A D`), `test_combo` (a Dash Strike), `test_patch` (Dash Strike the dummy's `;` while it is open: it opens on a fixed timer, closed 3 s then open 2 s, with the Boss 1 open cue), `test_crit` (hit it again while Patched).
+- When all pass: `ALL TESTS PASSED.` / `deploying to production...`, then Boss 1 exactly as before (start set `[D, A]`, duck lines T1–T4). The register starts at `[D, A]`, so the run's first shift is the tutorial's `test_shift`, well inside the 30-s first-shift goal.
+- **Skip:** hold Esc or Backspace (pad: Select) for 1 s at any time (shown as `hold Esc or Bksp: skip`; Backspace because the browser eats Esc in itch fullscreen); a tap does nothing, and P pauses. **Replay:** `[T] tutorial` on the title (key T or a click; it ends back at the title).
+- Completing or skipping sets `tutorial_done` in the save (version 2; version 1 saves load with it false). Resume and retry never show the tutorial; `[N] new run` shows it only while `tutorial_done` is false. No new duck line, music or asset (the title track plays during the tutorial).
 
 ### Boss Design
 
@@ -503,7 +511,7 @@ This section uses the `fighting` genre guide's structure for frame data, combos,
 
 ### Level Progression
 
-- **Sequence:** Intro → Infinite Loop → Null Pointer → Segfault → Ending. There is no level select in v1.0.
+- **Sequence:** Intro → (Tutorial, first run only) → Infinite Loop → Null Pointer → Segfault → Ending. There is no level select in v1.0.
 - **Save points:** the start of each fight. The run resumes at the highest boss reached when storage is available.
 
 ---
