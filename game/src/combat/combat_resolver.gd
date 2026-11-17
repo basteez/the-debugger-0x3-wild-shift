@@ -30,6 +30,11 @@ extends SimSystem
 ## Patched on a match, and the decoy is removed. No damage, no hit_landed, no hit-stop. The player's
 ## hits, the Null Pointer decoy dispel and the whiff rule never see the Ghost decoy. A defeated boss
 ## clears it (D-S61-6).
+## Story 8.1 (D-E8-3, D-S81-3..5): miss feedback. On every ACTIVE frame of a damaging action (not
+## PASS_THROUGH) the boss's non-hurtbox body is queried (BossController.body_touch_px, read only);
+## on the action's last ACTIVE frame, when the body was touched and nothing landed on that serial,
+## EventBus.hit_missed is emitted once. No damage, no mark, no hit-stop, no RNG: sim state is
+## unchanged (the touch bookkeeping below is resolver-local and never hashed).
 
 ## Story 5.3 (D-S53-6): the NullPointerException stun length in sim frames.
 const NPE_STUN_FRAMES := 20
@@ -47,6 +52,11 @@ var ghost: GhostDecoy = null
 ## Story 5.3: ActionStateMachine.action_serial of the last action that landed anything (boss hit,
 ## decoy dispel, practice target hit); -1 = none. Read by the whiff rule.
 var _landed_serial: int = -1
+## Story 8.1 (D-S81-4): the serial whose action touched the boss's body, -1 = none; where it first
+## touched; whether the weak point was open on any touched frame. Presentation bookkeeping only.
+var _body_touch_serial: int = -1
+var _body_touch_px: Vector2 = Vector2.ZERO
+var _body_touch_open: bool = false
 
 
 func _init(p_actions: ActionStateMachine = null, p_player: Player = null) -> void:
@@ -76,8 +86,10 @@ func tick(_ctx: SimContext) -> void:
 	# Story 5.3 (D-S53-5, D-S53-8): decoys first, so a boss hit that ends the phase cannot clear them
 	# under this very hit; each overlapped decoy is removed, so it is dispelled once.
 	var dispelled: int = boss.decoy_hit(def.hit_shape, origin, facing) if boss != null else 0
+	_note_body_touch(def.hit_shape, origin, facing, serial)
 	if hit.is_empty() and not boss_hit and dispelled == 0:
 		_check_whiff(def, serial)
+		_check_miss(def, serial)
 		return
 	_landed_serial = serial
 	var is_combo: bool = actions.combo != null
@@ -150,6 +162,34 @@ func _check_whiff(def: ActionDef, serial: int) -> void:
 		return
 	Log.debug(&"combat", "whiff %s: %s" % [def.id, NPE_REASON])
 	actions.begin_stun(NPE_STUN_FRAMES, NPE_REASON)
+
+
+## Story 8.1 (D-S81-3, D-S81-4): remembers that the action with `serial` touched the boss's body
+## this frame (the first contact point, and whether the weak point was open). Reads the boss only.
+func _note_body_touch(shape: HitShape, origin: Vector2, facing: Vector2, serial: int) -> void:
+	if boss == null:
+		return
+	var at: Vector2 = boss.body_touch_px(shape, origin, facing)
+	if not at.is_finite():
+		return
+	if _body_touch_serial != serial:
+		_body_touch_serial = serial
+		_body_touch_px = at
+		_body_touch_open = false
+	_body_touch_open = _body_touch_open or boss.weak_point_open()
+
+
+## Story 8.1 (AC 5, D-S81-4): on the last ACTIVE frame of an action that touched the boss's body and
+## landed nothing, one EventBus.hit_missed (closed = the weak point was never open while touched).
+## Serial-guarded like _check_whiff, so it fires once per action. No sim write.
+func _check_miss(def: ActionDef, serial: int) -> void:
+	if boss == null or _body_touch_serial != serial or _landed_serial == serial:
+		return
+	if actions.action_frame != def.startup_frames + def.active_frames:
+		return
+	_body_touch_serial = -1
+	Log.debug(&"combat", "miss %s (%s)" % [def.id, "open" if _body_touch_open else "closed"])
+	EventBus.hit_missed.emit(boss.hit_target_id(), not _body_touch_open, _body_touch_px)
 
 
 ## True for the ATTACK bit's slashes (Defs identity, D-S53-11). Pure.

@@ -19,8 +19,8 @@ extends Def
 @export var open_frames: int = 90
 ## Radius of each segment's contact circle, in tiles (D-S33-3).
 @export var contact_radius_tiles: float = 0.5
-## Radius of the `;` hurt circle, in tiles (D-S33-4).
-@export var hurt_radius_tiles: float = 0.5
+## Radius of the `;` hurt circle, in tiles (D-S33-4; Story 8.1, D-E8-1: 0.5 -> 1.0, near misses count).
+@export var hurt_radius_tiles: float = 1.0
 ## Story 3.4 (D-S34-8): how far Head Rush's head charges in its ACTIVE window, in tiles.
 @export var head_charge_tiles: int = 10
 ## Story 3.4 (D-S34-7): speed at which Constrict re-centres on its aim, in tiles/s. Must beat the

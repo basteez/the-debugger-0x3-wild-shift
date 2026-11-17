@@ -410,6 +410,30 @@ func hit_position() -> Vector2:
 	return semicolon_px() if is_open() else body_center_px
 
 
+## Story 8.1 (D-S81-3): the ring body for the miss feedback. A segment (outer, then inner after the
+## split) counts as touched when the shape overlaps its contact circle (`contact_radius_tiles`).
+## Nothing while the boss is not hittable (ROAR, DEFEATED, inactive, AC 8). Returns the first touched
+## segment's centre, or Vector2.INF. Read only.
+func body_touch_px(shape: HitShape, origin: Vector2, facing: Vector2) -> Vector2:
+	if shape == null or not is_hittable():
+		return Vector2.INF
+	var r: float = HitShape.tiles_to_px(ring.contact_radius_tiles)
+	for k: int in _units.size():
+		var p: Vector2 = segment_px(k)
+		if shape.overlaps(origin, facing, p, r):
+			return p
+	for k: int in _inner_units.size():
+		var p: Vector2 = inner_segment_px(k)
+		if shape.overlaps(origin, facing, p, r):
+			return p
+	return Vector2.INF
+
+
+## Story 8.1 (D-S81-2): the weak point is the `;`, open while hittable.
+func weak_point_open() -> bool:
+	return is_semicolon_hittable()
+
+
 ## Contact (AC 5, D-S33-3): the player's centre inside any segment's circle. Off once DEFEATED.
 ## Story 3.4 (D-S34-9): the live attack's hazard first; a hazard that replaces the body (Constrict's
 ## disc) leaves the segments out while ACTIVE.

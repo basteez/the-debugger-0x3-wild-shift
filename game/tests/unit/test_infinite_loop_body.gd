@@ -302,7 +302,9 @@ func test_only_the_open_semicolon_overlaps_a_hit() -> void:
 	_start(b)
 	assert_true(b.overlaps_shape(small, b.semicolon_px(), Vector2.RIGHT), "open `;`")
 	assert_eq(b.hit_position(), b.semicolon_px())
-	assert_true(b.overlaps_shape(small, b.semicolon_px() + Vector2(0, 11.9), Vector2.RIGHT), "hurt radius 0.5 tile + 0.25")
+	# Story 8.1 (D-E8-1): the hurt circle is 1.0 tile (was 0.5): 16 px + the 4 px shape.
+	assert_true(b.overlaps_shape(small, b.semicolon_px() + Vector2(0, 19.9), Vector2.RIGHT), "hurt radius 1.0 tile + 0.25")
+	assert_false(b.overlaps_shape(small, b.semicolon_px() + Vector2(0, 20.5), Vector2.RIGHT), "just outside 1.0 tile + 0.25")
 	assert_false(b.overlaps_shape(small, b.segment_px(12), Vector2.RIGHT), "a segment never takes a hit")
 	assert_false(b.overlaps_shape(small, b.body_center_px, Vector2.RIGHT), "nor the centre")
 	assert_false(b.overlaps_shape(null, b.semicolon_px(), Vector2.RIGHT))

@@ -620,3 +620,24 @@ func test_an_echoed_def_without_the_bit_does_not_cancel() -> void:
 	assert_true(_fsm.link.held)
 	_run_to(17)
 	assert_same(_fsm.action, Defs.SLASH_1, "starts once the echoed dash ends")
+
+
+# --- Story 8.1 (D-S81-5): a PASS_THROUGH Echo Dash over the ring body gives no miss feedback ---
+
+func test_echo_dash_over_the_closed_ring_body_gives_no_miss() -> void:
+	_il_shifts = 0
+	var ctx := ArenaContext.new()
+	ctx.shift_count = func() -> int: return _il_shifts
+	var b := InfiniteLoopBody.new()
+	assert_true(b.setup(IL_DEF, null, ctx))
+	b.reset_for_fight()
+	var centre: Vector2 = b.body_center_px
+	ctx.contact_source = func() -> Vector2: return centre
+	b.body_center_px += SPAWN + Vector2(56, 0) - b.segment_px(0) # the closed `;` on the dash path
+	_combat.boss = b
+	_dash_then_k(3)
+	assert_same(_fsm.action, Defs.ECHO_DASH)
+	assert_true(b.body_overlaps_shape(Defs.ECHO_DASH.hit_shape, _fsm.action_origin_px, Vector2(_fsm.facing).normalized()), "the dash crosses the body")
+	_settle()
+	assert_signal_emit_count(EventBus, "hit_missed", 0)
+	assert_signal_emit_count(EventBus, "hit_landed", 0)

@@ -7,11 +7,14 @@ extends Node2D
 ## EventBus.hit_landed, reads SimClock.sim_frame read-only, and is never read by the simulation.
 ## Randomness is presentation-owned (never SimContext.rng). Main places it at the arena origin, so
 ## the arena-local hit points line up.
+## Story 8.1 (D-S81-6): EventBus.hit_missed spawns a small DEFLECT_BURST at the contact point.
 
 const CAPACITY := 300
 ## Burst sizes (D-S28-2).
 const SOLO_BURST := 12
 const COMBO_BURST := 20
+## Story 8.1 (D-S81-6): the miss deflect, smaller than any hit burst (visible, never a hit).
+const DEFLECT_BURST := 3
 ## Lifetime in sim frames (D-S28-2).
 const LIFETIME := 14
 const GLYPHS: PackedStringArray = ["*", "+", "'", ".", "x"]
@@ -51,12 +54,16 @@ func _init() -> void:
 func _enter_tree() -> void:
 	if not EventBus.hit_landed.is_connected(_on_hit_landed):
 		EventBus.hit_landed.connect(_on_hit_landed)
+	if not EventBus.hit_missed.is_connected(_on_hit_missed):
+		EventBus.hit_missed.connect(_on_hit_missed)
 	_stepped_frame = SimClock.sim_frame
 
 
 func _exit_tree() -> void:
 	if EventBus.hit_landed.is_connected(_on_hit_landed):
 		EventBus.hit_landed.disconnect(_on_hit_landed)
+	if EventBus.hit_missed.is_connected(_on_hit_missed):
+		EventBus.hit_missed.disconnect(_on_hit_missed)
 
 
 func _process(_delta: float) -> void:
@@ -154,4 +161,9 @@ func _draw() -> void:
 
 func _on_hit_landed(_target: StringName, _damage: int, state: int, is_combo: bool, pos: Vector2) -> void:
 	spawn(pos, burst_for(is_combo, state))
+	queue_redraw()
+
+
+func _on_hit_missed(_target: StringName, _closed: bool, pos: Vector2) -> void:
+	spawn(pos, DEFLECT_BURST)
 	queue_redraw()

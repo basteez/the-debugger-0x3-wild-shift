@@ -389,6 +389,26 @@ func hit_position() -> Vector2:
 	return body_center_px
 
 
+## Story 8.1 (D-E8-3, D-S81-3, D-S81-8) virtual hooks for the miss feedback. A boss with a body that
+## is not its hurtbox (the Infinite Loop's ring) overrides them; the default boss has no such body,
+## so it never produces a miss. Read only: CombatResolver calls them, they never write state.
+
+## The arena-local centre of the first body part a player hit shape touches without it being a
+## hurtbox hit, or Vector2.INF when none (the default).
+func body_touch_px(_shape: HitShape, _origin: Vector2, _facing: Vector2) -> Vector2:
+	return Vector2.INF
+
+
+## True when a player hit shape touches the boss's non-hurtbox body (see body_touch_px).
+func body_overlaps_shape(shape: HitShape, origin: Vector2, facing: Vector2) -> bool:
+	return body_touch_px(shape, origin, facing).is_finite()
+
+
+## True while the boss's weak point is open to hits (the miss line's wording). Default: false.
+func weak_point_open() -> bool:
+	return false
+
+
 ## True when the player's centre `p` is inside the boss's contact area (D-S31-25: no player radius).
 func touches_player(p: Vector2) -> bool:
 	return body_center_px.distance_to(p) <= _body_radius_px
