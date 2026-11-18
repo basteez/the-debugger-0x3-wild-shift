@@ -167,7 +167,7 @@ development_status:
   7-6-practice-target-from-the-title-screen-should: done # Should — first to drop
   7-7-fullscreen-browser-matrix-and-performance: done # human checks H-S77-1..6 pending (deferred-work.md)
   7-8-full-run-playtest-and-final-tuning: review # HUMAN CHECKPOINT: playtesters by Nov 27 (harness only; sessions pending: H-S78-1..4)
-  7-9-itch-io-page-readme-and-submission: review # H-S79-1..3 done 2026-11-17 (GIFs, screenshots, itch page refresh by the coordinator); H-S79-4 AI wording pending; H-S79-5 (submit) done 2026-11-17, submitted by Tiziano
+  7-9-itch-io-page-readme-and-submission: done # H-S79-1..3 and 5 done 2026-11-17; H-S79-4 (AI wording) confirmed 2026-11-18; itch metadata tabs filled 2026-11-18
   epic-7-retrospective: optional
 
   # Epic 8: Playtest Response: Onboarding and Hit Readability — window Nov 17–25 (accepted 2026-11-17)
