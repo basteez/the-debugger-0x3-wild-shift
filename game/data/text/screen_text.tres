@@ -19,7 +19,7 @@ windowed_label = "[F] windowed"
 tutorial_label = "[T] tutorial"
 tutorial_tests = PackedStringArray("test_move", "test_actions", "test_shift", "test_combo", "test_patch", "test_crit")
 tutorial_prompts = PackedStringArray("Move with {move}. Walk around a little.", "{j} runs the left live bit, {k} the right one. Try both.", "{shift} shift the bits. Shift until the live bits read A D.", "{j} then {k}, quickly: Dash Strike. Hit the dummy with it.", "The ; is the only weak spot. Wait until it lights up,", "PATCHED = x1.5 damage for 3 s. Unpatched hits do only x0.5.")
-tutorial_prompts_2 = PackedStringArray("Each test turns to [PASS] when you do it.", "The 2 left bits in the reg panel are live. A = slash, D = dash.", "Then {j} slashes and {k} dashes.", "A slash, then a dash right away: that is a combo.", "then hit it with a Dash Strike: it gets PATCHED.", "Hit it again now, while it is PATCHED.")
+tutorial_prompts_2 = PackedStringArray("Each test turns to [PASS] when you do it.", "The 2 left bits in the reg panel are live. A = slash, D = dash.", "Then {j} slashes and {k} dashes.", "Order matters: live bits must read A D. D A is no combo.", "then Dash Strike it (bits on A D): it gets PATCHED.", "Hit it again now, while it is PATCHED.")
 tutorial_hint_skip = "hold {skip}: skip"
 tutorial_hint_pause = "{pause}: pause"
 tutorial_all_pass_1 = "ALL TESTS PASSED."
